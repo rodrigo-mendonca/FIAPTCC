@@ -1,0 +1,14 @@
+# ChromaDB Python Client (versão compatível com Windows)
+chromadb==0.5.15
+requests==2.31.0
+
+# Alternativa sem compilação para Windows
+# Use chromadb-client se tiver problemas de compilação
+# chromadb-client==0.5.15
+
+# Optional: Para embeddings customizados
+sentence-transformers==2.2.2
+openai==1.3.0
+
+# Para desenvolvimento e testes
+pytest==7.4.0

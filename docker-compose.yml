@@ -1,0 +1,132 @@
+services:
+  # LMStudio container (original)
+  #lmchat:
+  #  shm_size: '16gb'
+  #  build: 
+  #    dockerfile: Dockerfile
+  #    context: ./fiap_lmstudio
+  #    shm_size: '16gb'
+  #  deploy:
+  #    resources:
+  #      limits:
+  #        memory: 16G
+  #      reservations:
+  #        memory: 8G
+  #        devices:
+  #          - driver: nvidia
+  #            count: all
+  #            capabilities: [gpu]
+  #  container_name: lmchat
+  #  ports:
+  #    - "8080:1234"
+  #    - "5900:5900"
+  #    - "6080:6080"
+  #  volumes:
+  #    - C:\Users\rodri\.lmstudio\models:/root/.cache/lm-studio/models
+  #    - C:\Users\rodri\.lmstudio:/root/docs
+  #  environment:
+  #    - CONTEXT_LENGTH=32768
+  #    - CUDA_VISIBLE_DEVICES=0
+  #    - NVIDIA_VISIBLE_DEVICES=all
+  #    - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #    - OMP_NUM_THREADS=8
+  #    - CUDA_CACHE_DISABLE=0
+  #    - CUDA_LAUNCH_BLOCKING=0
+  #    - LMS_GPU_ACCELERATION=cuda
+  #    - LMS_GPU_MEMORY_FRACTION=0.9
+  #    - LMS_CPU_THREADS=8
+  #  command: ["/start_services.sh"]
+  #  restart: always
+  #  ulimits:
+  #    memlock:
+  #      soft: -1
+  #      hard: -1
+  #    stack:
+  #      soft: 67108864
+  #      hard: 67108864
+  #  networks:
+  #    - lmstudio-network
+
+  # Python API
+  fiap-api:
+    build:
+      context: .
+      dockerfile: ./fiap_api/Dockerfile
+    container_name: lmstudio-fiap-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fiap_api:/app
+    environment:
+      - LMSTUDIO_URL=http://host.docker.internal:1234
+      - ENVIRONMENT=docker
+    restart: unless-stopped
+    networks:
+      - lmstudio-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend
+  fiap-interface:
+    build:
+      context: ./fiap_interface
+      dockerfile: Dockerfile.dev
+      args:
+        - REACT_APP_API_URL=http://localhost:8000
+    container_name: lmstudio-fiap-interface
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./fiap_interface:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8000
+    command: npm start
+    depends_on:
+      - fiap-api
+    restart: unless-stopped
+    networks:
+      - lmstudio-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ChromaDB Vector Database
+  chromadb:
+    build:
+      context: ./fiap_chromadb
+      dockerfile: Dockerfile
+    container_name: lmstudio-chromadb
+    ports:
+      - "8200:8200"
+    volumes:
+      - chromadb_data:/chroma/data
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_PORT=8200
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+    restart: unless-stopped
+    networks:
+      - lmstudio-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  lmstudio-network:
+    driver: bridge
+
+volumes:
+  chromadb_data:
+    driver: local

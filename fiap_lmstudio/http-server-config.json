@@ -1,0 +1,1 @@
+{"port":1234,"cors":true,"logSensitiveData":false,"verbose":false,"logLinesLimit":100,"networkInterface":"0.0.0.0","autoStart":true,"autoStartOnLaunch":true,"justInTimeModelLoading":false,"fileLoggingMode":"succinct","maxConcurrentRequests":4,"requestTimeout":300,"modelLoadTimeout":600,"enableGpuAcceleration":true,"enableMemoryMapping":true,"contextLength":32768,"batchSize":2048}

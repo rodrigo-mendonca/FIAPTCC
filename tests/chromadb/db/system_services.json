@@ -1,0 +1,697 @@
+{
+  "system_services": {
+    "system_name": "sistema_comercial",
+    "version": "3.0",
+    "last_updated": "2025-10-06T10:00:00Z",
+    "description": "Catálogo de serviços e processos automatizados do sistema comercial",
+    "categories": ["backup", "financeiro", "estoque", "vendas", "crm", "relatorios", "manutencao"],
+    "services": {
+      "backup_database": {
+        "service_id": "SRV_001",
+        "name": "Backup Automático da Base de Dados",
+        "description": "Realiza backup completo de todas as tabelas do sistema comercial, incluindo dados e estrutura, armazenando em local seguro com compactação",
+        "category": "backup",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "02:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 2:00h da madrugada"
+        },
+        "estimated_duration": "15-30 minutos",
+        "priority": "high",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "500MB",
+          "memory": "256MB",
+          "cpu": "low"
+        },
+        "inputs": {
+          "backup_location": "/backup/daily/",
+          "compression_level": "high",
+          "retention_days": 30
+        },
+        "outputs": {
+          "backup_file": "sistema_comercial_YYYYMMDD.sql.gz",
+          "log_file": "backup_YYYYMMDD.log"
+        },
+        "notifications": {
+          "on_success": "email_admin",
+          "on_failure": "email_admin_urgent"
+        },
+        "last_execution": "2025-10-05T02:00:00Z",
+        "next_execution": "2025-10-07T02:00:00Z"
+      },
+      "update_contas_vencidas": {
+        "service_id": "SRV_002",
+        "name": "Atualização de Status de Contas Vencidas",
+        "description": "Verifica todas as contas a receber em aberto e atualiza automaticamente o status para 'vencida' quando a data de vencimento é ultrapassada",
+        "category": "financeiro",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "06:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 6:00h da manhã"
+        },
+        "estimated_duration": "2-5 minutos",
+        "priority": "high",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "10MB",
+          "memory": "64MB",
+          "cpu": "low"
+        },
+        "business_logic": {
+          "condition": "data_vencimento < CURRENT_DATE AND status = 'em_aberto'",
+          "action": "UPDATE status = 'vencida'",
+          "affected_table": "contas_receber"
+        },
+        "notifications": {
+          "on_success": "log_only",
+          "on_failure": "email_financeiro",
+          "daily_report": "email_gerencia"
+        },
+        "metrics": {
+          "contas_atualizadas": "integer",
+          "valor_total_vencido": "decimal"
+        }
+      },
+      "calculo_juros_multa": {
+        "service_id": "SRV_003",
+        "name": "Cálculo de Juros e Multa",
+        "description": "Calcula e aplica juros de mora e multa por atraso nas contas vencidas conforme política comercial da empresa",
+        "category": "financeiro",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "06:30:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 6:30h, após atualização de status"
+        },
+        "estimated_duration": "5-10 minutos",
+        "priority": "high",
+        "dependencies": ["update_contas_vencidas"],
+        "resources_required": {
+          "disk_space": "20MB",
+          "memory": "128MB",
+          "cpu": "medium"
+        },
+        "business_logic": {
+          "condition": "status = 'vencida' AND data_vencimento < CURRENT_DATE",
+          "calculation": {
+            "juros_diario": "0.033%",
+            "multa_fixa": "2%",
+            "formula": "(valor_original * 0.02) + (valor_original * 0.00033 * dias_atraso)"
+          },
+          "affected_table": "contas_receber",
+          "updated_fields": ["juros_multa", "saldo_devedor"]
+        },
+        "notifications": {
+          "on_success": "log_only",
+          "on_failure": "email_financeiro",
+          "weekly_report": "email_diretoria"
+        }
+      },
+      "alerta_estoque_minimo": {
+        "service_id": "SRV_004",
+        "name": "Alerta de Estoque Mínimo",
+        "description": "Monitora o estoque de todos os produtos ativos e gera alertas quando a quantidade atual fica igual ou abaixo do estoque mínimo configurado",
+        "category": "estoque",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "08:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 8:00h no início do expediente"
+        },
+        "estimated_duration": "1-3 minutos",
+        "priority": "medium",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "5MB",
+          "memory": "32MB",
+          "cpu": "low"
+        },
+        "business_logic": {
+          "condition": "estoque_atual <= estoque_minimo AND ativo = true",
+          "action": "generate_alert",
+          "affected_table": "produtos"
+        },
+        "notifications": {
+          "on_products_found": "email_compras",
+          "on_failure": "email_admin",
+          "alert_level": "warning"
+        },
+        "outputs": {
+          "report_file": "estoque_minimo_YYYYMMDD.csv",
+          "email_subject": "Alerta: Produtos com estoque baixo"
+        }
+      },
+      "sincronizacao_saldo_clientes": {
+        "service_id": "SRV_005",
+        "name": "Sincronização de Saldo dos Clientes",
+        "description": "Recalcula e atualiza o saldo atual de todos os clientes baseado nas contas a receber em aberto, garantindo consistência dos dados",
+        "category": "financeiro",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "23:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 23:00h no final do expediente"
+        },
+        "estimated_duration": "10-20 minutos",
+        "priority": "medium",
+        "dependencies": ["calculo_juros_multa"],
+        "resources_required": {
+          "disk_space": "50MB",
+          "memory": "256MB",
+          "cpu": "medium"
+        },
+        "business_logic": {
+          "calculation": "SUM(saldo_devedor) WHERE status IN ('em_aberto', 'vencida') GROUP BY id_cliente",
+          "affected_table": "clientes",
+          "updated_fields": ["saldo_atual"]
+        },
+        "notifications": {
+          "on_success": "log_only",
+          "on_failure": "email_admin",
+          "on_discrepancies": "email_financeiro"
+        }
+      },
+      "relatorio_vendas_diario": {
+        "service_id": "SRV_006",
+        "name": "Relatório de Vendas Diário",
+        "description": "Gera relatório consolidado das vendas do dia anterior com totais por vendedor, forma de pagamento e categoria de produtos",
+        "category": "relatorios",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "07:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa diariamente às 7:00h com dados do dia anterior"
+        },
+        "estimated_duration": "3-8 minutos",
+        "priority": "medium",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "10MB",
+          "memory": "128MB",
+          "cpu": "medium"
+        },
+        "business_logic": {
+          "date_filter": "data_venda >= YESTERDAY AND data_venda < TODAY",
+          "groupings": ["vendedor", "forma_pagamento", "categoria_produto"],
+          "metrics": ["total_vendas", "qtd_vendas", "ticket_medio"]
+        },
+        "outputs": {
+          "pdf_report": "vendas_diario_YYYYMMDD.pdf",
+          "excel_file": "vendas_diario_YYYYMMDD.xlsx",
+          "email_recipients": ["gerencia@empresa.com", "vendas@empresa.com"]
+        },
+        "notifications": {
+          "on_success": "email_report",
+          "on_failure": "email_admin"
+        }
+      },
+      "limpeza_logs_sistema": {
+        "service_id": "SRV_007",
+        "name": "Limpeza de Logs do Sistema",
+        "description": "Remove automaticamente logs antigos do sistema para otimizar espaço em disco, mantendo apenas logs dos últimos 90 dias",
+        "category": "manutencao",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "weekly",
+          "day": "sunday",
+          "time": "01:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa semanalmente aos domingos à 1:00h"
+        },
+        "estimated_duration": "5-15 minutos",
+        "priority": "low",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "variable",
+          "memory": "64MB",
+          "cpu": "low"
+        },
+        "business_logic": {
+          "retention_period": "90 days",
+          "file_patterns": ["*.log", "*.trace", "*.debug"],
+          "directories": ["/logs/application/", "/logs/database/", "/logs/system/"]
+        },
+        "notifications": {
+          "on_success": "log_only",
+          "on_failure": "email_admin"
+        },
+        "metrics": {
+          "files_deleted": "integer",
+          "space_freed": "MB"
+        }
+      },
+      "backup_incremental": {
+        "service_id": "SRV_008",
+        "name": "Backup Incremental",
+        "description": "Realiza backup incremental dos dados alterados desde o último backup completo, otimizando tempo e espaço de armazenamento",
+        "category": "backup",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "hourly",
+          "minutes": 30,
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa de hora em hora aos 30 minutos",
+          "active_hours": "08:00-18:00"
+        },
+        "estimated_duration": "2-5 minutos",
+        "priority": "medium",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "50MB",
+          "memory": "128MB",
+          "cpu": "low"
+        },
+        "business_logic": {
+          "backup_type": "incremental",
+          "change_detection": "timestamp_based",
+          "compression": "enabled"
+        },
+        "outputs": {
+          "backup_file": "incremental_YYYYMMDD_HH30.sql.gz"
+        },
+        "notifications": {
+          "on_failure": "email_admin"
+        }
+      },
+      "atualizacao_ranking_clientes": {
+        "service_id": "SRV_009",
+        "name": "Atualização de Ranking de Clientes",
+        "description": "Calcula e atualiza o ranking de clientes baseado no volume de compras, frequência e valor médio dos últimos 12 meses para estratégias de CRM",
+        "category": "crm",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "monthly",
+          "day": 1,
+          "time": "03:00:00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa no primeiro dia de cada mês às 3:00h"
+        },
+        "estimated_duration": "20-45 minutos",
+        "priority": "medium",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "100MB",
+          "memory": "512MB",
+          "cpu": "high"
+        },
+        "business_logic": {
+          "period": "last_12_months",
+          "criteria": {
+            "volume_compras": "40%",
+            "frequencia_compras": "30%",
+            "valor_medio": "20%",
+            "pontualidade_pagamento": "10%"
+          },
+          "classifications": ["A", "B", "C", "D"]
+        },
+        "outputs": {
+          "report_file": "ranking_clientes_YYYYMM.pdf",
+          "database_update": "campo classificacao_cliente"
+        },
+        "notifications": {
+          "on_success": "email_comercial",
+          "on_failure": "email_admin"
+        }
+      },
+      "monitoramento_performance": {
+        "service_id": "SRV_010",
+        "name": "Monitoramento de Performance do Sistema",
+        "description": "Monitora performance do banco de dados, tempo de resposta das consultas e uso de recursos do sistema",
+        "category": "manutencao",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "continuous",
+          "interval": "5 minutes",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa continuamente a cada 5 minutos"
+        },
+        "estimated_duration": "30 segundos",
+        "priority": "high",
+        "dependencies": [],
+        "resources_required": {
+          "disk_space": "5MB/day",
+          "memory": "32MB",
+          "cpu": "minimal"
+        },
+        "monitored_metrics": {
+          "database_connections": "integer",
+          "query_response_time": "milliseconds",
+          "cpu_usage": "percentage",
+          "memory_usage": "percentage",
+          "disk_usage": "percentage"
+        },
+        "thresholds": {
+          "cpu_warning": "80%",
+          "cpu_critical": "95%",
+          "memory_warning": "85%",
+          "memory_critical": "95%",
+          "query_time_warning": "2000ms"
+        },
+        "notifications": {
+          "on_warning": "email_admin",
+          "on_critical": "sms_admin",
+          "dashboard_update": "real_time"
+        }
+      },
+      "processamento_campanhas_automaticas": {
+        "service_id": "SRV_009",
+        "name": "Processamento de Campanhas Automáticas",
+        "description": "Executa automaticamente campanhas de marketing programadas, enviando emails, SMS e outras comunicações",
+        "category": "marketing",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "hourly",
+          "time": ":00",
+          "timezone": "America/Sao_Paulo",
+          "description": "Executa de hora em hora para verificar campanhas"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "128MB",
+          "cpu": "medium"
+        }
+      },
+      "sincronizacao_estoque_produtos": {
+        "service_id": "SRV_010",
+        "name": "Sincronização de Estoque com Produtos",
+        "description": "Atualiza automaticamente a quantidade em estoque dos produtos baseado nas movimentações",
+        "category": "estoque",
+        "status": "active",
+        "execution_type": "trigger",
+        "trigger": "after_movimentacao_estoque",
+        "priority": "high",
+        "resources_required": {
+          "memory": "64MB",
+          "cpu": "low"
+        }
+      },
+      "analise_performance_vendedores": {
+        "service_id": "SRV_011",
+        "name": "Análise de Performance de Vendedores",
+        "description": "Calcula automaticamente métricas de performance dos vendedores e atualiza rankings",
+        "category": "vendas",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "weekly",
+          "day": "monday",
+          "time": "08:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "256MB",
+          "cpu": "medium"
+        }
+      },
+      "limpeza_logs_antigos": {
+        "service_id": "SRV_012",
+        "name": "Limpeza de Logs Antigos",
+        "description": "Remove automaticamente logs de auditoria e sistema com mais de 1 ano",
+        "category": "manutencao",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "monthly",
+          "day": 1,
+          "time": "03:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "low",
+        "resources_required": {
+          "disk_space": "liberado variável",
+          "memory": "128MB",
+          "cpu": "medium"
+        }
+      },
+      "notificacao_contratos_vencendo": {
+        "service_id": "SRV_013",
+        "name": "Notificação de Contratos Vencendo",
+        "description": "Envia alertas automáticos sobre contratos que vencem em 30, 15 e 7 dias",
+        "category": "juridico",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "09:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "64MB",
+          "cpu": "low"
+        }
+      },
+      "backup_diferencial": {
+        "service_id": "SRV_014",
+        "name": "Backup Diferencial",
+        "description": "Realiza backup diferencial de apenas dados alterados desde o último backup completo",
+        "category": "backup",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "every_4_hours",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "high",
+        "resources_required": {
+          "disk_space": "100-300MB",
+          "memory": "128MB",
+          "cpu": "low"
+        }
+      },
+      "atualizacao_rankings_produtos": {
+        "service_id": "SRV_015",
+        "name": "Atualização de Rankings de Produtos",
+        "description": "Calcula e atualiza rankings dos produtos mais vendidos, mais avaliados e com melhor margem",
+        "category": "vendas",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "06:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "192MB",
+          "cpu": "medium"
+        }
+      },
+      "processamento_leads_automatico": {
+        "service_id": "SRV_016",
+        "name": "Processamento Automático de Leads",
+        "description": "Qualifica automaticamente leads baseado em regras de negócio e atribui scores",
+        "category": "crm",
+        "status": "active",
+        "execution_type": "trigger",
+        "trigger": "after_lead_creation",
+        "priority": "high",
+        "resources_required": {
+          "memory": "96MB",
+          "cpu": "medium"
+        }
+      },
+      "otimizacao_indices_database": {
+        "service_id": "SRV_017",
+        "name": "Otimização de Índices do Banco",
+        "description": "Analisa e otimiza automaticamente índices do banco de dados para melhor performance",
+        "category": "manutencao",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "weekly",
+          "day": "sunday",
+          "time": "03:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "512MB",
+          "cpu": "high"
+        }
+      },
+      "sincronizacao_transportadoras": {
+        "service_id": "SRV_018",
+        "name": "Sincronização com APIs de Transportadoras",
+        "description": "Consulta automaticamente APIs das transportadoras para atualizar status de entregas e códigos de rastreamento",
+        "category": "logistica",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "every_30_minutes",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "128MB",
+          "cpu": "medium",
+          "network": "required"
+        }
+      },
+      "calculo_comissoes_vendedores": {
+        "service_id": "SRV_019",
+        "name": "Cálculo de Comissões de Vendedores",
+        "description": "Calcula automaticamente comissões dos vendedores baseado nas vendas do mês",
+        "category": "rh",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "monthly",
+          "day": 1,
+          "time": "07:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "256MB",
+          "cpu": "medium"
+        }
+      },
+      "monitoramento_sla_suporte": {
+        "service_id": "SRV_020",
+        "name": "Monitoramento de SLA de Suporte",
+        "description": "Monitora constantemente SLA dos tickets de suporte e envia alertas quando próximo do vencimento",
+        "category": "suporte",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "every_15_minutes",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "high",
+        "resources_required": {
+          "memory": "64MB",
+          "cpu": "low"
+        }
+      },
+      "consolidacao_dados_gerenciais": {
+        "service_id": "SRV_021",
+        "name": "Consolidação de Dados Gerenciais",
+        "description": "Consolida dados de todas as áreas em tabelas de resumo para relatórios gerenciais rápidos",
+        "category": "relatorios",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "05:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "384MB",
+          "cpu": "high"
+        }
+      },
+      "verificacao_integridade_dados": {
+        "service_id": "SRV_022",
+        "name": "Verificação de Integridade de Dados",
+        "description": "Executa verificações automáticas de integridade referencial e consistência de dados",
+        "category": "manutencao",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "daily",
+          "time": "04:00:00",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "high",
+        "resources_required": {
+          "memory": "256MB",
+          "cpu": "medium"
+        }
+      },
+      "atualizacao_cache_sistema": {
+        "service_id": "SRV_023",
+        "name": "Atualização de Cache do Sistema",
+        "description": "Atualiza automaticamente caches de consultas frequentes para melhorar performance",
+        "category": "sistema",
+        "status": "active",
+        "execution_type": "scheduled",
+        "schedule": {
+          "frequency": "every_2_hours",
+          "timezone": "America/Sao_Paulo"
+        },
+        "priority": "medium",
+        "resources_required": {
+          "memory": "192MB",
+          "cpu": "medium"
+        }
+      }
+    },
+    "service_dependencies": {
+      "description": "Mapa de dependências entre serviços",
+      "dependencies": [
+        {
+          "service": "calculo_juros_multa",
+          "depends_on": ["update_contas_vencidas"],
+          "reason": "Precisa que o status esteja atualizado antes de calcular juros"
+        },
+        {
+          "service": "sincronizacao_saldo_clientes",
+          "depends_on": ["calculo_juros_multa"],
+          "reason": "Saldo deve ser calculado após aplicação de juros e multa"
+        },
+        {
+          "service": "backup_diferencial",
+          "conflicts_with": ["backup_database"],
+          "reason": "Não devem executar simultaneamente para evitar lock de tabelas"
+        },
+        {
+          "service": "sincronizacao_estoque_produtos",
+          "depends_on": [],
+          "reason": "Serviço independente disparado por trigger"
+        },
+        {
+          "service": "otimizacao_indices_database",
+          "conflicts_with": ["backup_database", "verificacao_integridade_dados"],
+          "reason": "Operações pesadas não devem executar simultaneamente"
+        },
+        {
+          "service": "consolidacao_dados_gerenciais",
+          "depends_on": ["atualizacao_rankings_produtos", "calculo_comissoes_vendedores"],
+          "reason": "Precisa de dados atualizados para consolidação"
+        }
+      ]
+    },
+    "maintenance_windows": {
+      "daily": {
+        "start": "02:00:00",
+        "end": "04:00:00",
+        "description": "Janela diária para backups e manutenções pesadas"
+      },
+      "weekly": {
+        "day": "sunday",
+        "start": "00:00:00",
+        "end": "06:00:00",
+        "description": "Janela semanal para manutenções extensas"
+      },
+      "monthly": {
+        "day": 1,
+        "start": "02:00:00",
+        "end": "08:00:00",
+        "description": "Janela mensal para limpezas e otimizações extensas"
+      }
+    }
+  }
+}

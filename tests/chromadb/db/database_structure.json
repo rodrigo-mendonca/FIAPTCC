@@ -1,0 +1,2074 @@
+{
+  "database": {
+    "name": "sistema_comercial",
+    "version": "3.0",
+    "description": "Sistema completo de gestão comercial com módulos de vendas, estoque, financeiro, CRM e RH",
+    "created_at": "2025-10-06T10:00:00Z",
+    "last_updated": "2025-10-06T10:00:00Z",
+    "business_areas": ["vendas", "financeiro", "estoque", "crm", "rh"],
+    "tables": {
+      "clientes": {
+        "name": "clientes",
+        "description": "Tabela principal para cadastro completo de clientes pessoa física e jurídica, contendo dados de contato, endereço e informações comerciais essenciais para gestão de relacionamento",
+        "primary_key": "id_cliente",
+        "business_area": "crm",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_cliente": {
+            "name": "id_cliente",
+            "type": "integer",
+            "description": "Identificador único do cliente, chave primária auto-incrementada utilizada como referência em outras tabelas",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome_razao_social": {
+            "name": "nome_razao_social",
+            "type": "varchar",
+            "description": "Nome completo para pessoa física ou razão social para pessoa jurídica, campo obrigatório para identificação",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 200
+          },
+          "nome_fantasia": {
+            "name": "nome_fantasia",
+            "type": "varchar",
+            "description": "Nome fantasia da empresa, utilizado apenas para pessoa jurídica, campo opcional para apresentação comercial",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 150
+          },
+          "cpf_cnpj": {
+            "name": "cpf_cnpj",
+            "type": "varchar",
+            "description": "CPF para pessoa física (11 dígitos) ou CNPJ para pessoa jurídica (14 dígitos), documento único de identificação",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 18
+          },
+          "tipo_pessoa": {
+            "name": "tipo_pessoa",
+            "type": "char",
+            "description": "Tipo de pessoa cadastrada: 'F' para pessoa física ou 'J' para pessoa jurídica",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 1,
+            "values": ["F", "J"]
+          },
+          "email": {
+            "name": "email",
+            "type": "varchar",
+            "description": "Endereço de email principal do cliente para comunicação comercial e marketing",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 100
+          },
+          "telefone": {
+            "name": "telefone",
+            "type": "varchar",
+            "description": "Número de telefone principal do cliente incluindo DDD, usado para contato direto",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 20
+          },
+          "endereco": {
+            "name": "endereco",
+            "type": "varchar",
+            "description": "Endereço completo do cliente incluindo logradouro, número e complemento",
+            "nullable": true,
+            "searchable": false,
+            "max_length": 200
+          },
+          "cidade": {
+            "name": "cidade",
+            "type": "varchar",
+            "description": "Nome da cidade onde o cliente está localizado, usado para relatórios regionais",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 100
+          },
+          "estado": {
+            "name": "estado",
+            "type": "char",
+            "description": "Sigla do estado ou unidade federativa do cliente (2 caracteres)",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 2
+          },
+          "cep": {
+            "name": "cep",
+            "type": "varchar",
+            "description": "Código de Endereçamento Postal do cliente, usado para cálculos de frete",
+            "nullable": true,
+            "searchable": false,
+            "max_length": 10
+          },
+          "limite_credito": {
+            "name": "limite_credito",
+            "type": "decimal",
+            "description": "Valor máximo em reais que o cliente pode dever sem necessidade de aprovação especial",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2,
+            "default": 0.00
+          },
+          "saldo_atual": {
+            "name": "saldo_atual",
+            "type": "decimal",
+            "description": "Saldo atual da conta corrente do cliente: positivo indica crédito, negativo indica débito",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2,
+            "default": 0.00
+          },
+          "data_cadastro": {
+            "name": "data_cadastro",
+            "type": "datetime",
+            "description": "Data e hora do primeiro cadastro do cliente no sistema",
+            "nullable": false,
+            "searchable": true,
+            "default": "CURRENT_TIMESTAMP"
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o cliente está ativo no sistema e pode realizar transações",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        },
+        "relationships": [
+          {
+            "type": "one_to_many",
+            "related_table": "vendas",
+            "foreign_key": "id_cliente",
+            "reference_key": "id_cliente",
+            "description": "Um cliente pode ter múltiplas vendas associadas"
+          },
+          {
+            "type": "one_to_many",
+            "related_table": "contas_receber",
+            "foreign_key": "id_cliente",
+            "reference_key": "id_cliente",
+            "description": "Um cliente pode ter múltiplas contas a receber"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_cpf_cnpj",
+            "columns": ["cpf_cnpj"],
+            "unique": true,
+            "description": "Índice único para garantir documento único"
+          },
+          {
+            "name": "idx_nome_razao_social",
+            "columns": ["nome_razao_social"],
+            "unique": false,
+            "description": "Índice para busca rápida por nome"
+          },
+          {
+            "name": "idx_cidade_estado",
+            "columns": ["cidade", "estado"],
+            "unique": false,
+            "description": "Índice composto para relatórios regionais"
+          },
+          {
+            "name": "idx_ativo",
+            "columns": ["ativo"],
+            "unique": false,
+            "description": "Índice para filtrar clientes ativos"
+          }
+        ]
+      },
+      "produtos": {
+        "name": "produtos",
+        "description": "Catálogo completo de produtos comercializados pela empresa, incluindo informações de preço, estoque, categoria e fornecedor para controle de inventário",
+        "primary_key": "id_produto",
+        "business_area": "estoque",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_produto": {
+            "name": "id_produto",
+            "type": "integer",
+            "description": "Identificador único do produto, chave primária auto-incrementada",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "codigo_produto": {
+            "name": "codigo_produto",
+            "type": "varchar",
+            "description": "Código interno único do produto, usado para controle de estoque e busca rápida",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 20
+          },
+          "nome_produto": {
+            "name": "nome_produto",
+            "type": "varchar",
+            "description": "Nome comercial completo do produto conforme aparece para o cliente",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "descricao": {
+            "name": "descricao",
+            "type": "text",
+            "description": "Descrição detalhada das características, especificações técnicas e benefícios do produto",
+            "nullable": true,
+            "searchable": true
+          },
+          "categoria": {
+            "name": "categoria",
+            "type": "varchar",
+            "description": "Categoria principal do produto para organização do catálogo e relatórios de vendas",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "subcategoria": {
+            "name": "subcategoria",
+            "type": "varchar",
+            "description": "Subcategoria do produto para classificação mais específica dentro da categoria principal",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 50
+          },
+          "preco_venda": {
+            "name": "preco_venda",
+            "type": "decimal",
+            "description": "Preço unitário de venda do produto para o cliente final, incluindo margem de lucro",
+            "nullable": false,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "preco_custo": {
+            "name": "preco_custo",
+            "type": "decimal",
+            "description": "Preço de custo unitário do produto pago ao fornecedor, usado para cálculo de margem",
+            "nullable": true,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "estoque_atual": {
+            "name": "estoque_atual",
+            "type": "integer",
+            "description": "Quantidade atual disponível em estoque do produto",
+            "nullable": false,
+            "searchable": false,
+            "default": 0
+          },
+          "estoque_minimo": {
+            "name": "estoque_minimo",
+            "type": "integer",
+            "description": "Quantidade mínima que deve ser mantida em estoque para evitar ruptura",
+            "nullable": true,
+            "searchable": false,
+            "default": 0
+          },
+          "unidade_medida": {
+            "name": "unidade_medida",
+            "type": "varchar",
+            "description": "Unidade de medida para venda do produto (UN, KG, LT, M2, etc.)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 5
+          },
+          "id_fornecedor": {
+            "name": "id_fornecedor",
+            "type": "integer",
+            "description": "Identificador do fornecedor principal do produto para reposição de estoque",
+            "nullable": true,
+            "searchable": true
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o produto está ativo no catálogo e disponível para vendas",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          },
+          "data_cadastro": {
+            "name": "data_cadastro",
+            "type": "datetime",
+            "description": "Data e hora do cadastro do produto no sistema",
+            "nullable": false,
+            "searchable": true,
+            "default": "CURRENT_TIMESTAMP"
+          }
+        },
+        "relationships": [
+          {
+            "type": "many_to_one",
+            "related_table": "fornecedores",
+            "foreign_key": "id_fornecedor",
+            "reference_key": "id_fornecedor",
+            "description": "Cada produto tem um fornecedor principal"
+          },
+          {
+            "type": "one_to_many",
+            "related_table": "itens_venda",
+            "foreign_key": "id_produto",
+            "reference_key": "id_produto",
+            "description": "Um produto pode aparecer em múltiplos itens de venda"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_codigo_produto",
+            "columns": ["codigo_produto"],
+            "unique": true,
+            "description": "Índice único para código do produto"
+          },
+          {
+            "name": "idx_nome_produto",
+            "columns": ["nome_produto"],
+            "unique": false,
+            "description": "Índice para busca por nome do produto"
+          },
+          {
+            "name": "idx_categoria",
+            "columns": ["categoria", "subcategoria"],
+            "unique": false,
+            "description": "Índice composto para filtros por categoria"
+          },
+          {
+            "name": "idx_ativo",
+            "columns": ["ativo"],
+            "unique": false,
+            "description": "Índice para filtrar produtos ativos"
+          }
+        ]
+      },
+      "vendas": {
+        "name": "vendas",
+        "description": "Registro completo de todas as vendas realizadas, incluindo dados do cliente, vendedor, valores e status para controle comercial e financeiro",
+        "primary_key": "id_venda",
+        "business_area": "vendas",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_venda": {
+            "name": "id_venda",
+            "type": "integer",
+            "description": "Identificador único da venda, chave primária auto-incrementada",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "numero_venda": {
+            "name": "numero_venda",
+            "type": "varchar",
+            "description": "Número sequencial único da venda para controle interno e referência do cliente",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 20
+          },
+          "id_cliente": {
+            "name": "id_cliente",
+            "type": "integer",
+            "description": "Identificador do cliente que realizou a compra, chave estrangeira para tabela clientes",
+            "nullable": false,
+            "searchable": true
+          },
+          "id_vendedor": {
+            "name": "id_vendedor",
+            "type": "integer",
+            "description": "Identificador do funcionário vendedor responsável pela venda, usado para comissões",
+            "nullable": true,
+            "searchable": true
+          },
+          "data_venda": {
+            "name": "data_venda",
+            "type": "datetime",
+            "description": "Data e hora exata em que a venda foi realizada e confirmada",
+            "nullable": false,
+            "searchable": true
+          },
+          "valor_produtos": {
+            "name": "valor_produtos",
+            "type": "decimal",
+            "description": "Valor total dos produtos vendidos antes de descontos e acréscimos",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "valor_desconto": {
+            "name": "valor_desconto",
+            "type": "decimal",
+            "description": "Valor total de desconto aplicado na venda",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2,
+            "default": 0.00
+          },
+          "valor_frete": {
+            "name": "valor_frete",
+            "type": "decimal",
+            "description": "Valor do frete cobrado na venda para entrega dos produtos",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2,
+            "default": 0.00
+          },
+          "valor_total": {
+            "name": "valor_total",
+            "type": "decimal",
+            "description": "Valor final da venda: produtos - desconto + frete",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "forma_pagamento": {
+            "name": "forma_pagamento",
+            "type": "varchar",
+            "description": "Forma de pagamento utilizada: dinheiro, cartão, pix, boleto, prazo",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "status_venda": {
+            "name": "status_venda",
+            "type": "varchar",
+            "description": "Status atual da venda: pendente, confirmada, cancelada, devolvida",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 15,
+            "values": ["pendente", "confirmada", "cancelada", "devolvida"]
+          },
+          "observacoes": {
+            "name": "observacoes",
+            "type": "text",
+            "description": "Observações gerais sobre a venda, condições especiais ou comentários do vendedor",
+            "nullable": true,
+            "searchable": true
+          }
+        },
+        "relationships": [
+          {
+            "type": "many_to_one",
+            "related_table": "clientes",
+            "foreign_key": "id_cliente",
+            "reference_key": "id_cliente",
+            "description": "Cada venda pertence a um cliente específico"
+          },
+          {
+            "type": "many_to_one",
+            "related_table": "funcionarios",
+            "foreign_key": "id_vendedor",
+            "reference_key": "id_funcionario",
+            "description": "Cada venda tem um vendedor responsável"
+          },
+          {
+            "type": "one_to_many",
+            "related_table": "itens_venda",
+            "foreign_key": "id_venda",
+            "reference_key": "id_venda",
+            "description": "Uma venda contém múltiplos itens de produtos"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_numero_venda",
+            "columns": ["numero_venda"],
+            "unique": true,
+            "description": "Índice único para número da venda"
+          },
+          {
+            "name": "idx_cliente_data",
+            "columns": ["id_cliente", "data_venda"],
+            "unique": false,
+            "description": "Índice composto para histórico do cliente"
+          },
+          {
+            "name": "idx_vendedor_data",
+            "columns": ["id_vendedor", "data_venda"],
+            "unique": false,
+            "description": "Índice para relatórios de vendedor"
+          },
+          {
+            "name": "idx_status_data",
+            "columns": ["status_venda", "data_venda"],
+            "unique": false,
+            "description": "Índice para relatórios por status"
+          }
+        ]
+      },
+      "itens_venda": {
+        "name": "itens_venda",
+        "description": "Detalhamento dos produtos vendidos em cada venda, incluindo quantidade, preços unitários e totais para controle detalhado do faturamento",
+        "primary_key": "id_item_venda",
+        "business_area": "vendas",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_item_venda": {
+            "name": "id_item_venda",
+            "type": "integer",
+            "description": "Identificador único do item de venda, chave primária auto-incrementada",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_venda": {
+            "name": "id_venda",
+            "type": "integer",
+            "description": "Identificador da venda à qual este item pertence, chave estrangeira",
+            "nullable": false,
+            "searchable": true
+          },
+          "id_produto": {
+            "name": "id_produto",
+            "type": "integer",
+            "description": "Identificador do produto vendido neste item, chave estrangeira",
+            "nullable": false,
+            "searchable": true
+          },
+          "quantidade": {
+            "name": "quantidade",
+            "type": "decimal",
+            "description": "Quantidade do produto vendida neste item",
+            "nullable": false,
+            "searchable": false,
+            "precision": 10,
+            "scale": 3
+          },
+          "preco_unitario": {
+            "name": "preco_unitario",
+            "type": "decimal",
+            "description": "Preço unitário do produto no momento da venda",
+            "nullable": false,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "preco_total": {
+            "name": "preco_total",
+            "type": "decimal",
+            "description": "Valor total do item (quantidade × preço unitário)",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "desconto_item": {
+            "name": "desconto_item",
+            "type": "decimal",
+            "description": "Desconto específico aplicado neste item da venda",
+            "nullable": true,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2,
+            "default": 0.00
+          }
+        },
+        "relationships": [
+          {
+            "type": "many_to_one",
+            "related_table": "vendas",
+            "foreign_key": "id_venda",
+            "reference_key": "id_venda",
+            "description": "Cada item pertence a uma venda específica"
+          },
+          {
+            "type": "many_to_one",
+            "related_table": "produtos",
+            "foreign_key": "id_produto",
+            "reference_key": "id_produto",
+            "description": "Cada item referencia um produto específico"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_venda_produto",
+            "columns": ["id_venda", "id_produto"],
+            "unique": false,
+            "description": "Índice composto para consultas por venda e produto"
+          },
+          {
+            "name": "idx_produto",
+            "columns": ["id_produto"],
+            "unique": false,
+            "description": "Índice para relatórios por produto"
+          }
+        ]
+      },
+      "contas_receber": {
+        "name": "contas_receber",
+        "description": "Controle financeiro completo de contas a receber de clientes, incluindo parcelas, vencimentos e status de pagamento para gestão de fluxo de caixa",
+        "primary_key": "id_conta_receber",
+        "business_area": "financeiro",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_conta_receber": {
+            "name": "id_conta_receber",
+            "type": "integer",
+            "description": "Identificador único da conta a receber, chave primária auto-incrementada",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_cliente": {
+            "name": "id_cliente",
+            "type": "integer",
+            "description": "Identificador do cliente devedor da conta, chave estrangeira",
+            "nullable": false,
+            "searchable": true
+          },
+          "id_venda": {
+            "name": "id_venda",
+            "type": "integer",
+            "description": "Identificador da venda que originou esta conta a receber, quando aplicável",
+            "nullable": true,
+            "searchable": true
+          },
+          "numero_documento": {
+            "name": "numero_documento",
+            "type": "varchar",
+            "description": "Número único do documento da conta (duplicata, boleto, nota promissória)",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 20
+          },
+          "parcela": {
+            "name": "parcela",
+            "type": "integer",
+            "description": "Número da parcela quando a venda é parcelada (1, 2, 3, etc.)",
+            "nullable": true,
+            "searchable": true,
+            "default": 1
+          },
+          "total_parcelas": {
+            "name": "total_parcelas",
+            "type": "integer",
+            "description": "Número total de parcelas da venda parcelada",
+            "nullable": true,
+            "searchable": false,
+            "default": 1
+          },
+          "valor_original": {
+            "name": "valor_original",
+            "type": "decimal",
+            "description": "Valor original da conta quando foi gerada, sem juros ou multas",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "valor_pago": {
+            "name": "valor_pago",
+            "type": "decimal",
+            "description": "Valor total já pago pelo cliente desta conta específica",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2,
+            "default": 0.00
+          },
+          "saldo_devedor": {
+            "name": "saldo_devedor",
+            "type": "decimal",
+            "description": "Saldo ainda devedor da conta (valor_original - valor_pago + juros/multa)",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "data_vencimento": {
+            "name": "data_vencimento",
+            "type": "date",
+            "description": "Data de vencimento da conta para cobrança",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_pagamento": {
+            "name": "data_pagamento",
+            "type": "datetime",
+            "description": "Data e hora em que a conta foi quitada completamente",
+            "nullable": true,
+            "searchable": true
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status atual da conta: em_aberto, paga, vencida, cancelada",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 15,
+            "values": ["em_aberto", "paga", "vencida", "cancelada"]
+          },
+          "juros_multa": {
+            "name": "juros_multa",
+            "type": "decimal",
+            "description": "Valor acumulado de juros e multa por atraso no pagamento",
+            "nullable": true,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2,
+            "default": 0.00
+          }
+        },
+        "relationships": [
+          {
+            "type": "many_to_one",
+            "related_table": "clientes",
+            "foreign_key": "id_cliente",
+            "reference_key": "id_cliente",
+            "description": "Cada conta a receber pertence a um cliente"
+          },
+          {
+            "type": "many_to_one",
+            "related_table": "vendas",
+            "foreign_key": "id_venda",
+            "reference_key": "id_venda",
+            "description": "Conta pode ser originada de uma venda específica"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_numero_documento",
+            "columns": ["numero_documento"],
+            "unique": true,
+            "description": "Índice único para número do documento"
+          },
+          {
+            "name": "idx_cliente_vencimento",
+            "columns": ["id_cliente", "data_vencimento"],
+            "unique": false,
+            "description": "Índice para relatórios de vencimento por cliente"
+          },
+          {
+            "name": "idx_status_vencimento",
+            "columns": ["status", "data_vencimento"],
+            "unique": false,
+            "description": "Índice para controle de inadimplência"
+          }
+        ]
+      },
+      "funcionarios": {
+        "name": "funcionarios",
+        "description": "Cadastro completo de funcionários da empresa incluindo dados pessoais, cargo, departamento e informações trabalhistas para gestão de recursos humanos",
+        "primary_key": "id_funcionario",
+        "business_area": "rh",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_funcionario": {
+            "name": "id_funcionario",
+            "type": "integer",
+            "description": "Identificador único do funcionário, chave primária auto-incrementada",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome_completo": {
+            "name": "nome_completo",
+            "type": "varchar",
+            "description": "Nome completo do funcionário conforme documentos oficiais",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "cpf": {
+            "name": "cpf",
+            "type": "varchar",
+            "description": "CPF do funcionário, documento único de identificação",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 14
+          },
+          "email": {
+            "name": "email",
+            "type": "varchar",
+            "description": "Endereço de email corporativo do funcionário",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 100
+          },
+          "telefone": {
+            "name": "telefone",
+            "type": "varchar",
+            "description": "Número de telefone pessoal do funcionário para contato",
+            "nullable": true,
+            "searchable": false,
+            "max_length": 20
+          },
+          "cargo": {
+            "name": "cargo",
+            "type": "varchar",
+            "description": "Cargo ou função atual do funcionário na empresa",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 100
+          },
+          "departamento": {
+            "name": "departamento",
+            "type": "varchar",
+            "description": "Departamento ou setor onde o funcionário trabalha",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 50
+          },
+          "salario": {
+            "name": "salario",
+            "type": "decimal",
+            "description": "Salário base mensal do funcionário em reais",
+            "nullable": true,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "data_admissao": {
+            "name": "data_admissao",
+            "type": "date",
+            "description": "Data de admissão do funcionário na empresa",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_demissao": {
+            "name": "data_demissao",
+            "type": "date",
+            "description": "Data de demissão do funcionário, quando aplicável",
+            "nullable": true,
+            "searchable": true
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o funcionário está ativo na empresa",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        },
+        "relationships": [
+          {
+            "type": "one_to_many",
+            "related_table": "vendas",
+            "foreign_key": "id_vendedor",
+            "reference_key": "id_funcionario",
+            "description": "Um funcionário pode ser vendedor em múltiplas vendas"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_cpf",
+            "columns": ["cpf"],
+            "unique": true,
+            "description": "Índice único para CPF do funcionário"
+          },
+          {
+            "name": "idx_nome_completo",
+            "columns": ["nome_completo"],
+            "unique": false,
+            "description": "Índice para busca por nome"
+          },
+          {
+            "name": "idx_cargo_departamento",
+            "columns": ["cargo", "departamento"],
+            "unique": false,
+            "description": "Índice para relatórios organizacionais"
+          },
+          {
+            "name": "idx_ativo",
+            "columns": ["ativo"],
+            "unique": false,
+            "description": "Índice para filtrar funcionários ativos"
+          }
+        ]
+      },
+      "fornecedores": {
+        "name": "fornecedores",
+        "description": "Cadastro completo de fornecedores com dados comerciais, financeiros e logísticos para gestão de compras e relacionamento",
+        "primary_key": "id_fornecedor",
+        "business_area": "compras",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_fornecedor": {
+            "name": "id_fornecedor",
+            "type": "integer",
+            "description": "Identificador único do fornecedor",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "razao_social": {
+            "name": "razao_social",
+            "type": "varchar",
+            "description": "Razão social ou nome completo do fornecedor",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 200
+          },
+          "cnpj_cpf": {
+            "name": "cnpj_cpf",
+            "type": "varchar",
+            "description": "CNPJ ou CPF do fornecedor",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 18
+          },
+          "categoria": {
+            "name": "categoria",
+            "type": "varchar",
+            "description": "Categoria do fornecedor (materiais, serviços, produtos)",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 50
+          },
+          "prazo_pagamento": {
+            "name": "prazo_pagamento",
+            "type": "integer",
+            "description": "Prazo padrão de pagamento em dias",
+            "nullable": true,
+            "searchable": false
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o fornecedor está ativo",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        },
+        "relationships": [
+          {
+            "type": "one_to_many",
+            "related_table": "compras",
+            "foreign_key": "id_fornecedor",
+            "reference_key": "id_fornecedor",
+            "description": "Um fornecedor pode ter múltiplas compras"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_cnpj_cpf_fornecedor",
+            "columns": ["cnpj_cpf"],
+            "unique": true,
+            "description": "Índice único para documento do fornecedor"
+          }
+        ]
+      },
+      "compras": {
+        "name": "compras",
+        "description": "Registro de todas as compras realizadas pela empresa junto aos fornecedores",
+        "primary_key": "id_compra",
+        "business_area": "compras",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_compra": {
+            "name": "id_compra",
+            "type": "integer",
+            "description": "Identificador único da compra",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_fornecedor": {
+            "name": "id_fornecedor",
+            "type": "integer",
+            "description": "Referência ao fornecedor",
+            "nullable": false,
+            "searchable": true
+          },
+          "numero_pedido": {
+            "name": "numero_pedido",
+            "type": "varchar",
+            "description": "Número do pedido de compra",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "data_compra": {
+            "name": "data_compra",
+            "type": "date",
+            "description": "Data da realização da compra",
+            "nullable": false,
+            "searchable": true
+          },
+          "valor_total": {
+            "name": "valor_total",
+            "type": "decimal",
+            "description": "Valor total da compra",
+            "nullable": false,
+            "searchable": true,
+            "precision": 10,
+            "scale": 2
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status da compra (pendente, entregue, cancelada)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          }
+        }
+      },
+      "campanhas_marketing": {
+        "name": "campanhas_marketing",
+        "description": "Gerenciamento de campanhas de marketing e promoções da empresa",
+        "primary_key": "id_campanha",
+        "business_area": "marketing",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_campanha": {
+            "name": "id_campanha",
+            "type": "integer",
+            "description": "Identificador único da campanha",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome_campanha": {
+            "name": "nome_campanha",
+            "type": "varchar",
+            "description": "Nome da campanha de marketing",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "tipo_campanha": {
+            "name": "tipo_campanha",
+            "type": "varchar",
+            "description": "Tipo da campanha (email, sms, redes sociais, mala direta)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "data_inicio": {
+            "name": "data_inicio",
+            "type": "date",
+            "description": "Data de início da campanha",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_fim": {
+            "name": "data_fim",
+            "type": "date",
+            "description": "Data de término da campanha",
+            "nullable": true,
+            "searchable": true
+          },
+          "orcamento": {
+            "name": "orcamento",
+            "type": "decimal",
+            "description": "Orçamento destinado à campanha",
+            "nullable": true,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "ativa": {
+            "name": "ativa",
+            "type": "boolean",
+            "description": "Indica se a campanha está ativa",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        }
+      },
+      "leads": {
+        "name": "leads",
+        "description": "Prospects e leads gerados através de campanhas de marketing e outras fontes",
+        "primary_key": "id_lead",
+        "business_area": "crm",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_lead": {
+            "name": "id_lead",
+            "type": "integer",
+            "description": "Identificador único do lead",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome": {
+            "name": "nome",
+            "type": "varchar",
+            "description": "Nome do lead",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "email": {
+            "name": "email",
+            "type": "varchar",
+            "description": "Email do lead",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 100
+          },
+          "telefone": {
+            "name": "telefone",
+            "type": "varchar",
+            "description": "Telefone do lead",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 20
+          },
+          "fonte": {
+            "name": "fonte",
+            "type": "varchar",
+            "description": "Fonte de origem do lead",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 100
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status do lead (novo, contatado, qualificado, convertido)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "data_criacao": {
+            "name": "data_criacao",
+            "type": "timestamp",
+            "description": "Data de criação do lead",
+            "nullable": false,
+            "searchable": true
+          }
+        }
+      },
+      "movimentacao_estoque": {
+        "name": "movimentacao_estoque",
+        "description": "Histórico de todas as movimentações de entrada e saída de produtos no estoque",
+        "primary_key": "id_movimentacao",
+        "business_area": "estoque",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_movimentacao": {
+            "name": "id_movimentacao",
+            "type": "integer",
+            "description": "Identificador único da movimentação",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_produto": {
+            "name": "id_produto",
+            "type": "integer",
+            "description": "Referência ao produto",
+            "nullable": false,
+            "searchable": true
+          },
+          "tipo_movimentacao": {
+            "name": "tipo_movimentacao",
+            "type": "varchar",
+            "description": "Tipo de movimentação (entrada, saida, ajuste, transferencia)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "quantidade": {
+            "name": "quantidade",
+            "type": "decimal",
+            "description": "Quantidade movimentada",
+            "nullable": false,
+            "searchable": false,
+            "precision": 10,
+            "scale": 3
+          },
+          "data_movimentacao": {
+            "name": "data_movimentacao",
+            "type": "timestamp",
+            "description": "Data e hora da movimentação",
+            "nullable": false,
+            "searchable": true
+          },
+          "motivo": {
+            "name": "motivo",
+            "type": "varchar",
+            "description": "Motivo da movimentação",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 200
+          },
+          "usuario": {
+            "name": "usuario",
+            "type": "varchar",
+            "description": "Usuário responsável pela movimentação",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          }
+        }
+      },
+      "auditoria_sistema": {
+        "name": "auditoria_sistema",
+        "description": "Log de auditoria de todas as operações críticas realizadas no sistema",
+        "primary_key": "id_auditoria",
+        "business_area": "auditoria",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_auditoria": {
+            "name": "id_auditoria",
+            "type": "integer",
+            "description": "Identificador único do registro de auditoria",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "tabela_afetada": {
+            "name": "tabela_afetada",
+            "type": "varchar",
+            "description": "Nome da tabela que foi alterada",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "operacao": {
+            "name": "operacao",
+            "type": "varchar",
+            "description": "Tipo de operação (INSERT, UPDATE, DELETE)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 10
+          },
+          "id_registro": {
+            "name": "id_registro",
+            "type": "integer",
+            "description": "ID do registro que foi alterado",
+            "nullable": false,
+            "searchable": true
+          },
+          "usuario": {
+            "name": "usuario",
+            "type": "varchar",
+            "description": "Usuário que realizou a operação",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "data_operacao": {
+            "name": "data_operacao",
+            "type": "timestamp",
+            "description": "Data e hora da operação",
+            "nullable": false,
+            "searchable": true
+          },
+          "valores_antes": {
+            "name": "valores_antes",
+            "type": "text",
+            "description": "Valores dos campos antes da alteração (JSON)",
+            "nullable": true,
+            "searchable": false
+          },
+          "valores_depois": {
+            "name": "valores_depois",
+            "type": "text",
+            "description": "Valores dos campos após a alteração (JSON)",
+            "nullable": true,
+            "searchable": false
+          }
+        }
+      },
+      "transportadoras": {
+        "name": "transportadoras",
+        "description": "Cadastro de empresas transportadoras para entrega de produtos",
+        "primary_key": "id_transportadora",
+        "business_area": "logistica",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_transportadora": {
+            "name": "id_transportadora",
+            "type": "integer",
+            "description": "Identificador único da transportadora",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome_empresa": {
+            "name": "nome_empresa",
+            "type": "varchar",
+            "description": "Nome da empresa transportadora",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "cnpj": {
+            "name": "cnpj",
+            "type": "varchar",
+            "description": "CNPJ da transportadora",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 18
+          },
+          "taxa_frete_kg": {
+            "name": "taxa_frete_kg",
+            "type": "decimal",
+            "description": "Taxa de frete por quilograma",
+            "nullable": true,
+            "searchable": false,
+            "precision": 8,
+            "scale": 4
+          },
+          "prazo_entrega_dias": {
+            "name": "prazo_entrega_dias",
+            "type": "integer",
+            "description": "Prazo médio de entrega em dias",
+            "nullable": true,
+            "searchable": false
+          },
+          "ativa": {
+            "name": "ativa",
+            "type": "boolean",
+            "description": "Indica se a transportadora está ativa",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        }
+      },
+      "entregas": {
+        "name": "entregas",
+        "description": "Controle de entregas de produtos vendidos aos clientes",
+        "primary_key": "id_entrega",
+        "business_area": "logistica",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_entrega": {
+            "name": "id_entrega",
+            "type": "integer",
+            "description": "Identificador único da entrega",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_venda": {
+            "name": "id_venda",
+            "type": "integer",
+            "description": "Referência à venda",
+            "nullable": false,
+            "searchable": true
+          },
+          "id_transportadora": {
+            "name": "id_transportadora",
+            "type": "integer",
+            "description": "Referência à transportadora",
+            "nullable": true,
+            "searchable": true
+          },
+          "codigo_rastreamento": {
+            "name": "codigo_rastreamento",
+            "type": "varchar",
+            "description": "Código de rastreamento da entrega",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 50
+          },
+          "data_despacho": {
+            "name": "data_despacho",
+            "type": "date",
+            "description": "Data do despacho",
+            "nullable": true,
+            "searchable": true
+          },
+          "data_entrega": {
+            "name": "data_entrega",
+            "type": "date",
+            "description": "Data da entrega",
+            "nullable": true,
+            "searchable": true
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status da entrega (preparando, despachado, entregue, devolvido)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "valor_frete": {
+            "name": "valor_frete",
+            "type": "decimal",
+            "description": "Valor do frete cobrado",
+            "nullable": true,
+            "searchable": false,
+            "precision": 8,
+            "scale": 2
+          }
+        }
+      },
+      "centros_custo": {
+        "name": "centros_custo",
+        "description": "Estrutura de centros de custo para controle financeiro e contábil",
+        "primary_key": "id_centro_custo",
+        "business_area": "financeiro",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_centro_custo": {
+            "name": "id_centro_custo",
+            "type": "integer",
+            "description": "Identificador único do centro de custo",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "codigo": {
+            "name": "codigo",
+            "type": "varchar",
+            "description": "Código do centro de custo",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 20
+          },
+          "descricao": {
+            "name": "descricao",
+            "type": "varchar",
+            "description": "Descrição do centro de custo",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "tipo": {
+            "name": "tipo",
+            "type": "varchar",
+            "description": "Tipo do centro de custo (departamento, projeto, produto)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o centro de custo está ativo",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        }
+      },
+      "despesas": {
+        "name": "despesas",
+        "description": "Registro de todas as despesas da empresa por centro de custo",
+        "primary_key": "id_despesa",
+        "business_area": "financeiro",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_despesa": {
+            "name": "id_despesa",
+            "type": "integer",
+            "description": "Identificador único da despesa",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_centro_custo": {
+            "name": "id_centro_custo",
+            "type": "integer",
+            "description": "Referência ao centro de custo",
+            "nullable": false,
+            "searchable": true
+          },
+          "descricao": {
+            "name": "descricao",
+            "type": "varchar",
+            "description": "Descrição da despesa",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 200
+          },
+          "valor": {
+            "name": "valor",
+            "type": "decimal",
+            "description": "Valor da despesa",
+            "nullable": false,
+            "searchable": false,
+            "precision": 10,
+            "scale": 2
+          },
+          "data_vencimento": {
+            "name": "data_vencimento",
+            "type": "date",
+            "description": "Data de vencimento da despesa",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_pagamento": {
+            "name": "data_pagamento",
+            "type": "date",
+            "description": "Data do pagamento",
+            "nullable": true,
+            "searchable": true
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status da despesa (aberta, paga, vencida)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          }
+        }
+      },
+      "usuarios_sistema": {
+        "name": "usuarios_sistema",
+        "description": "Controle de usuários do sistema com perfis de acesso e permissões",
+        "primary_key": "id_usuario",
+        "business_area": "seguranca",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_usuario": {
+            "name": "id_usuario",
+            "type": "integer",
+            "description": "Identificador único do usuário",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "login": {
+            "name": "login",
+            "type": "varchar",
+            "description": "Login do usuário",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 50
+          },
+          "senha_hash": {
+            "name": "senha_hash",
+            "type": "varchar",
+            "description": "Hash da senha do usuário",
+            "nullable": false,
+            "searchable": false,
+            "max_length": 255
+          },
+          "nome_completo": {
+            "name": "nome_completo",
+            "type": "varchar",
+            "description": "Nome completo do usuário",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "email": {
+            "name": "email",
+            "type": "varchar",
+            "description": "Email do usuário",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 100
+          },
+          "perfil": {
+            "name": "perfil",
+            "type": "varchar",
+            "description": "Perfil de acesso (admin, vendedor, financeiro, estoque)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "ultimo_acesso": {
+            "name": "ultimo_acesso",
+            "type": "timestamp",
+            "description": "Data do último acesso ao sistema",
+            "nullable": true,
+            "searchable": true
+          },
+          "ativo": {
+            "name": "ativo",
+            "type": "boolean",
+            "description": "Indica se o usuário está ativo",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        }
+      },
+      "configuracoes_sistema": {
+        "name": "configuracoes_sistema",
+        "description": "Parâmetros de configuração do sistema",
+        "primary_key": "id_configuracao",
+        "business_area": "sistema",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_configuracao": {
+            "name": "id_configuracao",
+            "type": "integer",
+            "description": "Identificador único da configuração",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "chave": {
+            "name": "chave",
+            "type": "varchar",
+            "description": "Chave da configuração",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 100
+          },
+          "valor": {
+            "name": "valor",
+            "type": "text",
+            "description": "Valor da configuração",
+            "nullable": true,
+            "searchable": false
+          },
+          "tipo": {
+            "name": "tipo",
+            "type": "varchar",
+            "description": "Tipo do valor (string, number, boolean, json)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "descricao": {
+            "name": "descricao",
+            "type": "varchar",
+            "description": "Descrição da configuração",
+            "nullable": true,
+            "searchable": true,
+            "max_length": 200
+          }
+        }
+      },
+      "promocoes": {
+        "name": "promocoes",
+        "description": "Gestão de promoções e descontos aplicáveis a produtos ou categorias",
+        "primary_key": "id_promocao",
+        "business_area": "vendas",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_promocao": {
+            "name": "id_promocao",
+            "type": "integer",
+            "description": "Identificador único da promoção",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome": {
+            "name": "nome",
+            "type": "varchar",
+            "description": "Nome da promoção",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "tipo_desconto": {
+            "name": "tipo_desconto",
+            "type": "varchar",
+            "description": "Tipo de desconto (percentual, valor_fixo)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "valor_desconto": {
+            "name": "valor_desconto",
+            "type": "decimal",
+            "description": "Valor do desconto",
+            "nullable": false,
+            "searchable": false,
+            "precision": 8,
+            "scale": 2
+          },
+          "data_inicio": {
+            "name": "data_inicio",
+            "type": "date",
+            "description": "Data de início da promoção",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_fim": {
+            "name": "data_fim",
+            "type": "date",
+            "description": "Data de fim da promoção",
+            "nullable": false,
+            "searchable": true
+          },
+          "ativa": {
+            "name": "ativa",
+            "type": "boolean",
+            "description": "Indica se a promoção está ativa",
+            "nullable": false,
+            "searchable": true,
+            "default": true
+          }
+        }
+      },
+      "contratos": {
+        "name": "contratos",
+        "description": "Gestão de contratos com clientes e fornecedores",
+        "primary_key": "id_contrato",
+        "business_area": "juridico",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_contrato": {
+            "name": "id_contrato",
+            "type": "integer",
+            "description": "Identificador único do contrato",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "numero_contrato": {
+            "name": "numero_contrato",
+            "type": "varchar",
+            "description": "Número do contrato",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 50
+          },
+          "tipo_contrato": {
+            "name": "tipo_contrato",
+            "type": "varchar",
+            "description": "Tipo do contrato (cliente, fornecedor, parceria)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "id_parte": {
+            "name": "id_parte",
+            "type": "integer",
+            "description": "ID da contraparte (cliente ou fornecedor)",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_assinatura": {
+            "name": "data_assinatura",
+            "type": "date",
+            "description": "Data de assinatura do contrato",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_vencimento": {
+            "name": "data_vencimento",
+            "type": "date",
+            "description": "Data de vencimento do contrato",
+            "nullable": true,
+            "searchable": true
+          },
+          "valor_total": {
+            "name": "valor_total",
+            "type": "decimal",
+            "description": "Valor total do contrato",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status do contrato (ativo, vencido, cancelado)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          }
+        }
+      },
+      "avaliacoes_produtos": {
+        "name": "avaliacoes_produtos",
+        "description": "Avaliações e comentários dos clientes sobre produtos",
+        "primary_key": "id_avaliacao",
+        "business_area": "crm",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_avaliacao": {
+            "name": "id_avaliacao",
+            "type": "integer",
+            "description": "Identificador único da avaliação",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_produto": {
+            "name": "id_produto",
+            "type": "integer",
+            "description": "Referência ao produto avaliado",
+            "nullable": false,
+            "searchable": true
+          },
+          "id_cliente": {
+            "name": "id_cliente",
+            "type": "integer",
+            "description": "Referência ao cliente que fez a avaliação",
+            "nullable": false,
+            "searchable": true
+          },
+          "nota": {
+            "name": "nota",
+            "type": "integer",
+            "description": "Nota de 1 a 5 estrelas",
+            "nullable": false,
+            "searchable": true
+          },
+          "comentario": {
+            "name": "comentario",
+            "type": "text",
+            "description": "Comentário do cliente",
+            "nullable": true,
+            "searchable": true
+          },
+          "data_avaliacao": {
+            "name": "data_avaliacao",
+            "type": "timestamp",
+            "description": "Data da avaliação",
+            "nullable": false,
+            "searchable": true
+          },
+          "aprovada": {
+            "name": "aprovada",
+            "type": "boolean",
+            "description": "Indica se a avaliação foi aprovada para exibição",
+            "nullable": false,
+            "searchable": true,
+            "default": false
+          }
+        }
+      },
+      "tickets_suporte": {
+        "name": "tickets_suporte",
+        "description": "Sistema de tickets de suporte ao cliente",
+        "primary_key": "id_ticket",
+        "business_area": "suporte",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_ticket": {
+            "name": "id_ticket",
+            "type": "integer",
+            "description": "Identificador único do ticket",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "numero_ticket": {
+            "name": "numero_ticket",
+            "type": "varchar",
+            "description": "Número do ticket",
+            "nullable": false,
+            "searchable": true,
+            "unique": true,
+            "max_length": 20
+          },
+          "id_cliente": {
+            "name": "id_cliente",
+            "type": "integer",
+            "description": "Referência ao cliente",
+            "nullable": false,
+            "searchable": true
+          },
+          "assunto": {
+            "name": "assunto",
+            "type": "varchar",
+            "description": "Assunto do ticket",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 200
+          },
+          "descricao": {
+            "name": "descricao",
+            "type": "text",
+            "description": "Descrição detalhada do problema",
+            "nullable": false,
+            "searchable": true
+          },
+          "prioridade": {
+            "name": "prioridade",
+            "type": "varchar",
+            "description": "Prioridade do ticket (baixa, media, alta, critica)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 10
+          },
+          "status": {
+            "name": "status",
+            "type": "varchar",
+            "description": "Status do ticket (aberto, em_andamento, resolvido, fechado)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "data_abertura": {
+            "name": "data_abertura",
+            "type": "timestamp",
+            "description": "Data de abertura do ticket",
+            "nullable": false,
+            "searchable": true
+          },
+          "data_fechamento": {
+            "name": "data_fechamento",
+            "type": "timestamp",
+            "description": "Data de fechamento do ticket",
+            "nullable": true,
+            "searchable": true
+          }
+        }
+      },
+      "metas_vendas": {
+        "name": "metas_vendas",
+        "description": "Definição e acompanhamento de metas de vendas por período e vendedor",
+        "primary_key": "id_meta",
+        "business_area": "vendas",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_meta": {
+            "name": "id_meta",
+            "type": "integer",
+            "description": "Identificador único da meta",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "id_vendedor": {
+            "name": "id_vendedor",
+            "type": "integer",
+            "description": "Referência ao vendedor",
+            "nullable": false,
+            "searchable": true
+          },
+          "periodo": {
+            "name": "periodo",
+            "type": "varchar",
+            "description": "Período da meta (mensal, trimestral, anual)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 20
+          },
+          "ano": {
+            "name": "ano",
+            "type": "integer",
+            "description": "Ano da meta",
+            "nullable": false,
+            "searchable": true
+          },
+          "mes": {
+            "name": "mes",
+            "type": "integer",
+            "description": "Mês da meta (quando aplicável)",
+            "nullable": true,
+            "searchable": true
+          },
+          "valor_meta": {
+            "name": "valor_meta",
+            "type": "decimal",
+            "description": "Valor da meta em reais",
+            "nullable": false,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          },
+          "valor_realizado": {
+            "name": "valor_realizado",
+            "type": "decimal",
+            "description": "Valor realizado até o momento",
+            "nullable": true,
+            "searchable": false,
+            "precision": 12,
+            "scale": 2
+          }
+        }
+      },
+      "relatorios_gerenciais": {
+        "name": "relatorios_gerenciais",
+        "description": "Histórico de relatórios gerenciais gerados no sistema",
+        "primary_key": "id_relatorio",
+        "business_area": "gerencial",
+        "created_at": "2025-01-01T00:00:00Z",
+        "columns": {
+          "id_relatorio": {
+            "name": "id_relatorio",
+            "type": "integer",
+            "description": "Identificador único do relatório",
+            "nullable": false,
+            "searchable": true,
+            "auto_increment": true,
+            "primary_key": true
+          },
+          "nome_relatorio": {
+            "name": "nome_relatorio",
+            "type": "varchar",
+            "description": "Nome do relatório",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 150
+          },
+          "tipo_relatorio": {
+            "name": "tipo_relatorio",
+            "type": "varchar",
+            "description": "Tipo do relatório (vendas, financeiro, estoque, crm)",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 30
+          },
+          "parametros": {
+            "name": "parametros",
+            "type": "text",
+            "description": "Parâmetros utilizados para gerar o relatório (JSON)",
+            "nullable": true,
+            "searchable": false
+          },
+          "data_geracao": {
+            "name": "data_geracao",
+            "type": "timestamp",
+            "description": "Data de geração do relatório",
+            "nullable": false,
+            "searchable": true
+          },
+          "usuario_gerador": {
+            "name": "usuario_gerador",
+            "type": "varchar",
+            "description": "Usuário que gerou o relatório",
+            "nullable": false,
+            "searchable": true,
+            "max_length": 50
+          },
+          "arquivo_caminho": {
+            "name": "arquivo_caminho",
+            "type": "varchar",
+            "description": "Caminho do arquivo do relatório",
+            "nullable": true,
+            "searchable": false,
+            "max_length": 500
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,857 @@
+{
+  "business_rules": {
+    "database_name": "sistema_comercial",
+    "version": "3.0",
+    "last_updated": "2025-10-06T10:00:00Z",
+    "description": "Regras de negócio e validações para o sistema comercial",
+    "tables": {
+      "clientes": {
+        "table_name": "clientes",
+        "description": "Regras para cadastro e manutenção de clientes",
+        "rules": [
+          {
+            "rule_id": "CLT_001",
+            "name": "Validação de CPF/CNPJ",
+            "description": "CPF deve ter exatamente 11 dígitos numéricos e CNPJ deve ter 14 dígitos numéricos. Deve ser validado através do algoritmo de dígito verificador.",
+            "type": "validation",
+            "fields_involved": ["cpf_cnpj", "tipo_pessoa"],
+            "priority": "high",
+            "error_message": "CPF/CNPJ inválido ou não confere com o tipo de pessoa"
+          },
+          {
+            "rule_id": "CLT_002",
+            "name": "Unicidade de documento",
+            "description": "Não é permitido cadastrar dois clientes com o mesmo CPF ou CNPJ, independente do status ativo/inativo.",
+            "type": "constraint",
+            "fields_involved": ["cpf_cnpj"],
+            "priority": "high",
+            "error_message": "CPF/CNPJ já cadastrado no sistema"
+          },
+          {
+            "rule_id": "CLT_003",
+            "name": "Limite de crédito não negativo",
+            "description": "O limite de crédito do cliente não pode ser negativo. Valor zero indica que o cliente não possui limite aprovado.",
+            "type": "validation",
+            "fields_involved": ["limite_credito"],
+            "priority": "medium",
+            "error_message": "Limite de crédito não pode ser negativo"
+          },
+          {
+            "rule_id": "CLT_004",
+            "name": "Email formato válido",
+            "description": "Quando informado, o email deve ter formato válido com @ e domínio. Validação através de regex padrão.",
+            "type": "validation",
+            "fields_involved": ["email"],
+            "priority": "medium",
+            "error_message": "Formato de email inválido"
+          },
+          {
+            "rule_id": "CLT_005",
+            "name": "Cliente inativo não pode comprar",
+            "description": "Clientes com status inativo não podem realizar novas compras ou ter novas contas a receber geradas.",
+            "type": "business_logic",
+            "fields_involved": ["ativo"],
+            "priority": "high",
+            "error_message": "Cliente inativo não pode realizar transações"
+          },
+          {
+            "rule_id": "CLT_006",
+            "name": "Nome fantasia apenas para PJ",
+            "description": "O campo nome_fantasia só pode ser preenchido para clientes pessoa jurídica (tipo_pessoa = 'J').",
+            "type": "business_logic",
+            "fields_involved": ["nome_fantasia", "tipo_pessoa"],
+            "priority": "low",
+            "error_message": "Nome fantasia só é válido para pessoa jurídica"
+          },
+          {
+            "rule_id": "CLT_007",
+            "name": "Atualização automática de saldo",
+            "description": "O saldo do cliente deve ser atualizado automaticamente sempre que uma conta a receber for criada, paga ou cancelada.",
+            "type": "automation",
+            "fields_involved": ["saldo_atual"],
+            "priority": "high",
+            "trigger": "after_insert_update_delete",
+            "related_tables": ["contas_receber"]
+          }
+        ]
+      },
+      "produtos": {
+        "table_name": "produtos",
+        "description": "Regras para cadastro e controle de produtos",
+        "rules": [
+          {
+            "rule_id": "PRD_001",
+            "name": "Preço de venda obrigatório e positivo",
+            "description": "Todo produto deve ter preço de venda informado e deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["preco_venda"],
+            "priority": "high",
+            "error_message": "Preço de venda deve ser maior que zero"
+          },
+          {
+            "rule_id": "PRD_002",
+            "name": "Estoque não pode ser negativo",
+            "description": "A quantidade em estoque nunca pode ser negativa. Sistema deve impedir vendas que resultem em estoque negativo.",
+            "type": "constraint",
+            "fields_involved": ["estoque_atual"],
+            "priority": "high",
+            "error_message": "Estoque insuficiente para a operação"
+          },
+          {
+            "rule_id": "PRD_003",
+            "name": "Código do produto único",
+            "description": "O código interno do produto deve ser único no sistema, não permitindo duplicatas.",
+            "type": "constraint",
+            "fields_involved": ["codigo_produto"],
+            "priority": "high",
+            "error_message": "Código do produto já existe no sistema"
+          },
+          {
+            "rule_id": "PRD_004",
+            "name": "Produto inativo não pode ser vendido",
+            "description": "Produtos com status inativo não podem ser incluídos em novas vendas.",
+            "type": "business_logic",
+            "fields_involved": ["ativo"],
+            "priority": "high",
+            "error_message": "Produto inativo não pode ser vendido"
+          },
+          {
+            "rule_id": "PRD_005",
+            "name": "Preço de custo menor que venda",
+            "description": "Quando informado, o preço de custo deve ser menor que o preço de venda para garantir margem positiva.",
+            "type": "validation",
+            "fields_involved": ["preco_custo", "preco_venda"],
+            "priority": "medium",
+            "error_message": "Preço de custo não pode ser maior que preço de venda"
+          },
+          {
+            "rule_id": "PRD_006",
+            "name": "Alerta de estoque mínimo",
+            "description": "Sistema deve gerar alerta quando estoque atual for menor ou igual ao estoque mínimo.",
+            "type": "automation",
+            "fields_involved": ["estoque_atual", "estoque_minimo"],
+            "priority": "medium",
+            "trigger": "after_update",
+            "action": "generate_alert"
+          },
+          {
+            "rule_id": "PRD_007",
+            "name": "Categoria obrigatória",
+            "description": "Todo produto deve ter uma categoria informada para organização do catálogo.",
+            "type": "validation",
+            "fields_involved": ["categoria"],
+            "priority": "medium",
+            "error_message": "Categoria do produto é obrigatória"
+          }
+        ]
+      },
+      "vendas": {
+        "table_name": "vendas",
+        "description": "Regras para processamento de vendas",
+        "rules": [
+          {
+            "rule_id": "VND_001",
+            "name": "Valor total deve ser positivo",
+            "description": "O valor total da venda deve ser maior que zero após aplicação de descontos.",
+            "type": "validation",
+            "fields_involved": ["valor_total"],
+            "priority": "high",
+            "error_message": "Valor total da venda deve ser maior que zero"
+          },
+          {
+            "rule_id": "VND_002",
+            "name": "Data da venda não pode ser futura",
+            "description": "A data da venda não pode ser posterior à data atual do sistema.",
+            "type": "validation",
+            "fields_involved": ["data_venda"],
+            "priority": "high",
+            "error_message": "Data da venda não pode ser futura"
+          },
+          {
+            "rule_id": "VND_003",
+            "name": "Venda cancelada não pode ser alterada",
+            "description": "Vendas com status 'cancelada' não podem ter seus dados alterados, apenas visualizados.",
+            "type": "business_logic",
+            "fields_involved": ["status_venda"],
+            "priority": "high",
+            "error_message": "Venda cancelada não pode ser modificada"
+          },
+          {
+            "rule_id": "VND_004",
+            "name": "Cliente deve estar ativo",
+            "description": "Só é possível realizar vendas para clientes com status ativo no sistema.",
+            "type": "business_logic",
+            "fields_involved": ["id_cliente"],
+            "priority": "high",
+            "error_message": "Cliente deve estar ativo para realizar vendas",
+            "related_tables": ["clientes"]
+          },
+          {
+            "rule_id": "VND_005",
+            "name": "Número da venda único",
+            "description": "O número da venda deve ser único no sistema e gerado automaticamente.",
+            "type": "constraint",
+            "fields_involved": ["numero_venda"],
+            "priority": "high",
+            "error_message": "Número da venda deve ser único"
+          },
+          {
+            "rule_id": "VND_006",
+            "name": "Desconto não pode ser maior que valor dos produtos",
+            "description": "O valor de desconto não pode ser maior que o valor total dos produtos.",
+            "type": "validation",
+            "fields_involved": ["valor_desconto", "valor_produtos"],
+            "priority": "high",
+            "error_message": "Desconto não pode exceder valor dos produtos"
+          },
+          {
+            "rule_id": "VND_007",
+            "name": "Baixa automática de estoque",
+            "description": "Quando venda for confirmada, deve ser executada baixa automática no estoque dos produtos vendidos.",
+            "type": "automation",
+            "fields_involved": ["status_venda"],
+            "priority": "high",
+            "trigger": "after_update",
+            "condition": "status_venda = 'confirmada'",
+            "action": "baixa_estoque",
+            "related_tables": ["produtos", "itens_venda"]
+          },
+          {
+            "rule_id": "VND_008",
+            "name": "Geração de contas a receber",
+            "description": "Para vendas a prazo, devem ser geradas automaticamente as contas a receber conforme condições de pagamento.",
+            "type": "automation",
+            "fields_involved": ["forma_pagamento"],
+            "priority": "high",
+            "trigger": "after_insert",
+            "condition": "forma_pagamento IN ('prazo', 'boleto')",
+            "action": "gerar_contas_receber",
+            "related_tables": ["contas_receber"]
+          }
+        ]
+      },
+      "itens_venda": {
+        "table_name": "itens_venda",
+        "description": "Regras para itens de venda",
+        "rules": [
+          {
+            "rule_id": "ITV_001",
+            "name": "Quantidade deve ser positiva",
+            "description": "A quantidade vendida de cada produto deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["quantidade"],
+            "priority": "high",
+            "error_message": "Quantidade deve ser maior que zero"
+          },
+          {
+            "rule_id": "ITV_002",
+            "name": "Preço unitário deve ser positivo",
+            "description": "O preço unitário do produto no item deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["preco_unitario"],
+            "priority": "high",
+            "error_message": "Preço unitário deve ser maior que zero"
+          },
+          {
+            "rule_id": "ITV_003",
+            "name": "Cálculo automático do preço total",
+            "description": "O preço total do item deve ser calculado automaticamente: (quantidade × preço_unitário) - desconto_item.",
+            "type": "automation",
+            "fields_involved": ["preco_total", "quantidade", "preco_unitario", "desconto_item"],
+            "priority": "high",
+            "trigger": "before_insert_update",
+            "action": "calcular_preco_total"
+          },
+          {
+            "rule_id": "ITV_004",
+            "name": "Produto deve estar ativo",
+            "description": "Só é possível vender produtos com status ativo no cadastro.",
+            "type": "business_logic",
+            "fields_involved": ["id_produto"],
+            "priority": "high",
+            "error_message": "Produto deve estar ativo para venda",
+            "related_tables": ["produtos"]
+          },
+          {
+            "rule_id": "ITV_005",
+            "name": "Verificação de estoque disponível",
+            "description": "A quantidade vendida não pode exceder o estoque disponível do produto.",
+            "type": "business_logic",
+            "fields_involved": ["id_produto", "quantidade"],
+            "priority": "high",
+            "error_message": "Quantidade excede estoque disponível",
+            "related_tables": ["produtos"]
+          },
+          {
+            "rule_id": "ITV_006",
+            "name": "Desconto do item não pode exceder preço total",
+            "description": "O desconto aplicado no item não pode ser maior que o valor total do item (quantidade × preço unitário).",
+            "type": "validation",
+            "fields_involved": ["desconto_item", "quantidade", "preco_unitario"],
+            "priority": "medium",
+            "error_message": "Desconto não pode exceder valor do item"
+          }
+        ]
+      },
+      "contas_receber": {
+        "table_name": "contas_receber",
+        "description": "Regras para controle financeiro",
+        "rules": [
+          {
+            "rule_id": "CTR_001",
+            "name": "Saldo devedor não pode ser negativo",
+            "description": "O saldo devedor da conta não pode ser negativo em nenhuma situação.",
+            "type": "constraint",
+            "fields_involved": ["saldo_devedor"],
+            "priority": "high",
+            "error_message": "Saldo devedor não pode ser negativo"
+          },
+          {
+            "rule_id": "CTR_002",
+            "name": "Data de pagamento apenas para contas pagas",
+            "description": "O campo data_pagamento só pode ser preenchido quando o status da conta for 'paga'.",
+            "type": "business_logic",
+            "fields_involved": ["data_pagamento", "status"],
+            "priority": "high",
+            "error_message": "Data de pagamento só é válida para contas pagas"
+          },
+          {
+            "rule_id": "CTR_003",
+            "name": "Atualização automática de status vencido",
+            "description": "Contas com data de vencimento menor que a data atual devem ter status automaticamente alterado para 'vencida'.",
+            "type": "automation",
+            "fields_involved": ["status", "data_vencimento"],
+            "priority": "high",
+            "trigger": "daily_batch",
+            "action": "update_status_vencida"
+          },
+          {
+            "rule_id": "CTR_004",
+            "name": "Valor pago não pode exceder valor devido",
+            "description": "O valor pago não pode ser maior que a soma do valor original mais juros e multa.",
+            "type": "validation",
+            "fields_involved": ["valor_pago", "valor_original", "juros_multa"],
+            "priority": "high",
+            "error_message": "Valor pago excede valor devido"
+          },
+          {
+            "rule_id": "CTR_005",
+            "name": "Número de documento único",
+            "description": "O número do documento deve ser único no sistema para evitar duplicações.",
+            "type": "constraint",
+            "fields_involved": ["numero_documento"],
+            "priority": "high",
+            "error_message": "Número de documento já existe"
+          },
+          {
+            "rule_id": "CTR_006",
+            "name": "Cálculo automático de juros e multa",
+            "description": "Para contas vencidas, juros e multa devem ser calculados automaticamente conforme configuração da empresa.",
+            "type": "automation",
+            "fields_involved": ["juros_multa", "data_vencimento", "valor_original"],
+            "priority": "medium",
+            "trigger": "daily_batch",
+            "action": "calcular_juros_multa"
+          },
+          {
+            "rule_id": "CTR_007",
+            "name": "Atualização de saldo do cliente",
+            "description": "Quando conta for paga ou cancelada, deve ser atualizado automaticamente o saldo do cliente.",
+            "type": "automation",
+            "fields_involved": ["status"],
+            "priority": "high",
+            "trigger": "after_update",
+            "action": "atualizar_saldo_cliente",
+            "related_tables": ["clientes"]
+          }
+        ]
+      },
+      "funcionarios": {
+        "table_name": "funcionarios",
+        "description": "Regras para gestão de funcionários",
+        "rules": [
+          {
+            "rule_id": "FUN_001",
+            "name": "CPF único e válido",
+            "description": "CPF do funcionário deve ser único no sistema e ter formato válido com 11 dígitos.",
+            "type": "validation",
+            "fields_involved": ["cpf"],
+            "priority": "high",
+            "error_message": "CPF inválido ou já cadastrado"
+          },
+          {
+            "rule_id": "FUN_002",
+            "name": "Salário deve ser positivo",
+            "description": "Quando informado, o salário deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["salario"],
+            "priority": "medium",
+            "error_message": "Salário deve ser maior que zero"
+          },
+          {
+            "rule_id": "FUN_003",
+            "name": "Data de admissão não pode ser futura",
+            "description": "A data de admissão não pode ser posterior à data atual.",
+            "type": "validation",
+            "fields_involved": ["data_admissao"],
+            "priority": "high",
+            "error_message": "Data de admissão não pode ser futura"
+          },
+          {
+            "rule_id": "FUN_004",
+            "name": "Funcionário inativo não pode vender",
+            "description": "Funcionários com status inativo não podem ser associados como vendedores em novas vendas.",
+            "type": "business_logic",
+            "fields_involved": ["ativo"],
+            "priority": "high",
+            "error_message": "Funcionário inativo não pode realizar vendas"
+          },
+          {
+            "rule_id": "FUN_005",
+            "name": "Data de demissão posterior à admissão",
+            "description": "Quando informada, a data de demissão deve ser posterior à data de admissão.",
+            "type": "validation",
+            "fields_involved": ["data_demissao", "data_admissao"],
+            "priority": "high",
+            "error_message": "Data de demissão deve ser posterior à admissão"
+          },
+          {
+            "rule_id": "FUN_006",
+            "name": "Inativação automática por demissão",
+            "description": "Quando data de demissão for preenchida, o funcionário deve ser automaticamente marcado como inativo.",
+            "type": "automation",
+            "fields_involved": ["data_demissao", "ativo"],
+            "priority": "high",
+            "trigger": "after_update",
+            "condition": "data_demissao IS NOT NULL",
+            "action": "set_ativo_false"
+          }
+        ]
+      },
+      "fornecedores": {
+        "table_name": "fornecedores",
+        "description": "Regras para cadastro e gestão de fornecedores",
+        "rules": [
+          {
+            "rule_id": "FOR_001",
+            "name": "Validação de CNPJ/CPF fornecedor",
+            "description": "CNPJ deve ter 14 dígitos e CPF 11 dígitos, com validação de dígito verificador.",
+            "type": "validation",
+            "fields_involved": ["cnpj_cpf"],
+            "priority": "high",
+            "error_message": "CNPJ/CPF do fornecedor inválido"
+          },
+          {
+            "rule_id": "FOR_002",
+            "name": "Prazo de pagamento não negativo",
+            "description": "O prazo de pagamento deve ser positivo ou zero.",
+            "type": "validation",
+            "fields_involved": ["prazo_pagamento"],
+            "priority": "medium",
+            "error_message": "Prazo de pagamento deve ser positivo"
+          },
+          {
+            "rule_id": "FOR_003",
+            "name": "Fornecedor inativo não pode receber pedidos",
+            "description": "Fornecedores inativos não podem ter novos pedidos de compra.",
+            "type": "business_logic",
+            "fields_involved": ["ativo"],
+            "priority": "high",
+            "error_message": "Fornecedor inativo não pode receber pedidos"
+          }
+        ]
+      },
+      "compras": {
+        "table_name": "compras",
+        "description": "Regras para processo de compras",
+        "rules": [
+          {
+            "rule_id": "COM_001",
+            "name": "Valor total não negativo",
+            "description": "O valor total da compra deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["valor_total"],
+            "priority": "high",
+            "error_message": "Valor da compra deve ser maior que zero"
+          },
+          {
+            "rule_id": "COM_002",
+            "name": "Data de compra não futura",
+            "description": "A data da compra não pode ser superior à data atual.",
+            "type": "validation",
+            "fields_involved": ["data_compra"],
+            "priority": "medium",
+            "error_message": "Data da compra não pode ser futura"
+          }
+        ]
+      },
+      "campanhas_marketing": {
+        "table_name": "campanhas_marketing",
+        "description": "Regras para campanhas de marketing",
+        "rules": [
+          {
+            "rule_id": "CAM_001",
+            "name": "Data fim posterior ao início",
+            "description": "A data de fim da campanha deve ser posterior à data de início.",
+            "type": "validation",
+            "fields_involved": ["data_inicio", "data_fim"],
+            "priority": "high",
+            "error_message": "Data fim deve ser posterior ao início"
+          },
+          {
+            "rule_id": "CAM_002",
+            "name": "Orçamento não negativo",
+            "description": "O orçamento da campanha deve ser positivo ou zero.",
+            "type": "validation",
+            "fields_involved": ["orcamento"],
+            "priority": "medium",
+            "error_message": "Orçamento deve ser positivo"
+          }
+        ]
+      },
+      "leads": {
+        "table_name": "leads",
+        "description": "Regras para gestão de leads",
+        "rules": [
+          {
+            "rule_id": "LEA_001",
+            "name": "Email formato válido",
+            "description": "Quando informado, o email deve ter formato válido.",
+            "type": "validation",
+            "fields_involved": ["email"],
+            "priority": "medium",
+            "error_message": "Formato de email inválido"
+          },
+          {
+            "rule_id": "LEA_002",
+            "name": "Lead convertido não pode ser editado",
+            "description": "Leads com status 'convertido' não podem ter dados alterados.",
+            "type": "business_logic",
+            "fields_involved": ["status"],
+            "priority": "medium",
+            "error_message": "Lead convertido não pode ser alterado"
+          }
+        ]
+      },
+      "movimentacao_estoque": {
+        "table_name": "movimentacao_estoque",
+        "description": "Regras para movimentação de estoque",
+        "rules": [
+          {
+            "rule_id": "MOV_001",
+            "name": "Quantidade não zero",
+            "description": "A quantidade movimentada deve ser diferente de zero.",
+            "type": "validation",
+            "fields_involved": ["quantidade"],
+            "priority": "high",
+            "error_message": "Quantidade deve ser diferente de zero"
+          },
+          {
+            "rule_id": "MOV_002",
+            "name": "Validação de estoque negativo",
+            "description": "Saídas de estoque não podem resultar em saldo negativo.",
+            "type": "business_logic",
+            "fields_involved": ["quantidade", "tipo_movimentacao"],
+            "priority": "high",
+            "error_message": "Estoque insuficiente para a operação"
+          }
+        ]
+      },
+      "entregas": {
+        "table_name": "entregas",
+        "description": "Regras para controle de entregas",
+        "rules": [
+          {
+            "rule_id": "ENT_001",
+            "name": "Data entrega posterior ao despacho",
+            "description": "A data de entrega deve ser posterior à data de despacho.",
+            "type": "validation",
+            "fields_involved": ["data_despacho", "data_entrega"],
+            "priority": "medium",
+            "error_message": "Data entrega deve ser posterior ao despacho"
+          },
+          {
+            "rule_id": "ENT_002",
+            "name": "Valor frete não negativo",
+            "description": "O valor do frete deve ser positivo ou zero.",
+            "type": "validation",
+            "fields_involved": ["valor_frete"],
+            "priority": "medium",
+            "error_message": "Valor do frete deve ser positivo"
+          }
+        ]
+      },
+      "despesas": {
+        "table_name": "despesas",
+        "description": "Regras para controle de despesas",
+        "rules": [
+          {
+            "rule_id": "DES_001",
+            "name": "Valor despesa positivo",
+            "description": "O valor da despesa deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["valor"],
+            "priority": "high",
+            "error_message": "Valor da despesa deve ser positivo"
+          },
+          {
+            "rule_id": "DES_002",
+            "name": "Data pagamento posterior ao vencimento permitida",
+            "description": "A data de pagamento pode ser posterior ao vencimento.",
+            "type": "validation",
+            "fields_involved": ["data_vencimento", "data_pagamento"],
+            "priority": "low",
+            "error_message": "Validação de datas de pagamento"
+          },
+          {
+            "rule_id": "DES_003",
+            "name": "Atualização automática de status",
+            "description": "Status deve ser atualizado automaticamente: 'paga' quando data_pagamento preenchida, 'vencida' quando vencimento ultrapassado.",
+            "type": "automation",
+            "fields_involved": ["status", "data_pagamento", "data_vencimento"],
+            "priority": "medium",
+            "trigger": "after_update"
+          }
+        ]
+      },
+      "usuarios_sistema": {
+        "table_name": "usuarios_sistema",
+        "description": "Regras para usuários do sistema",
+        "rules": [
+          {
+            "rule_id": "USR_001",
+            "name": "Senha com complexidade mínima",
+            "description": "Senha deve ter pelo menos 8 caracteres, incluindo letras, números e símbolos.",
+            "type": "validation",
+            "fields_involved": ["senha_hash"],
+            "priority": "high",
+            "error_message": "Senha não atende aos critérios de segurança"
+          },
+          {
+            "rule_id": "USR_002",
+            "name": "Email único no sistema",
+            "description": "Não é permitido cadastrar usuários com emails duplicados.",
+            "type": "constraint",
+            "fields_involved": ["email"],
+            "priority": "high",
+            "error_message": "Email já cadastrado no sistema"
+          },
+          {
+            "rule_id": "USR_003",
+            "name": "Login único no sistema",
+            "description": "Não é permitido cadastrar usuários com logins duplicados.",
+            "type": "constraint",
+            "fields_involved": ["login"],
+            "priority": "high",
+            "error_message": "Login já existe no sistema"
+          }
+        ]
+      },
+      "promocoes": {
+        "table_name": "promocoes",
+        "description": "Regras para promoções e descontos",
+        "rules": [
+          {
+            "rule_id": "PRO_001",
+            "name": "Desconto percentual máximo 100%",
+            "description": "Desconto percentual não pode ser superior a 100%.",
+            "type": "validation",
+            "fields_involved": ["tipo_desconto", "valor_desconto"],
+            "priority": "high",
+            "error_message": "Desconto percentual não pode exceder 100%"
+          },
+          {
+            "rule_id": "PRO_002",
+            "name": "Data fim posterior ao início",
+            "description": "A data de fim da promoção deve ser posterior à data de início.",
+            "type": "validation",
+            "fields_involved": ["data_inicio", "data_fim"],
+            "priority": "high",
+            "error_message": "Data fim deve ser posterior ao início"
+          },
+          {
+            "rule_id": "PRO_003",
+            "name": "Inativação automática de promoções vencidas",
+            "description": "Promoções devem ser automaticamente inativadas após data de fim.",
+            "type": "automation",
+            "fields_involved": ["ativa", "data_fim"],
+            "priority": "medium",
+            "trigger": "daily_check"
+          }
+        ]
+      },
+      "contratos": {
+        "table_name": "contratos",
+        "description": "Regras para gestão de contratos",
+        "rules": [
+          {
+            "rule_id": "CTR_001",
+            "name": "Data vencimento posterior à assinatura",
+            "description": "A data de vencimento deve ser posterior à data de assinatura.",
+            "type": "validation",
+            "fields_involved": ["data_assinatura", "data_vencimento"],
+            "priority": "high",
+            "error_message": "Data vencimento deve ser posterior à assinatura"
+          },
+          {
+            "rule_id": "CTR_002",
+            "name": "Valor contrato não negativo",
+            "description": "O valor do contrato deve ser positivo ou zero.",
+            "type": "validation",
+            "fields_involved": ["valor_total"],
+            "priority": "medium",
+            "error_message": "Valor do contrato deve ser positivo"
+          },
+          {
+            "rule_id": "CTR_003",
+            "name": "Atualização automática de status vencido",
+            "description": "Contratos devem ter status atualizado para 'vencido' automaticamente após data de vencimento.",
+            "type": "automation",
+            "fields_involved": ["status", "data_vencimento"],
+            "priority": "medium",
+            "trigger": "daily_check"
+          }
+        ]
+      },
+      "avaliacoes_produtos": {
+        "table_name": "avaliacoes_produtos",
+        "description": "Regras para avaliações de produtos",
+        "rules": [
+          {
+            "rule_id": "AVA_001",
+            "name": "Nota entre 1 e 5",
+            "description": "A nota da avaliação deve estar entre 1 e 5.",
+            "type": "validation",
+            "fields_involved": ["nota"],
+            "priority": "high",
+            "error_message": "Nota deve estar entre 1 e 5"
+          },
+          {
+            "rule_id": "AVA_002",
+            "name": "Cliente pode avaliar apenas produtos comprados",
+            "description": "Cliente só pode avaliar produtos que efetivamente comprou.",
+            "type": "business_logic",
+            "fields_involved": ["id_cliente", "id_produto"],
+            "priority": "high",
+            "error_message": "Cliente só pode avaliar produtos comprados"
+          }
+        ]
+      },
+      "tickets_suporte": {
+        "table_name": "tickets_suporte",
+        "description": "Regras para sistema de suporte",
+        "rules": [
+          {
+            "rule_id": "TIC_001",
+            "name": "Data fechamento posterior à abertura",
+            "description": "A data de fechamento deve ser posterior à data de abertura.",
+            "type": "validation",
+            "fields_involved": ["data_abertura", "data_fechamento"],
+            "priority": "medium",
+            "error_message": "Data fechamento deve ser posterior à abertura"
+          },
+          {
+            "rule_id": "TIC_002",
+            "name": "Tickets críticos têm SLA de 4 horas",
+            "description": "Tickets com prioridade crítica devem ser atendidos em até 4 horas.",
+            "type": "business_logic",
+            "fields_involved": ["prioridade", "data_abertura"],
+            "priority": "high",
+            "sla_hours": 4
+          }
+        ]
+      },
+      "metas_vendas": {
+        "table_name": "metas_vendas",
+        "description": "Regras para metas de vendas",
+        "rules": [
+          {
+            "rule_id": "MET_001",
+            "name": "Meta de valor positivo",
+            "description": "O valor da meta deve ser maior que zero.",
+            "type": "validation",
+            "fields_involved": ["valor_meta"],
+            "priority": "high",
+            "error_message": "Valor da meta deve ser positivo"
+          },
+          {
+            "rule_id": "MET_002",
+            "name": "Mês válido para metas mensais",
+            "description": "Para metas mensais, o mês deve estar entre 1 e 12.",
+            "type": "validation",
+            "fields_involved": ["periodo", "mes"],
+            "priority": "medium",
+            "error_message": "Mês deve estar entre 1 e 12 para metas mensais"
+          },
+          {
+            "rule_id": "MET_003",
+            "name": "Atualização automática do realizado",
+            "description": "O valor realizado deve ser atualizado automaticamente com base nas vendas do período.",
+            "type": "automation",
+            "fields_involved": ["valor_realizado"],
+            "priority": "medium",
+            "trigger": "after_sale"
+          }
+        ]
+      }
+    },
+    "global_rules": [
+      {
+        "rule_id": "GLB_001",
+        "name": "Auditoria de alterações",
+        "description": "Todas as operações de inserção, alteração e exclusão devem ser registradas em tabela de auditoria com usuário, data/hora e valores anteriores.",
+        "type": "audit",
+        "priority": "medium",
+        "applies_to": "all_tables"
+      },
+      {
+        "rule_id": "GLB_002",
+        "name": "Backup automático diário",
+        "description": "Sistema deve realizar backup automático diário de toda a base de dados às 2:00h.",
+        "type": "maintenance",
+        "priority": "high",
+        "schedule": "daily_02:00"
+      },
+      {
+        "rule_id": "GLB_003",
+        "name": "Validação de integridade referencial",
+        "description": "Todas as chaves estrangeiras devem ser validadas antes de inserção/alteração para garantir consistência.",
+        "type": "constraint",
+        "priority": "high",
+        "applies_to": "all_foreign_keys"
+      },
+      {
+        "rule_id": "GLB_004",
+        "name": "Criptografia de dados sensíveis",
+        "description": "Dados sensíveis como senhas e informações pessoais devem ser criptografados.",
+        "type": "security",
+        "priority": "high",
+        "applies_to": "sensitive_fields"
+      },
+      {
+        "rule_id": "GLB_005",
+        "name": "Log de acesso ao sistema",
+        "description": "Todos os acessos ao sistema devem ser registrados com timestamp e IP de origem.",
+        "type": "security",
+        "priority": "medium",
+        "applies_to": "all_sessions"
+      },
+      {
+        "rule_id": "GLB_006",
+        "name": "Validação de tipos de dados",
+        "description": "Todos os campos devem ter validação de tipo de dados antes da inserção/atualização.",
+        "type": "validation",
+        "priority": "high",
+        "applies_to": "all_fields"
+      },
+      {
+        "rule_id": "GLB_007",
+        "name": "Soft delete para registros críticos",
+        "description": "Registros críticos devem usar soft delete (marcação como inativo) ao invés de exclusão física.",
+        "type": "data_integrity",
+        "priority": "medium",
+        "applies_to": "critical_tables"
+      }
+    ]
+  }
+}
