@@ -1,6 +1,4 @@
-
-````markdown
-# 🎓 FIAP VectorDB System
+﻿# 🎓 FIAP VectorDB System
 
 Sistema para demonstração e testes de busca semântica usando **ChromaDB** e **LMStudio**, com API Python e frontend React.
 
@@ -120,7 +118,3 @@ python tests\chromadb\test_chromadb_database.py
 ```
 
 ---
-
-Para detalhes adicionais (ex.: configuração de GPU, volumes, variáveis de ambiente avançadas), veja os READMEs específicos em `fiap_lmstudio/`, `fiap_chromadb/` e `fiap_api/`.
-
-````
