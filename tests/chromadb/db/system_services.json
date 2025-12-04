@@ -7,7 +7,7 @@
     "categories": ["backup", "financeiro", "estoque", "vendas", "crm", "relatorios", "manutencao"],
     "services": {
       "backup_database": {
-        "service_id": "SRV_001",
+        "service_id": 1,
         "name": "Backup Automático da Base de Dados",
         "description": "Realiza backup completo de todas as tabelas do sistema comercial, incluindo dados e estrutura, armazenando em local seguro com compactação",
         "category": "backup",
@@ -44,7 +44,7 @@
         "next_execution": "2025-10-07T02:00:00Z"
       },
       "update_contas_vencidas": {
-        "service_id": "SRV_002",
+        "service_id": 2,
         "name": "Atualização de Status de Contas Vencidas",
         "description": "Verifica todas as contas a receber em aberto e atualiza automaticamente o status para 'vencida' quando a data de vencimento é ultrapassada",
         "category": "financeiro",
@@ -80,7 +80,7 @@
         }
       },
       "calculo_juros_multa": {
-        "service_id": "SRV_003",
+        "service_id": 3,
         "name": "Cálculo de Juros e Multa",
         "description": "Calcula e aplica juros de mora e multa por atraso nas contas vencidas conforme política comercial da empresa",
         "category": "financeiro",
@@ -117,7 +117,7 @@
         }
       },
       "alerta_estoque_minimo": {
-        "service_id": "SRV_004",
+        "service_id": 4,
         "name": "Alerta de Estoque Mínimo",
         "description": "Monitora o estoque de todos os produtos ativos e gera alertas quando a quantidade atual fica igual ou abaixo do estoque mínimo configurado",
         "category": "estoque",
@@ -153,7 +153,7 @@
         }
       },
       "sincronizacao_saldo_clientes": {
-        "service_id": "SRV_005",
+        "service_id": 5,
         "name": "Sincronização de Saldo dos Clientes",
         "description": "Recalcula e atualiza o saldo atual de todos os clientes baseado nas contas a receber em aberto, garantindo consistência dos dados",
         "category": "financeiro",
@@ -185,7 +185,7 @@
         }
       },
       "relatorio_vendas_diario": {
-        "service_id": "SRV_006",
+        "service_id": 6,
         "name": "Relatório de Vendas Diário",
         "description": "Gera relatório consolidado das vendas do dia anterior com totais por vendedor, forma de pagamento e categoria de produtos",
         "category": "relatorios",
@@ -221,7 +221,7 @@
         }
       },
       "limpeza_logs_sistema": {
-        "service_id": "SRV_007",
+        "service_id": 7,
         "name": "Limpeza de Logs do Sistema",
         "description": "Remove automaticamente logs antigos do sistema para otimizar espaço em disco, mantendo apenas logs dos últimos 90 dias",
         "category": "manutencao",
@@ -257,7 +257,7 @@
         }
       },
       "backup_incremental": {
-        "service_id": "SRV_008",
+        "service_id": 8,
         "name": "Backup Incremental",
         "description": "Realiza backup incremental dos dados alterados desde o último backup completo, otimizando tempo e espaço de armazenamento",
         "category": "backup",
@@ -291,7 +291,7 @@
         }
       },
       "atualizacao_ranking_clientes": {
-        "service_id": "SRV_009",
+        "service_id": 9,
         "name": "Atualização de Ranking de Clientes",
         "description": "Calcula e atualiza o ranking de clientes baseado no volume de compras, frequência e valor médio dos últimos 12 meses para estratégias de CRM",
         "category": "crm",
@@ -332,7 +332,7 @@
         }
       },
       "monitoramento_performance": {
-        "service_id": "SRV_010",
+        "service_id": 10,
         "name": "Monitoramento de Performance do Sistema",
         "description": "Monitora performance do banco de dados, tempo de resposta das consultas e uso de recursos do sistema",
         "category": "manutencao",
@@ -373,7 +373,7 @@
         }
       },
       "processamento_campanhas_automaticas": {
-        "service_id": "SRV_009",
+        "service_id": 11,
         "name": "Processamento de Campanhas Automáticas",
         "description": "Executa automaticamente campanhas de marketing programadas, enviando emails, SMS e outras comunicações",
         "category": "marketing",
@@ -392,7 +392,7 @@
         }
       },
       "sincronizacao_estoque_produtos": {
-        "service_id": "SRV_010",
+        "service_id": 12,
         "name": "Sincronização de Estoque com Produtos",
         "description": "Atualiza automaticamente a quantidade em estoque dos produtos baseado nas movimentações",
         "category": "estoque",
@@ -406,7 +406,7 @@
         }
       },
       "analise_performance_vendedores": {
-        "service_id": "SRV_011",
+        "service_id": 13,
         "name": "Análise de Performance de Vendedores",
         "description": "Calcula automaticamente métricas de performance dos vendedores e atualiza rankings",
         "category": "vendas",
@@ -425,7 +425,7 @@
         }
       },
       "limpeza_logs_antigos": {
-        "service_id": "SRV_012",
+        "service_id": 14,
         "name": "Limpeza de Logs Antigos",
         "description": "Remove automaticamente logs de auditoria e sistema com mais de 1 ano",
         "category": "manutencao",
@@ -445,7 +445,7 @@
         }
       },
       "notificacao_contratos_vencendo": {
-        "service_id": "SRV_013",
+        "service_id": 15,
         "name": "Notificação de Contratos Vencendo",
         "description": "Envia alertas automáticos sobre contratos que vencem em 30, 15 e 7 dias",
         "category": "juridico",
@@ -463,7 +463,7 @@
         }
       },
       "backup_diferencial": {
-        "service_id": "SRV_014",
+        "service_id": 16,
         "name": "Backup Diferencial",
         "description": "Realiza backup diferencial de apenas dados alterados desde o último backup completo",
         "category": "backup",
@@ -481,7 +481,7 @@
         }
       },
       "atualizacao_rankings_produtos": {
-        "service_id": "SRV_015",
+        "service_id": 17,
         "name": "Atualização de Rankings de Produtos",
         "description": "Calcula e atualiza rankings dos produtos mais vendidos, mais avaliados e com melhor margem",
         "category": "vendas",
@@ -499,7 +499,7 @@
         }
       },
       "processamento_leads_automatico": {
-        "service_id": "SRV_016",
+        "service_id": 18,
         "name": "Processamento Automático de Leads",
         "description": "Qualifica automaticamente leads baseado em regras de negócio e atribui scores",
         "category": "crm",
@@ -513,7 +513,7 @@
         }
       },
       "otimizacao_indices_database": {
-        "service_id": "SRV_017",
+        "service_id": 19,
         "name": "Otimização de Índices do Banco",
         "description": "Analisa e otimiza automaticamente índices do banco de dados para melhor performance",
         "category": "manutencao",
@@ -532,7 +532,7 @@
         }
       },
       "sincronizacao_transportadoras": {
-        "service_id": "SRV_018",
+        "service_id": 20,
         "name": "Sincronização com APIs de Transportadoras",
         "description": "Consulta automaticamente APIs das transportadoras para atualizar status de entregas e códigos de rastreamento",
         "category": "logistica",
@@ -550,7 +550,7 @@
         }
       },
       "calculo_comissoes_vendedores": {
-        "service_id": "SRV_019",
+        "service_id": 21,
         "name": "Cálculo de Comissões de Vendedores",
         "description": "Calcula automaticamente comissões dos vendedores baseado nas vendas do mês",
         "category": "rh",
@@ -569,7 +569,7 @@
         }
       },
       "monitoramento_sla_suporte": {
-        "service_id": "SRV_020",
+        "service_id": 22,
         "name": "Monitoramento de SLA de Suporte",
         "description": "Monitora constantemente SLA dos tickets de suporte e envia alertas quando próximo do vencimento",
         "category": "suporte",
@@ -586,7 +586,7 @@
         }
       },
       "consolidacao_dados_gerenciais": {
-        "service_id": "SRV_021",
+        "service_id": 23,
         "name": "Consolidação de Dados Gerenciais",
         "description": "Consolida dados de todas as áreas em tabelas de resumo para relatórios gerenciais rápidos",
         "category": "relatorios",
@@ -604,7 +604,7 @@
         }
       },
       "verificacao_integridade_dados": {
-        "service_id": "SRV_022",
+        "service_id": 24,
         "name": "Verificação de Integridade de Dados",
         "description": "Executa verificações automáticas de integridade referencial e consistência de dados",
         "category": "manutencao",
@@ -622,7 +622,7 @@
         }
       },
       "atualizacao_cache_sistema": {
-        "service_id": "SRV_023",
+        "service_id": 25,
         "name": "Atualização de Cache do Sistema",
         "description": "Atualiza automaticamente caches de consultas frequentes para melhorar performance",
         "category": "sistema",

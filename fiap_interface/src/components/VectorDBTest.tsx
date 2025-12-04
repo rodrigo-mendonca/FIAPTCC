@@ -26,8 +26,9 @@ import {
   Search as SearchIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
+import { useNotification } from '../contexts/NotificationContext';
 const VectorDBTest: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,8 +39,14 @@ const VectorDBTest: React.FC = () => {
   const [databaseStructureFile, setDatabaseStructureFile] = useState<File | null>(null);
   const [systemServicesFile, setSystemServicesFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [shouldReload, setShouldReload] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearMessage, setClearMessage] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const { selectedCollection } = useCollection();
+  const { showNotification } = useNotification();
 
   const handleSubTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setSubTab(newValue);
@@ -54,6 +61,7 @@ const VectorDBTest: React.FC = () => {
 
     setLoading(true);
     setResults([]);
+    setQueryError(null);
 
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/query?collection_name=${encodeURIComponent(selectedCollection)}`, {
@@ -72,11 +80,34 @@ const VectorDBTest: React.FC = () => {
         const data = await response.json();
         setResults(data.results || []);
       } else {
-        alert('Erro na consulta: ' + response.statusText);
+        let errText = response.statusText || `Status ${response.status}`;
+        try {
+          const body = await response.text();
+          if (body) {
+            try {
+              const json = JSON.parse(body);
+              errText = json.detail || json.message || body;
+            } catch {
+              errText = body;
+            }
+          }
+        } catch {}
+
+        const lower = String(errText).toLowerCase();
+        if (lower.includes('lmstudio') || lower.includes('lm-studio') || response.status === 502 || response.status === 503) {
+          setQueryError('LMStudio não está disponível ou não possui modelos carregados. Verifique se o LMStudio está aberto e com os modelos carregados.');
+        } else {
+          setQueryError(`Erro na consulta: ${errText}`);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro:', error);
-      alert('Erro ao fazer consulta');
+      const msg = String(error?.message || error || 'Erro ao fazer consulta');
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+        setQueryError('Não foi possível conectar ao backend. Verifique se a API está rodando.');
+      } else {
+        setQueryError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -87,9 +118,53 @@ const VectorDBTest: React.FC = () => {
   };
 
   const handleConfirmClear = () => {
-    // TODO: Implement actual database clearing logic
-    console.log('Database cleared');
-    setConfirmDialogOpen(false);
+    // Chama a API para limpar a base de dados
+    const doClear = async () => {
+      setClearError(null);
+      setClearMessage(null);
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/clear`, {
+          method: 'POST'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setClearMessage(data.message || 'Base de dados limpa com sucesso');
+        } else {
+          let errText = response.statusText || `Status ${response.status}`;
+          try {
+            const body = await response.text();
+            if (body) {
+              try {
+                const json = JSON.parse(body);
+                errText = json.detail || json.message || body;
+              } catch {
+                errText = body;
+              }
+            }
+          } catch {}
+
+          const lower = String(errText).toLowerCase();
+          if (lower.includes('lmstudio') || lower.includes('lm-studio') || response.status === 502 || response.status === 503) {
+            setClearError('LMStudio não está disponível ou não possui modelos carregados. Verifique se o LMStudio está aberto e com os modelos carregados.');
+          } else {
+            setClearError(`Erro ao limpar base: ${errText}`);
+          }
+        }
+      } catch (error: any) {
+        console.error('Erro ao limpar base:', error);
+        const msg = String(error?.message || error || 'Erro ao limpar base');
+        if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+          setClearError('Não foi possível conectar ao backend. Verifique se a API está rodando.');
+        } else {
+          setClearError(msg);
+        }
+      } finally {
+        setConfirmDialogOpen(false);
+      }
+    };
+
+    doClear();
   };
 
   const handleCancelClear = () => {
@@ -119,11 +194,12 @@ const VectorDBTest: React.FC = () => {
     ].filter(item => item.file !== null);
 
     if (filesToUpload.length === 0) {
-      alert('Selecione pelo menos um arquivo para enviar.');
+      showNotification('Selecione pelo menos um arquivo para enviar.', 'warning');
       return;
     }
 
     setUploading(true);
+    setUploadError(null);
 
     try {
       for (const { file, type } of filesToUpload) {
@@ -132,6 +208,7 @@ const VectorDBTest: React.FC = () => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('type', type);
+        formData.append('collection_name', selectedCollection);
 
         const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/upload`, {
           method: 'POST',
@@ -139,14 +216,40 @@ const VectorDBTest: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Erro ao enviar ${type}: ${response.statusText}`);
+          // try to parse error body
+          let errText = response.statusText || `Status ${response.status}`;
+          try {
+            const body = await response.text();
+            if (body) {
+              try {
+                const json = JSON.parse(body);
+                errText = json.detail || json.message || body;
+              } catch {
+                errText = body;
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          // If backend indicates LMStudio problem, show friendly message
+          const lower = String(errText).toLowerCase();
+          if (lower.includes('lmstudio') || lower.includes('lm-studio') || response.status === 502 || response.status === 503) {
+            setUploadError('LMStudio não está disponível ou não possui modelos carregados. Verifique se o LMStudio está aberto e com os modelos carregados.');
+            showNotification('LMStudio não está disponível ou não possui modelos carregados.', 'error');
+          } else {
+            setUploadError(`Erro ao enviar ${type}: ${errText}`);
+            showNotification(`Erro ao enviar ${type}: ${errText}`, 'error');
+          }
+
+          throw new Error(errText);
         }
 
         const result = await response.json();
         console.log(`Arquivo ${type} enviado com sucesso:`, result);
       }
 
-      alert('Arquivos enviados com sucesso para o ChromaDB!');
+      showNotification('Arquivos enviados com sucesso para o ChromaDB!', 'success');
       
       // Limpar os arquivos selecionados após o upload
       setBusinessRulesFile(null);
@@ -156,14 +259,31 @@ const VectorDBTest: React.FC = () => {
       // Resetar os inputs de arquivo
       const inputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
       inputs.forEach(input => input.value = '');
+      // Após upload bem-sucedido, sinaliza reload via hook
+      setShouldReload(true);
 
     } catch (error) {
       console.error('Erro ao enviar arquivos:', error);
-      alert('Erro ao enviar arquivos. Verifique o console para mais detalhes.');
+      showNotification('Erro ao enviar arquivos. Verifique o console para mais detalhes.', 'error');
     } finally {
       setUploading(false);
     }
   };
+
+  // Quando `shouldReload` for true, executa reload controlado por hook
+  useEffect(() => {
+    if (!shouldReload) return;
+
+    const timer = setTimeout(() => {
+      try {
+        window.location.reload();
+      } catch (e) {
+        console.warn('Reload falhou:', e);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [shouldReload]);
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -180,6 +300,12 @@ const VectorDBTest: React.FC = () => {
                 <Typography variant="h6" gutterBottom>
                   Fazer Pergunta ao VectorDB
                 </Typography>
+
+                {queryError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {queryError}
+                  </Alert>
+                )}
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
                   <InputLabel>Fonte de Dados</InputLabel>
@@ -280,6 +406,16 @@ const VectorDBTest: React.FC = () => {
                 >
                   Limpar Base de Dados
                 </Button>
+                {clearError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {clearError}
+                  </Alert>
+                )}
+                {clearMessage && (
+                  <Alert severity="success" sx={{ mt: 2 }}>
+                    {clearMessage}
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 
@@ -292,6 +428,12 @@ const VectorDBTest: React.FC = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Selecione arquivos JSON para adicionar à base:
                 </Typography>
+
+                {uploadError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {uploadError}
+                  </Alert>
+                )}
 
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>

@@ -18,7 +18,9 @@ import Tests from './components/Tests';
 import VectorDBTest from './components/VectorDBTest';
 import Statistics from './components/Statistics';
 import TabPanel from './components/TabPanel';
+import NotificationCenter from './components/NotificationCenter';
 import { CollectionProvider } from './contexts/CollectionContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import CollectionSelector from './components/CollectionSelector';
 
 function App() {
@@ -74,79 +76,82 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <CollectionProvider>
-        <GlobalStyles
-          styles={{
-            '.spinning': {
-              animation: 'spin 1s linear infinite',
-            },
-            '@keyframes spin': {
-              from: { transform: 'rotate(0deg)' },
-              to: { transform: 'rotate(360deg)' },
-            },
-          }}
-        />
-        <Box sx={{ py: 4, px: 2, minHeight: '100vh' }}>
-          <Box sx={{ mb: 2, textAlign: 'center' }}>
-            <Typography variant="h3" component="h1" gutterBottom>
-              FIAP
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={darkMode}
-                  onChange={handleDarkModeChange}
+      <NotificationProvider>
+        <CollectionProvider>
+          <NotificationCenter />
+          <GlobalStyles
+            styles={{
+              '.spinning': {
+                animation: 'spin 1s linear infinite',
+              },
+              '@keyframes spin': {
+                from: { transform: 'rotate(0deg)' },
+                to: { transform: 'rotate(360deg)' },
+              },
+            }}
+          />
+          <Box sx={{ py: 4, px: 2, minHeight: '100vh' }}>
+            <Box sx={{ mb: 2, textAlign: 'center' }}>
+              <Typography variant="h3" component="h1" gutterBottom>
+                FIAP
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={darkMode}
+                    onChange={handleDarkModeChange}
+                  />
+                }
+                label={darkMode ? "Modo Escuro" : "Modo Claro"}
+                sx={{ mt: 2 }}
+              />
+            </Box>
+
+            {/* Collection Selector */}
+            <CollectionSelector />
+
+            {/* Navigation Tabs */}
+            <Paper sx={{ mb: 3 }}>
+              <Tabs 
+                value={currentTab} 
+                onChange={handleTabChange} 
+                centered
+                textColor="primary"
+                indicatorColor="primary"
+              >
+                <Tab 
+                  icon={<Chat />} 
+                  label="Chat" 
+                  iconPosition="start"
                 />
-              }
-              label={darkMode ? "Modo Escuro" : "Modo Claro"}
-              sx={{ mt: 2 }}
-            />
+                <Tab 
+                  icon={<Storage />} 
+                  label="DataBase" 
+                  iconPosition="start"
+                />
+                <Tab 
+                  icon={<Assessment />} 
+                  label="Estatísticas" 
+                  iconPosition="start"
+                />
+              </Tabs>
+            </Paper>
+
+            {/* Tab Content */}
+            <TabPanel value={currentTab} index={0} title="Chat" icon={<Chat />}>
+              <ChatTabs darkMode={darkMode} />
+            </TabPanel>
+
+            <TabPanel value={currentTab} index={1} title="Database" icon={<Storage />}>
+              <VectorDBTest />
+            </TabPanel>
+
+            <TabPanel value={currentTab} index={2} title="Estatísticas" icon={<Assessment />}>
+              <Statistics />
+            </TabPanel>
           </Box>
-
-          {/* Collection Selector */}
-          <CollectionSelector />
-
-          {/* Navigation Tabs */}
-          <Paper sx={{ mb: 3 }}>
-            <Tabs 
-              value={currentTab} 
-              onChange={handleTabChange} 
-              centered
-              textColor="primary"
-              indicatorColor="primary"
-            >
-              <Tab 
-                icon={<Chat />} 
-                label="Chat" 
-                iconPosition="start"
-              />
-              <Tab 
-                icon={<Storage />} 
-                label="DataBase" 
-                iconPosition="start"
-              />
-              <Tab 
-                icon={<Assessment />} 
-                label="Estatísticas" 
-                iconPosition="start"
-              />
-            </Tabs>
-          </Paper>
-
-          {/* Tab Content */}
-          <TabPanel value={currentTab} index={0} title="Chat" icon={<Chat />}>
-            <ChatTabs darkMode={darkMode} />
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={1} title="Database" icon={<Storage />}>
-            <VectorDBTest />
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={2} title="Estatísticas" icon={<Assessment />}>
-            <Statistics />
-          </TabPanel>
-        </Box>
-      </CollectionProvider>
+        </CollectionProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

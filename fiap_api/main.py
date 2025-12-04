@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -37,16 +37,16 @@ chromadb_client = ChromaDBClient(
     lmstudio_url=os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")  # URL do LMStudio para embeddings
 )
 
-# Tenta conectar ao ChromaDB
+# Tenta conectar ao ChromaDB (não sobrescrever a instância para evitar AttributeError nas rotas)
 try:
     if chromadb_client.connect():
         chroma_client = chromadb_client  # Compatibilidade com código existente
     else:
         chroma_client = None
-        chromadb_client = None
+        # mantém a instância em `chromadb_client` para permitir tentativas posteriores
 except Exception as e:
     chroma_client = None
-    chromadb_client = None
+    # mantém a instância em `chromadb_client`; erros de conexão serão tratados nas rotas
 
 # chroma_client = chromadb_client  # Temporário para debug
 
@@ -1141,22 +1141,48 @@ async def get_database_info(database_name: str):
 
 @app.get("/health")
 async def health_check():
-    """Endpoint para verificar saúde da API"""
+    """Endpoint para verificar saúde da API - retorna 200 se a API está rodando"""
+    return {
+        "status": "healthy",
+        "service": "api",
+        "message": "API Python está operacional"
+    }
+
+
+@app.get("/health/chromadb")
+async def health_check_chromadb():
+    """Endpoint para verificar saúde do ChromaDB"""
     try:
-        base_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+        if chromadb_client and chromadb_client.client:
+            # Tenta fazer uma operação simples no ChromaDB
+            chromadb_client.client.list_collections()
+            return {"status": "healthy", "service": "chromadb"}
+        else:
+            raise HTTPException(status_code=503, detail="ChromaDB não está conectado")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"ChromaDB indisponível: {str(e)}")
+
+
+@app.get("/health/lmstudio")
+async def health_check_lmstudio():
+    """Endpoint para verificar saúde do LMStudio"""
+    try:
+        lmstudio_url = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")
+        if ENVIRONMENT == "docker":
+            lmstudio_url = os.getenv("LMSTUDIO_URL", "http://lmchat:1234")
+        
+        base_url = f"{lmstudio_url}/v1"
         
         # Testa conexão com LMStudio
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{base_url}/models")
             
-        return {
-            "status": "healthy", 
-            "lmstudio_url": base_url,
-            "lmstudio_status": response.status_code,
-            "chromadb_status": "connected" if chromadb_client else "disconnected"
-        }
+        if response.status_code == 200:
+            return {"status": "healthy", "service": "lmstudio"}
+        else:
+            raise HTTPException(status_code=503, detail=f"LMStudio retornou status {response.status_code}")
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Erro na conexão com LMStudio: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"LMStudio indisponível: {str(e)}")
 
 # Endpoints de Chat Especializado com Streaming
 @app.get("/api/chat/stream")
@@ -1451,14 +1477,16 @@ async def get_vectordb_stats(collection_name: Optional[str] = None):
     try:
         print(f"🔍 API: Recebido collection_name='{collection_name}'")
         
-        # Define a coleção a ser usada (padrão ou especificada)
-        target_collection = collection_name if collection_name else "sistema_comercial"
-        print(f"🎯 API: Usando coleção '{target_collection}'")
-        
-        # Define a coleção (set_collection já cria se não existir)
-        if not chromadb_client.set_collection(target_collection):
-            raise HTTPException(status_code=500, detail=f"Erro ao definir coleção '{target_collection}'")
-        
+        # Se o cliente requisitar uma coleção específica, tenta defini-la;
+        # caso contrário, não definimos nem criamos a coleção padrão aqui
+        if collection_name:
+            target_collection = collection_name.strip()
+            print(f"🎯 API: Usando coleção '{target_collection}' solicitada pelo cliente")
+            if not chromadb_client.set_collection(target_collection):
+                raise HTTPException(status_code=500, detail=f"Erro ao definir coleção '{target_collection}'")
+        else:
+            print("ℹ️ API: Nenhuma coleção especificada — retornando lista de coleções e estatísticas gerais")
+
         stats = chromadb_client.get_collection_stats()
         return stats
         
@@ -1513,6 +1541,100 @@ async def reload_vectordb():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao recarregar VectorDB: {str(e)}")
 
+@app.post("/vectordb/create-collection")
+async def create_new_collection(request: dict):
+    """
+    Cria uma nova coleção vazia no ChromaDB
+    
+    Request body:
+    {
+        "collection_name": "nome_da_colecao"
+    }
+    """
+    try:
+        collection_name = request.get("collection_name", "").strip()
+        
+        # Validações
+        if not collection_name:
+            raise HTTPException(status_code=400, detail="Nome da coleção é obrigatório")
+        
+        if len(collection_name) < 3:
+            raise HTTPException(status_code=400, detail="Nome da coleção deve ter pelo menos 3 caracteres")
+        
+        # Valida caracteres permitidos (letras, números, underscore, hífen)
+        if not all(c.isalnum() or c in ['_', '-'] for c in collection_name):
+            raise HTTPException(status_code=400, detail="Nome da coleção deve conter apenas letras, números, underscore e hífen")
+        
+        if not chromadb_client:
+            raise HTTPException(status_code=503, detail="ChromaDB não está disponível")
+        
+        # Cria a coleção
+        if chromadb_client.create_collection(collection_name):
+            print(f"✅ Coleção '{collection_name}' criada com sucesso!")
+            return {
+                "message": f"Coleção '{collection_name}' criada com sucesso",
+                "collection_name": collection_name
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"Erro ao criar coleção '{collection_name}'")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar coleção: {str(e)}")
+
+@app.delete("/vectordb/collection/{collection_name}")
+async def delete_collection(collection_name: str):
+    """
+    Deleta uma coleção do ChromaDB
+    """
+    try:
+        collection_name = collection_name.strip()
+        
+        if not collection_name:
+            raise HTTPException(status_code=400, detail="Nome da coleção é obrigatório")
+        
+        if not chromadb_client:
+            raise HTTPException(status_code=503, detail="ChromaDB não está disponível")
+        
+        if not chromadb_client.connect():
+            raise HTTPException(status_code=500, detail="Erro ao conectar ao ChromaDB")
+        
+        # DEBUG: log antes de deletar
+        print(f"🗑️ API: Solicitada deleção da coleção: '{collection_name}'")
+
+        # Deleta a coleção
+        deleted = chromadb_client.delete_collection(collection_name)
+        if deleted:
+            print(f"✅ Coleção '{collection_name}' deletada com sucesso!")
+            # Após deletar, obtém estado atual das coleções para confirmar
+            try:
+                stats = chromadb_client.get_collection_stats()
+            except Exception as e:
+                print(f"⚠️ Erro ao obter estatísticas pós-deleção: {e}")
+                stats = None
+
+            return {
+                "message": f"Coleção '{collection_name}' deletada com sucesso",
+                "collection_name": collection_name,
+                "stats_after_delete": stats
+            }
+        else:
+            print(f"❌ Falha ao deletar coleção '{collection_name}' (delete returned False)")
+            # Tenta retornar lista atual para diagnóstico
+            try:
+                stats = chromadb_client.get_collection_stats()
+            except Exception as e:
+                print(f"⚠️ Erro ao obter estatísticas após falha de deleção: {e}")
+                stats = None
+            raise HTTPException(status_code=500, detail={"error": f"Erro ao deletar coleção '{collection_name}'","stats": stats})
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Exception no endpoint de deleção: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao deletar coleção: {str(e)}")
+
 @app.post("/vectordb/clear")
 async def clear_vectordb():
     """
@@ -1547,12 +1669,16 @@ async def clear_vectordb():
         raise HTTPException(status_code=500, detail=f"Erro ao limpar base: {str(e)}")
 
 @app.post("/vectordb/upload")
-async def upload_json_file(file: UploadFile = File(...), type: str = ""):
+async def upload_json_file(
+    file: UploadFile = File(...),
+    type: Optional[str] = Form(None),
+    collection_name: Optional[str] = Form(None)
+):
     """
     Carrega um arquivo JSON específico para a base de dados
     """
     try:
-        print(f"DEBUG: Upload iniciado - filename: {file.filename}, type: {type}")
+        print(f"DEBUG: Upload iniciado - filename: {file.filename}, type: {type}, collection: {collection_name}")
         
         if not file.filename.endswith('.json'):
             raise HTTPException(status_code=400, detail="Arquivo deve ser JSON")
@@ -1579,10 +1705,12 @@ async def upload_json_file(file: UploadFile = File(...), type: str = ""):
         if not chromadb_client.connect():
             raise HTTPException(status_code=500, detail="Erro ao conectar ao ChromaDB")
         
-        if not chromadb_client.create_collection():
-            raise HTTPException(status_code=500, detail="Erro ao criar coleção")
+        # Define a coleção (usa a especificada ou a padrão)
+        target_collection = collection_name if collection_name else "sistema_comercial"
+        if not chromadb_client.set_collection(target_collection):
+            raise HTTPException(status_code=500, detail=f"Erro ao definir coleção '{target_collection}'")
         
-        print(f"DEBUG: Conexão com ChromaDB estabelecida, processando tipo: {type}")
+        print(f"DEBUG: Usando coleção '{target_collection}', processando tipo: {type}")
         
         # Processa o arquivo baseado no tipo
         documents = []

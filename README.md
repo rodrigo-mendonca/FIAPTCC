@@ -1,4 +1,4 @@
-﻿# 🎓 FIAP VectorDB System
+﻿# 🎓 FIAP MBA - TCC
 
 Sistema para demonstração e testes de busca semântica usando **ChromaDB** e **LMStudio**, com API Python e frontend React.
 

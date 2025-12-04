@@ -108,7 +108,7 @@ services:
     ports:
       - "8200:8200"
     volumes:
-      - chromadb_data:/chroma/data
+      - ./data:/chroma/data
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_PORT=8200
@@ -127,6 +127,4 @@ networks:
   lmstudio-network:
     driver: bridge
 
-volumes:
-  chromadb_data:
-    driver: local
+# Using host bind mount for ChromaDB data: `./data` -> `/chroma/data`

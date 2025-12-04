@@ -14,6 +14,8 @@ interface CollectionContextType {
     id: string;
   }>) => void;
   refreshCollections: () => Promise<void>;
+  createCollection: (collectionName: string) => Promise<void>;
+  deleteCollection: (collectionName: string) => Promise<void>;
 }
 
 const CollectionContext = createContext<CollectionContextType | undefined>(undefined);
@@ -66,12 +68,66 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     refreshCollections();
   }, [selectedCollection]);
 
+  // Função para criar uma nova coleção
+  const createCollection = async (collectionName: string) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/create-collection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ collection_name: collectionName }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao criar coleção');
+      }
+
+      // Atualiza a coleção selecionada para a nova
+      setSelectedCollection(collectionName);
+      // Recarrega a página para aplicar a mudança
+      await new Promise(resolve => setTimeout(resolve, 500));
+      window.location.reload();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Função para deletar uma coleção
+  const deleteCollection = async (collectionName: string) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/collection/${encodeURIComponent(collectionName)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao deletar coleção');
+      }
+
+      // Se a coleção deletada era a atual, volta para a padrão
+        // Antes de recarregar, define a coleção selecionada para a padrão
+        try {
+          localStorage.setItem('selectedCollection', 'sistema_comercial');
+        } catch (e) {
+          // ignore
+        }
+        // Recarrega a aplicação para refletir mudanças nas coleções
+        window.location.reload();
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const value: CollectionContextType = {
     selectedCollection,
     setSelectedCollection,
     availableCollections,
     setAvailableCollections,
     refreshCollections,
+    createCollection,
+    deleteCollection,
   };
 
   return (

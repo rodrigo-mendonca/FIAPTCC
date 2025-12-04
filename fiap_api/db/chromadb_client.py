@@ -524,6 +524,15 @@ class ChromaDBClient:
                         # Para um tipo específico
                         where_filter = {"type": filter_value}
             
+            # Se n_results for None ou <= 0, interpretamos como 'sem limite' e usamos o total de documentos
+            if n_results is None or (isinstance(n_results, int) and n_results <= 0):
+                try:
+                    total_docs = self.collection.count() if self.collection else 0
+                    # segurança: se coleção vazia ou count falhar, usa um limite alto
+                    n_results = total_docs if total_docs and total_docs > 0 else 10000
+                except Exception:
+                    n_results = 10000
+
             # Executa a query com ou sem filtro
             query_params = {
                 "query_texts": [query_text],
@@ -582,19 +591,17 @@ class ChromaDBClient:
                 all_collections = []
             
             if not self.collection:
-                print("❌ Coleção atual não existe - tentando criar...")
-                if not self.create_collection():
-                    print("❌ Falha ao criar coleção")
-                    return {
-                        'total_documentos': 0,
-                        'collection_name': 'sistema_comercial',
-                        'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
-                        'last_updated': get_local_datetime().strftime('%Y-%m-%d %H:%M:%S'),
-                        'tipos_documento': {},
-                        'fontes_dados': {},
-                        'collections': all_collections,
-                        'error': 'Coleção não disponível'
-                    }
+                print("⚠️ Coleção atual não definida. Retornando lista de coleções sem criar padrão.")
+                return {
+                    'total_documentos': 0,
+                    'collection_name': None,
+                    'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
+                    'last_updated': get_local_datetime().strftime('%Y-%m-%d %H:%M:%S'),
+                    'tipos_documento': {},
+                    'fontes_dados': {},
+                    'collections': all_collections,
+                    'error': 'Coleção não definida'
+                }
             
             total_docs = self.collection.count()
             print(f"📈 Total de documentos na coleção: {total_docs}")
@@ -656,8 +663,23 @@ class ChromaDBClient:
             True se deletou com sucesso
         """
         try:
+            print(f"🗂️ Antes de deletar, listando coleções disponíveis...")
+            try:
+                cols_before = [c.name for c in self.client.list_collections()]
+                print(f"📚 Coleções antes: {cols_before}")
+            except Exception as e:
+                print(f"⚠️ Falha ao listar coleções antes da deleção: {e}")
+
+            print(f"🗑️ Solicitando delete da coleção '{collection_name}' via client.delete_collection()...")
             self.client.delete_collection(collection_name)
-            print(f"🗑️ Coleção '{collection_name}' deletada com sucesso!")
+
+            try:
+                cols_after = [c.name for c in self.client.list_collections()]
+                print(f"📚 Coleções depois: {cols_after}")
+            except Exception as e:
+                print(f"⚠️ Falha ao listar coleções depois da deleção: {e}")
+
+            print(f"✅ Coleção '{collection_name}' deletada (cliente não levantou exceção).")
             return True
         except Exception as e:
             print(f"❌ Erro ao deletar coleção: {e}")
@@ -719,7 +741,7 @@ class ChromaDBClient:
         """
         try:
             print(f"🔄 Mudando para coleção '{collection_name}'...")
-            
+
             # Tenta obter a coleção existente
             try:
                 self.collection = self.client.get_collection(
@@ -729,16 +751,10 @@ class ChromaDBClient:
                 print(f"✅ Coleção '{collection_name}' definida como atual!")
                 return True
             except Exception as e:
-                print(f"⚠️ Coleção '{collection_name}' não existe, tentando criar...")
-                
-                # Se não existe, cria
-                if self.create_collection(collection_name):
-                    print(f"✅ Coleção '{collection_name}' criada e definida como atual!")
-                    return True
-                else:
-                    print(f"❌ Falha ao criar coleção '{collection_name}'")
-                    return False
-                    
+                print(f"⚠️ Coleção '{collection_name}' não existe. Não criaremos automaticamente nesta chamada. Erro: {e}")
+                # Não criar automaticamente aqui para evitar recriação inesperada após deleção
+                return False
+
         except Exception as e:
             print(f"❌ Erro ao definir coleção: {e}")
             return False
