@@ -1,0 +1,94 @@
+services:
+  update_contas_vencidas:
+    service_id: 2
+    name: "Atualização de Status de Contas Vencidas"
+    description: "Verifica todas as contas a receber em aberto e atualiza automaticamente o status para 'vencida' quando a data de vencimento é ultrapassada"
+    category: financeiro
+    status: active
+    execution_type: scheduled
+    schedule:
+      frequency: daily
+      time: "06:00:00"
+      timezone: "America/Sao_Paulo"
+      description: "Executa diariamente às 6:00h da manhã"
+    estimated_duration: "2-5 minutos"
+    priority: high
+    dependencies: []
+    resources_required:
+      disk_space: "10MB"
+      memory: "64MB"
+      cpu: "low"
+    business_logic:
+      condition: "data_vencimento < CURRENT_DATE AND status = 'em_aberto'"
+      action: "UPDATE status = 'vencida'"
+      affected_table: "contas_receber"
+    notifications:
+      on_success: "log_only"
+      on_failure: "email_financeiro"
+      daily_report: "email_gerencia"
+    metrics:
+      contas_atualizadas: integer
+      valor_total_vencido: decimal
+  calculo_juros_multa:
+    service_id: 3
+    name: "Cálculo de Juros e Multa"
+    description: "Calcula e aplica juros de mora e multa por atraso nas contas vencidas conforme política comercial da empresa"
+    category: financeiro
+    status: active
+    execution_type: scheduled
+    schedule:
+      frequency: daily
+      time: "06:30:00"
+      timezone: "America/Sao_Paulo"
+      description: "Executa diariamente às 6:30h, após atualização de status"
+    estimated_duration: "5-10 minutos"
+    priority: high
+    dependencies:
+      - update_contas_vencidas
+    resources_required:
+      disk_space: "20MB"
+      memory: "128MB"
+      cpu: "medium"
+    business_logic:
+      condition: "status = 'vencida' AND data_vencimento < CURRENT_DATE"
+      calculation:
+        juros_diario: "0.033%"
+        multa_fixa: "2%"
+        formula: "(valor_original * 0.02) + (valor_original * 0.00033 * dias_atraso)"
+      affected_table: "contas_receber"
+      updated_fields:
+        - juros_multa
+        - saldo_devedor
+    notifications:
+      on_success: "log_only"
+      on_failure: "email_financeiro"
+      weekly_report: "email_diretoria"
+  sincronizacao_saldo_clientes:
+    service_id: 5
+    name: "Sincronização de Saldo dos Clientes"
+    description: "Recalcula e atualiza o saldo atual de todos os clientes baseado nas contas a receber em aberto, garantindo consistência dos dados"
+    category: financeiro
+    status: active
+    execution_type: scheduled
+    schedule:
+      frequency: daily
+      time: "23:00:00"
+      timezone: "America/Sao_Paulo"
+      description: "Executa diariamente às 23:00h no final do expediente"
+    estimated_duration: "10-20 minutos"
+    priority: medium
+    dependencies:
+      - calculo_juros_multa
+    resources_required:
+      disk_space: "50MB"
+      memory: "256MB"
+      cpu: "medium"
+    business_logic:
+      calculation: "SUM(saldo_devedor) WHERE status IN ('em_aberto', 'vencida') GROUP BY id_cliente"
+      affected_table: "clientes"
+      updated_fields:
+        - saldo_atual
+    notifications:
+      on_success: "log_only"
+      on_failure: "email_admin"
+      on_discrepancies: "email_financeiro"

@@ -1,0 +1,140 @@
+table:
+  name: vendas
+  description: "Registro completo de todas as vendas realizadas, incluindo dados do cliente, vendedor, valores e status para controle comercial e financeiro"
+  primary_key: id_venda
+  business_area: vendas
+  created_at: "2025-01-01T00:00:00Z"
+  columns:
+    id_venda:
+      name: id_venda
+      type: integer
+      description: "Identificador único da venda, chave primária auto-incrementada"
+      nullable: false
+      searchable: true
+      auto_increment: true
+      primary_key: true
+    numero_venda:
+      name: numero_venda
+      type: varchar
+      description: "Número sequencial único da venda para controle interno e referência do cliente"
+      nullable: false
+      searchable: true
+      unique: true
+      max_length: 20
+    id_cliente:
+      name: id_cliente
+      type: integer
+      description: "Identificador do cliente que realizou a compra, chave estrangeira para tabela clientes"
+      nullable: false
+      searchable: true
+    id_vendedor:
+      name: id_vendedor
+      type: integer
+      description: "Identificador do funcionário vendedor responsável pela venda, usado para comissões"
+      nullable: true
+      searchable: true
+    data_venda:
+      name: data_venda
+      type: datetime
+      description: "Data e hora exata em que a venda foi realizada e confirmada"
+      nullable: false
+      searchable: true
+    valor_produtos:
+      name: valor_produtos
+      type: decimal
+      description: "Valor total dos produtos vendidos antes de descontos e acréscimos"
+      nullable: false
+      searchable: false
+      precision: 12
+      scale: 2
+    valor_desconto:
+      name: valor_desconto
+      type: decimal
+      description: "Valor total de desconto aplicado na venda"
+      nullable: true
+      searchable: false
+      precision: 12
+      scale: 2
+      default: 0.00
+    valor_frete:
+      name: valor_frete
+      type: decimal
+      description: "Valor do frete cobrado na venda para entrega dos produtos"
+      nullable: true
+      searchable: false
+      precision: 12
+      scale: 2
+      default: 0.00
+    valor_total:
+      name: valor_total
+      type: decimal
+      description: "Valor final da venda: produtos - desconto + frete"
+      nullable: false
+      searchable: false
+      precision: 12
+      scale: 2
+    forma_pagamento:
+      name: forma_pagamento
+      type: varchar
+      description: "Forma de pagamento utilizada: dinheiro, cartão, pix, boleto, prazo"
+      nullable: false
+      searchable: true
+      max_length: 20
+    status_venda:
+      name: status_venda
+      type: varchar
+      description: "Status atual da venda: pendente, confirmada, cancelada, devolvida"
+      nullable: false
+      searchable: true
+      max_length: 15
+      values:
+        - pendente
+        - confirmada
+        - cancelada
+        - devolvida
+    observacoes:
+      name: observacoes
+      type: text
+      description: "Observações gerais sobre a venda, condições especiais ou comentários do vendedor"
+      nullable: true
+      searchable: true
+  relationships:
+    - type: many_to_one
+      related_table: clientes
+      foreign_key: id_cliente
+      reference_key: id_cliente
+      description: "Cada venda pertence a um cliente específico"
+    - type: many_to_one
+      related_table: funcionarios
+      foreign_key: id_vendedor
+      reference_key: id_funcionario
+      description: "Cada venda tem um vendedor responsável"
+    - type: one_to_many
+      related_table: itens_venda
+      foreign_key: id_venda
+      reference_key: id_venda
+      description: "Uma venda contém múltiplos itens de produtos"
+  indexes:
+    - name: idx_numero_venda
+      columns:
+        - numero_venda
+      unique: true
+      description: "Índice único para número da venda"
+    - name: idx_cliente_data
+      columns:
+        - id_cliente
+        - data_venda
+      unique: false
+      description: "Índice composto para histórico do cliente"
+    - name: idx_vendedor_data
+      columns:
+        - id_vendedor
+        - data_venda
+      unique: false
+      description: "Índice para relatórios de vendedor"
+    - name: idx_status_data
+      columns:
+        - status_venda
+        - data_venda
+      unique: false
+      description: "Índice para relatórios por status"

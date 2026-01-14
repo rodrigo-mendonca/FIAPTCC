@@ -57,12 +57,18 @@ services:
       - "8000:8000"
     volumes:
       - ./fiap_api:/app
+    env_file:
+      - .env
+      - .env.lmstudio
     environment:
-      - LMSTUDIO_URL=http://host.docker.internal:1234
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8200
       - ENVIRONMENT=docker
     restart: unless-stopped
     networks:
       - lmstudio-network
+    depends_on:
+      - chromadb
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

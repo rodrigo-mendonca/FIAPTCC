@@ -1,29 +1,38 @@
 @echo off
+cls
 echo ==============================================
 echo    FIAP - Full Stack with LMStudio + ChromaDB
 echo ==============================================
 echo.
-echo 1. Starting Python API (port 8000)...
-start cmd /k "cd /d C:\Source\lmstudio\fiap_api && python main.py"
-
+echo Checking Docker...
+docker --version >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: Docker not found. ChromaDB will not start.
+    echo Please install Docker Desktop to use ChromaDB.
+    echo.
+)
 echo.
-echo 2. Waiting 3 seconds...
-timeout /t 3 /nobreak >nul
-
+echo Starting services...
 echo.
-echo 3. Starting React Interface (port 3000)...
-start cmd /k "cd /d C:\Source\lmstudio\fiap_interface && npm start"
-
+echo [1] Starting ChromaDB...
+docker run -d --name lmstudio-chromadb -p 8200:8200 -v chromadb-data:/chroma/data chromadb/chroma:latest >nul 2>&1
+timeout /t 5 /nobreak
+echo.
+echo [2] Starting Python API...
+start cmd /k "cd /d C:\Source\FIAPTCC\fiap_api && python main.py"
+timeout /t 15 /nobreak
+echo.
+echo [3] Starting React Interface...
+start cmd /k "cd /d C:\Source\FIAPTCC\fiap_interface && npm start"
 echo.
 echo ==============================================
-echo  Services started successfully!
+echo Services starting:
+echo  API: http://localhost:8000
+echo  UI: http://localhost:3000
+echo  ChromaDB: http://localhost:8200
 echo ==============================================
-echo  API Python: http://localhost:8000
-echo  Interface React: http://localhost:3000
+timeout /t 3 /nobreak
+start http://localhost:3000
 echo.
-echo  💡 For VectorDB tests: Tests Tab > VectorDB
-echo  💡 For ChromaDB: start-chromadb.bat
-echo  💡 Make sure LMStudio is running
-echo  on port 1234 before using the chat.
-echo ==============================================
+echo Done!
 pause

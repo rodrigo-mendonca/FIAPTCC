@@ -1,0 +1,13 @@
+# Metadata da estrutura do banco de dados
+database:
+  name: sistema_comercial
+  version: "3.0"
+  description: "Sistema completo de gestão comercial com módulos de vendas, estoque, financeiro, CRM e RH"
+  created_at: "2025-10-06T10:00:00Z"
+  last_updated: "2025-10-06T10:00:00Z"
+  business_areas:
+    - vendas
+    - financeiro
+    - estoque
+    - crm
+    - rh

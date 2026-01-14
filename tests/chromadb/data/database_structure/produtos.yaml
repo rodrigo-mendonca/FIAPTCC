@@ -1,0 +1,140 @@
+table:
+  name: produtos
+  description: "Catálogo completo de produtos comercializados pela empresa, incluindo informações de preço, estoque, categoria e fornecedor para controle de inventário"
+  primary_key: id_produto
+  business_area: estoque
+  created_at: "2025-01-01T00:00:00Z"
+  columns:
+    id_produto:
+      name: id_produto
+      type: integer
+      description: "Identificador único do produto, chave primária auto-incrementada"
+      nullable: false
+      searchable: true
+      auto_increment: true
+      primary_key: true
+    codigo_produto:
+      name: codigo_produto
+      type: varchar
+      description: "Código interno único do produto, usado para controle de estoque e busca rápida"
+      nullable: false
+      searchable: true
+      unique: true
+      max_length: 20
+    nome_produto:
+      name: nome_produto
+      type: varchar
+      description: "Nome comercial completo do produto conforme aparece para o cliente"
+      nullable: false
+      searchable: true
+      max_length: 150
+    descricao:
+      name: descricao
+      type: text
+      description: "Descrição detalhada das características, especificações técnicas e benefícios do produto"
+      nullable: true
+      searchable: true
+    categoria:
+      name: categoria
+      type: varchar
+      description: "Categoria principal do produto para organização do catálogo e relatórios de vendas"
+      nullable: false
+      searchable: true
+      max_length: 50
+    subcategoria:
+      name: subcategoria
+      type: varchar
+      description: "Subcategoria do produto para classificação mais específica dentro da categoria principal"
+      nullable: true
+      searchable: true
+      max_length: 50
+    preco_venda:
+      name: preco_venda
+      type: decimal
+      description: "Preço unitário de venda do produto para o cliente final, incluindo margem de lucro"
+      nullable: false
+      searchable: false
+      precision: 10
+      scale: 2
+    preco_custo:
+      name: preco_custo
+      type: decimal
+      description: "Preço de custo unitário do produto pago ao fornecedor, usado para cálculo de margem"
+      nullable: true
+      searchable: false
+      precision: 10
+      scale: 2
+    estoque_atual:
+      name: estoque_atual
+      type: integer
+      description: "Quantidade atual disponível em estoque do produto"
+      nullable: false
+      searchable: false
+      default: 0
+    estoque_minimo:
+      name: estoque_minimo
+      type: integer
+      description: "Quantidade mínima que deve ser mantida em estoque para evitar ruptura"
+      nullable: true
+      searchable: false
+      default: 0
+    unidade_medida:
+      name: unidade_medida
+      type: varchar
+      description: "Unidade de medida para venda do produto (UN, KG, LT, M2, etc.)"
+      nullable: false
+      searchable: true
+      max_length: 5
+    id_fornecedor:
+      name: id_fornecedor
+      type: integer
+      description: "Identificador do fornecedor principal do produto para reposição de estoque"
+      nullable: true
+      searchable: true
+    ativo:
+      name: ativo
+      type: boolean
+      description: "Indica se o produto está ativo no catálogo e disponível para vendas"
+      nullable: false
+      searchable: true
+      default: true
+    data_cadastro:
+      name: data_cadastro
+      type: datetime
+      description: "Data e hora do cadastro do produto no sistema"
+      nullable: false
+      searchable: true
+      default: "CURRENT_TIMESTAMP"
+  relationships:
+    - type: many_to_one
+      related_table: fornecedores
+      foreign_key: id_fornecedor
+      reference_key: id_fornecedor
+      description: "Cada produto tem um fornecedor principal"
+    - type: one_to_many
+      related_table: itens_venda
+      foreign_key: id_produto
+      reference_key: id_produto
+      description: "Um produto pode aparecer em múltiplos itens de venda"
+  indexes:
+    - name: idx_codigo_produto
+      columns:
+        - codigo_produto
+      unique: true
+      description: "Índice único para código do produto"
+    - name: idx_nome_produto
+      columns:
+        - nome_produto
+      unique: false
+      description: "Índice para busca por nome do produto"
+    - name: idx_categoria
+      columns:
+        - categoria
+        - subcategoria
+      unique: false
+      description: "Índice composto para filtros por categoria"
+    - name: idx_ativo
+      columns:
+        - ativo
+      unique: false
+      description: "Índice para filtrar produtos ativos"

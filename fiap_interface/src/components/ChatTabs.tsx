@@ -48,6 +48,7 @@ interface ChatConfig {
   suggestionsTitle: string;
   suggestionsDescription: string;
   isSQL?: boolean;
+  isAluno?: boolean;
 }
 
 interface ConfigurableChatProps {
@@ -65,6 +66,8 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const theme = useTheme();
   const { selectedCollection } = useCollection();
+  const [alunoType, setAlunoType] = useState<string>('business_rules');
+  const [registering, setRegistering] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,6 +76,23 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Se for Aluno, insere mensagem inicial explicativa (e verifica se usuário fala sobre dois temas)
+  useEffect(() => {
+    if (config.isAluno && messages.length === 0) {
+      const initMsg: Message = {
+        id: 'aluno_init',
+        content: 'Vou aprender com base no que você informar. Antes de prosseguir, verifiquei se você está falando de dois assuntos ao mesmo tempo — se estiver, por favor escolha somente 1 tema. Escolha um tipo: Regra de negócio, Base de dados ou Serviço. Se precisar, pedirei mais informações. Quando tudo estiver ok, por favor revise e confirme se devo registrar.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages([initMsg]);
+    }
+  }, [config.isAluno, messages.length]);
+
+  // Heurística para detectar se a IA indicou que tem informações suficientes
+  const lastBotMessage = [...messages].reverse().find(m => m.sender === 'bot' && m.content && m.content.trim().length > 0);
+  const readyToRegister = Boolean(lastBotMessage && /pronto para registrar|revisar e confirmar|confirme se devo registrar|revise e confirme|posso registrar|devo registrar|informações suficientes|quando estiver tudo certo|já posso registrar|pronto para salvar/i.test(lastBotMessage.content));
 
   const clearChat = async () => {
     setIsClearing(true);
@@ -115,6 +135,13 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
     setStreamingMessageId(botMessageId);
 
     try {
+      // Se este chat é o 'Aluno', adiciona instruções ao modelo para que ele aja como aluno
+      let messageToSend = currentInput;
+      if (config.isAluno) {
+        const typeLabel = alunoType === 'business_rules' ? 'Regra de negócio' : alunoType === 'database_struct' ? 'Base de dados' : 'Serviço';
+        const alunoInstructions = `INSTRUÇÕES AO ASSISTENTE-ALUNO: Você é um aluno que está aprendendo. O usuário está ensinando SOBRE: ${typeLabel}. Seu objetivo é extrair e construir um objeto JSON completo desse tipo com todos os campos necessários. Se faltarem informações, faça PERGUNTAS DIRETAS e ESPECÍFICAS ao usuário para obter os campos que faltam. Não invente valores. Quando você tiver todas as informações necessárias, responda primeiro a linha: "PRONTO_PARA_REGISTRAR" seguida do JSON completo. Pergunte apenas uma coisa por vez. Seja objetivo e claro. Agora segue a entrada do usuário:`;
+        messageToSend = `${alunoInstructions}\n${currentInput}`;
+      }
       // Prepara contexto das últimas 10 mensagens
       const context = messages.slice(-10).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
@@ -132,7 +159,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
           'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
-          message: currentInput,
+          message: messageToSend,
           context: context
         }),
         // Configurações específicas para streaming
@@ -208,6 +235,68 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
     } finally {
       setIsTyping(false);
       setStreamingMessageId(null);
+    }
+  };
+
+  // Função que executa o registro do último item retornado pelo bot
+  const handleRegister = async () => {
+    const lastBot = [...messages].reverse().find(m => m.sender === 'bot' && m.content && m.content.trim().length>0);
+    if (!lastBot) {
+      alert('Nenhuma informação do bot encontrada para registrar.');
+      return;
+    }
+
+    // Detecta se parece que o usuário descreveu mais de um tema (simples heurística)
+    const containsMultiple = (lastBot.content || '').split(/[\.\n]/).filter(Boolean).length > 1 && /\band\b|\be\b|,/i.test(lastBot.content);
+    if (containsMultiple) {
+      const choose = window.confirm('Parece que você está falando sobre mais de um tema. Deseja continuar e registrar apenas este conteúdo, ou prefere escolher um único tema antes de registrar? (Clique Cancelar para escolher)');
+      if (!choose) return;
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(lastBot.content);
+    } catch (e) {
+      const confirmTxt = window.confirm('O conteúdo do bot não está em JSON válido. Deseja registrar como texto livre?');
+      if (!confirmTxt) return;
+    }
+
+    setRegistering(true);
+    try {
+      const payload: any = {
+        collection_name: selectedCollection,
+        type: alunoType
+      };
+
+      if (parsed) {
+        payload['item'] = parsed;
+      } else {
+        payload['text'] = lastBot.content;
+      }
+
+      const resp = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/add-item`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => null);
+        throw new Error(err?.detail || 'Erro ao registrar item');
+      }
+
+      const confirmBotMsg: Message = {
+        id: Date.now().toString() + '_regok',
+        content: 'Ensinamento registrado com sucesso. Agora você já pode falar sobre outro assunto.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages([confirmBotMsg]);
+    } catch (err: any) {
+      console.error(err);
+      alert('Falha ao registrar item: ' + (err?.message || err));
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -444,8 +533,37 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
                 >
                   <SendIcon />
                 </Button>
+                {config.isAluno && readyToRegister && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleRegister}
+                    disabled={registering}
+                    sx={{ borderRadius: 3, minWidth: 140 }}
+                  >
+                    Registrar
+                  </Button>
+                )}
               </Box>
             </Box>
+            {/* Aluno controls: tipo (sem botão Registrar ao lado) */}
+            {config.isAluno && (
+              <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', gap: 2, alignItems: 'center' }}>
+                <TextField
+                  select
+                  SelectProps={{ native: true }}
+                  value={alunoType}
+                  onChange={(e) => setAlunoType(e.target.value)}
+                  size="small"
+                  label="Tipo"
+                  sx={{ minWidth: 220 }}
+                >
+                  <option value="business_rules">Regra de negócio</option>
+                  <option value="database_struct">Base de dados</option>
+                  <option value="system_services">Serviço</option>
+                </TextField>
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Box>
@@ -579,6 +697,28 @@ const chatConfigs = {
     suggestionsDescription: 'Clique nas sugestões abaixo para fazer perguntas:',
     isSQL: false
   }
+  ,
+  aluno: {
+    title: '🧠 Chat Aluno',
+    icon: <BotIcon />,
+    endpoint: '/api/chat/help',
+    streamEndpoint: '/api/chat/help/stream',
+    placeholder: 'Descreva a informação que você quer que eu aprenda...',
+    description: 'Este chat aprenderá com base no que você informar.',
+    emptyStateMessage: 'Explique algo que deseja registrar no sistema. Quando estiver pronto, revise e confirme para registrar.',
+    suggestions: [
+      'Registrar uma regra de negócio sobre descontos',
+      'Descrever nova tabela de clientes',
+      'Registrar serviço de integração com ERP',
+      'Explicar validação para campo CPF',
+      'Detalhar campo de endereço na tabela cliente',
+      'quero adicionar uma nova regra para novos o clientes, só pode ser cadastrado, se tiver a informação de renda e endereço'
+    ],
+    suggestionsTitle: 'Exemplos para teste',
+    suggestionsDescription: 'Clique em um exemplo para preencher a mensagem e testar o fluxo de registro.',
+    isSQL: false,
+    isAluno: true
+  }
 };
 
 // Configuração de visibilidade das abas
@@ -609,6 +749,17 @@ const tabsConfig = {
     tabProps: {
       icon: <HelpIcon />, 
       label: "Chat Dúvidas", 
+      iconPosition: "start" as const,
+      sx: { fontWeight: 'bold' }
+    }
+  }
+  ,
+  aluno: { 
+    visible: true, 
+    index: 3,
+    tabProps: {
+      icon: <BotIcon />, 
+      label: "Chat Aluno", 
       iconPosition: "start" as const,
       sx: { fontWeight: 'bold' }
     }

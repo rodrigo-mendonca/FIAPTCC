@@ -1,0 +1,79 @@
+table_name: vendas
+description: "Regras para processamento de vendas"
+rules:
+  - rule_id: VND_001
+    name: "Valor total deve ser positivo"
+    description: "O valor total da venda deve ser maior que zero após aplicação de descontos."
+    type: validation
+    fields_involved:
+      - valor_total
+    priority: high
+    error_message: "Valor total da venda deve ser maior que zero"
+  - rule_id: VND_002
+    name: "Data da venda não pode ser futura"
+    description: "A data da venda não pode ser posterior à data atual do sistema."
+    type: validation
+    fields_involved:
+      - data_venda
+    priority: high
+    error_message: "Data da venda não pode ser futura"
+  - rule_id: VND_003
+    name: "Venda cancelada não pode ser alterada"
+    description: "Vendas com status 'cancelada' não podem ter seus dados alterados, apenas visualizados."
+    type: business_logic
+    fields_involved:
+      - status_venda
+    priority: high
+    error_message: "Venda cancelada não pode ser modificada"
+  - rule_id: VND_004
+    name: "Cliente deve estar ativo"
+    description: "Só é possível realizar vendas para clientes com status ativo no sistema."
+    type: business_logic
+    fields_involved:
+      - id_cliente
+    priority: high
+    error_message: "Cliente deve estar ativo para realizar vendas"
+    related_tables:
+      - clientes
+  - rule_id: VND_005
+    name: "Número da venda único"
+    description: "O número da venda deve ser único no sistema e gerado automaticamente."
+    type: constraint
+    fields_involved:
+      - numero_venda
+    priority: high
+    error_message: "Número da venda deve ser único"
+  - rule_id: VND_006
+    name: "Desconto não pode ser maior que valor dos produtos"
+    description: "O valor de desconto não pode ser maior que o valor total dos produtos."
+    type: validation
+    fields_involved:
+      - valor_desconto
+      - valor_produtos
+    priority: high
+    error_message: "Desconto não pode exceder valor dos produtos"
+  - rule_id: VND_007
+    name: "Baixa automática de estoque"
+    description: "Quando venda for confirmada, deve ser executada baixa automática no estoque dos produtos vendidos."
+    type: automation
+    fields_involved:
+      - status_venda
+    priority: high
+    trigger: after_update
+    condition: "status_venda = 'confirmada'"
+    action: baixa_estoque
+    related_tables:
+      - produtos
+      - itens_venda
+  - rule_id: VND_008
+    name: "Geração de contas a receber"
+    description: "Para vendas a prazo, devem ser geradas automaticamente as contas a receber conforme condições de pagamento."
+    type: automation
+    fields_involved:
+      - forma_pagamento
+    priority: high
+    trigger: after_insert
+    condition: "forma_pagamento IN ('prazo', 'boleto')"
+    action: gerar_contas_receber
+    related_tables:
+      - contas_receber

@@ -81,6 +81,129 @@ lms server start --port 1234 --cors &
 - Coloque o arquivo na pasta `fiap_lmstudio/AppImage/` do repositório
 - O arquivo já está configurado no `.gitignore` (não será versionado)
 
+## Configuração de Providers (GenAI e Embeddings)
+
+O projeto suporta múltiplos provedores de IA generativa e embeddings: **LMStudio**, **OpenAI** e **Azure OpenAI**. A configuração é feita através de arquivos `.env` separados para facilitar a troca entre provedores.
+
+### Estrutura de Configuração
+
+```
+.env                 # Configuração geral (CHROMADB, CORS, ENVIRONMENT)
+.env.lmstudio       # Configuração do LMStudio
+.env.openai         # Configuração do OpenAI
+.env.azure          # Configuração do Azure OpenAI
+```
+
+### Variáveis Unificadas
+
+Cada provider usa o mesmo conjunto de variáveis:
+
+- `GENAI_PROVIDER` — define o provedor (lmstudio, openai, azure)
+- `GENAI_ENDPOINT` — URL/endpoint do serviço (ex: `http://192.168.50.30:1234` para LMStudio)
+- `GENAI_MODEL` — nome do modelo (ex: `gpt-3.5-turbo`)
+- `GENAI_API_KEY` — chave de API (vazio para LMStudio)
+- `GENAI_API_VERSION` — versão da API (vazio para LMStudio e OpenAI, obrigatório para Azure)
+
+Igual para embeddings: `EMBEDDINGS_PROVIDER`, `EMBEDDINGS_ENDPOINT`, `EMBEDDINGS_MODEL`, `EMBEDDINGS_API_KEY`, `EMBEDDINGS_API_VERSION`
+
+### Como Trocar de Provider
+
+#### 1. Localmente (sem Docker)
+
+Edite o `.env` e descomente o arquivo desejado:
+
+```bash
+# Use LMStudio (padrão)
+source .env && source .env.lmstudio && python fiap_api/main.py
+
+# Use OpenAI
+source .env && source .env.openai && python fiap_api/main.py
+
+# Use Azure
+source .env && source .env.azure && python fiap_api/main.py
+```
+
+#### 2. Com Docker Compose
+
+Altere o `docker-compose.yml` na seção `fiap-api`:
+
+```yaml
+# Para LMStudio (padrão)
+env_file:
+  - .env
+  - .env.lmstudio
+
+# Para OpenAI
+env_file:
+  - .env
+  - .env.openai
+
+# Para Azure
+env_file:
+  - .env
+  - .env.azure
+```
+
+Depois inicie:
+
+```powershell
+docker-compose up -d
+```
+
+#### 3. Via Command Line (Docker)
+
+```bash
+# LMStudio
+docker-compose --env-file .env --env-file .env.lmstudio up -d
+
+# OpenAI
+docker-compose --env-file .env --env-file .env.openai up -d
+
+# Azure
+docker-compose --env-file .env --env-file .env.azure up -d
+```
+
+### Exemplos de Configuração
+
+**LMStudio** (`.env.lmstudio`)
+```env
+GENAI_PROVIDER=lmstudio
+GENAI_ENDPOINT=http://192.168.50.30:1234
+GENAI_MODEL=gpt-3.5-turbo
+
+EMBEDDINGS_PROVIDER=lmstudio
+EMBEDDINGS_ENDPOINT=http://192.168.50.30:1234
+EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
+```
+
+**OpenAI** (`.env.openai`)
+```env
+GENAI_PROVIDER=openai
+GENAI_MODEL=gpt-3.5-turbo
+GENAI_API_KEY=sk-...
+
+EMBEDDINGS_PROVIDER=openai
+EMBEDDINGS_MODEL=text-embedding-3-small
+EMBEDDINGS_API_KEY=sk-...
+```
+
+**Azure** (`.env.azure`)
+```env
+GENAI_PROVIDER=azure
+GENAI_ENDPOINT=https://seu-recurso.openai.azure.com/
+GENAI_MODEL=gpt-35-turbo
+GENAI_API_KEY=seu-api-key
+GENAI_API_VERSION=2024-02-15-preview
+
+EMBEDDINGS_PROVIDER=azure
+EMBEDDINGS_ENDPOINT=https://seu-recurso.openai.azure.com/
+EMBEDDINGS_MODEL=text-embedding
+EMBEDDINGS_API_KEY=seu-api-key
+EMBEDDINGS_API_VERSION=2024-02-15-preview
+```
+
+## Pré-requisitos
+
 ## Início rápido (resumido)
 
 - Usando scripts do repositório (Windows):

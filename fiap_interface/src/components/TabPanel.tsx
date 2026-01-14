@@ -20,14 +20,6 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, title, icon
     >
       {value === index && (
         <Box sx={{ py: 3 }}>
-          {title && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-              {icon}
-              <Typography variant="h5" component="h2" fontWeight="bold">
-                {title}
-              </Typography>
-            </Box>
-          )}
           {children}
         </Box>
       )}
