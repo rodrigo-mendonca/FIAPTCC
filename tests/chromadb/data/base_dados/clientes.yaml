@@ -1,0 +1,130 @@
+tabela: clientes
+descricao_curta: "Cadastro completo de clientes - pessoa física e jurídica com dados de contato, endereço, limite de crédito e status ativo."
+database: "SistemaComercial"
+total_registros: 1250
+ultima_atualizacao: "2025-12-28"
+
+contexto_negocio: |
+  Esta tabela armazena o cadastro principal de todos os clientes da empresa.
+  Inclui informações essenciais como CPF/CNPJ, endereço, dados de contato e limite de crédito.
+  Cada cliente pode realizar múltiplas vendas e ter múltiplas contas a receber.
+  O campo 'ativo' indica se o cliente está habilitado para transações no sistema.
+
+chaves:
+  pk: [id_cliente]
+  principais_fks: []
+
+colunas_importantes:
+  - nome: id_cliente
+    tipo: integer
+    nulo: false
+    descricao: "Identificador único do cliente, chave primária auto-incrementada"
+    exemplo_significativo: "12543"
+
+  - nome: nome_razao_social
+    tipo: varchar
+    nulo: false
+    descricao: "Nome completo (pessoa física) ou razão social (pessoa jurídica)"
+    exemplo_significativo: "'João Silva' ou 'ABC Comércio Ltda'"
+
+  - nome: nome_fantasia
+    tipo: varchar
+    nulo: true
+    descricao: "Nome fantasia da empresa (apenas pessoa jurídica)"
+    exemplo_significativo: "'ABC Comercial'"
+
+  - nome: cpf_cnpj
+    tipo: varchar
+    nulo: false
+    descricao: "CPF (11 dígitos) ou CNPJ (14 dígitos) - documento único de identificação"
+    exemplo_significativo: "'12345678901234' (CNPJ)"
+
+  - nome: tipo_pessoa
+    tipo: char
+    nulo: false
+    descricao: "Tipo: 'F' (física) ou 'J' (jurídica)"
+    exemplo_significativo: "'J'"
+
+  - nome: email
+    tipo: varchar
+    nulo: true
+    descricao: "Email principal para comunicação comercial"
+    exemplo_significativo: "'cliente@empresa.com.br'"
+
+  - nome: telefone
+    tipo: varchar
+    nulo: true
+    descricao: "Telefone com DDD para contato direto"
+    exemplo_significativo: "'11987654321'"
+
+  - nome: endereco
+    tipo: varchar
+    nulo: true
+    descricao: "Endereço completo incluindo logradouro, número e complemento"
+    exemplo_significativo: "'Rua das Flores, 123, apt 201'"
+
+  - nome: cidade
+    tipo: varchar
+    nulo: true
+    descricao: "Cidade para relatórios regionais"
+    exemplo_significativo: "'São Paulo'"
+
+  - nome: estado
+    tipo: char
+    nulo: true
+    descricao: "Sigla do estado/UF (2 caracteres)"
+    exemplo_significativo: "'SP'"
+
+  - nome: cep
+    tipo: varchar
+    nulo: true
+    descricao: "Código de Endereçamento Postal para cálculos de frete"
+    exemplo_significativo: "'01234567'"
+
+  - nome: limite_credito
+    tipo: decimal
+    nulo: true
+    descricao: "Limite máximo de crédito em reais"
+    exemplo_significativo: "15000.00"
+
+  - nome: saldo_atual
+    tipo: decimal
+    nulo: true
+    descricao: "Saldo da conta: positivo=crédito, negativo=débito"
+    exemplo_significativo: "-2500.50"
+
+  - nome: data_cadastro
+    tipo: datetime
+    nulo: false
+    descricao: "Data e hora do primeiro cadastro do cliente"
+    exemplo_significativo: "2025-06-15T10:30:00"
+
+  - nome: ativo
+    tipo: boolean
+    nulo: false
+    descricao: "Indica se cliente está ativo e pode realizar transações"
+    exemplo_significativo: "true"
+
+relacionamentos:
+  - tabela_referencia: vendas
+    descricao: "Um cliente tem múltiplas vendas"
+  - tabela_referencia: contas_receber
+    descricao: "Um cliente tem múltiplas contas a receber"
+
+indices:
+  - nome: idx_cpf_cnpj
+    colunas: [cpf_cnpj]
+    unico: true
+    descricao: "Garante documento único"
+  - nome: idx_nome_razao_social
+    colunas: [nome_razao_social]
+    unico: false
+    descricao: "Busca rápida por nome"
+  - nome: idx_cidade_estado
+    colunas: [cidade, estado]
+    unico: false
+    descricao: "Relatórios regionais"
+  - nome: idx_ativo
+    colunas: [ativo]
+    unico: false
+    descricao: "Filtro de clientes ativos"

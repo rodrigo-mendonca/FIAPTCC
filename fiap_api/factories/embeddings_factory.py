@@ -69,7 +69,7 @@ class EmbeddingsFactory:
     @staticmethod
     def _create_lmstudio(config: EmbeddingsConfig):
         """Cria embeddings via LMStudio (usando OpenAI API)"""
-        from langchain.embeddings import OpenAIEmbeddings
+        from langchain_openai import OpenAIEmbeddings
         
         return OpenAIEmbeddings(
             base_url=config.endpoint + "/v1",
@@ -80,7 +80,7 @@ class EmbeddingsFactory:
     @staticmethod
     def _create_openai(config: EmbeddingsConfig):
         """Cria embeddings OpenAI"""
-        from langchain.embeddings import OpenAIEmbeddings
+        from langchain_openai import OpenAIEmbeddings
         
         return OpenAIEmbeddings(
             api_key=config.api_key,
@@ -90,7 +90,7 @@ class EmbeddingsFactory:
     @staticmethod
     def _create_azure(config: EmbeddingsConfig):
         """Cria embeddings Azure OpenAI"""
-        from langchain.embeddings import OpenAIEmbeddings
+        from langchain_openai import OpenAIEmbeddings
         
         return OpenAIEmbeddings(
             api_type="azure",
@@ -198,8 +198,8 @@ class EmbeddingsUtility:
         text_parts = [f"TABELA: {table_name}"]
         
         # Adicionar descrição
-        if "description" in table_data:
-            desc = table_data['description']
+        if "descricao" in table_data:
+            desc = table_data['descricao']
             text_parts.append(f"DESCRIÇÃO: {desc}")
             # Adicionar sinônimos comuns em português
             if any(word in desc.lower() for word in ['cliente', 'consumidor']):
@@ -229,9 +229,9 @@ class EmbeddingsUtility:
             }
             
             for field_name, field_data in table_data["fields"].items():
-                field_type = field_data.get("type", "unknown")
+                field_type = field_data.get("tipo", "unknown")
                 field_type_pt = type_translations.get(field_type.lower(), field_type)
-                field_desc = field_data.get("description", "")
+                field_desc = field_data.get("descricao", "")
                 
                 field_info = f"{field_name} (tipo: {field_type_pt})"
                 if field_desc:
@@ -265,8 +265,8 @@ class EmbeddingsUtility:
                 text_parts.append(f"RELACIONAMENTOS: {'; '.join(rel_list)}")
         
         # Adicionar área de negócio com contexto
-        if "business_area" in table_data:
-            area = table_data['business_area']
+        if "area_negocio" in table_data:
+            area = table_data['area_negocio']
             text_parts.append(f"ÁREA DE NEGÓCIO: {area}")
             
             # Adicionar contexto adicional baseado na área
@@ -305,7 +305,7 @@ class EmbeddingsUtility:
             'bit': 'binário zero um'
         }
         
-        field_type = field_data.get('type', 'unknown')
+        field_type = field_data.get('tipo', 'unknown')
         field_type_pt = type_translations.get(field_type.lower(), field_type)
         
         text_parts = [
@@ -315,8 +315,8 @@ class EmbeddingsUtility:
         ]
         
         # Adicionar descrição
-        if "description" in field_data:
-            text_parts.append(f"DESCRIÇÃO: {field_data['description']}")
+        if "descricao" in field_data:
+            text_parts.append(f"DESCRIÇÃO: {field_data['descricao']}")
         
         # Adicionar características específicas do português
         field_lower = field_name.lower()
@@ -342,7 +342,7 @@ class EmbeddingsUtility:
             text_parts.append("FUNÇÃO: endereço localização endereço")
         
         # Verificar se é pesquisável
-        if field_data.get("searchable", True):  # Padrão True para português
+        if field_data.get("pesquisavel", True):  # Padrão True para português
             text_parts.append("PESQUISÁVEL: sim busca consulta")
         
         # Adicionar sinônimos

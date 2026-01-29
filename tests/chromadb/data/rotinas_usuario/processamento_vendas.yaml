@@ -1,0 +1,72 @@
+# Rotinas de Usuário - Processamento de Pedidos e Vendas
+# Tarefas manuais realizadas por vendedores e analistas de vendas
+
+rotinas_usuario:
+  - nome: "Processar Novo Pedido de Cliente"
+    descricao: "Receber solicitação de pedido, validar dados do cliente, verificar disponibilidade de produtos, calcular frete e forma de pagamento. Registrar pedido no sistema e gerar confirmação para o cliente."
+    frequencia: diaria
+    tempo_estimado: "15 a 30 minutos por pedido"
+    papeis_necessarios:
+      - gerente_vendas
+      - vendedor
+      - analista_vendas
+    modulos_envolvidos:
+      - modulo_vendas
+      - modulo_estoque
+      - modulo_financeiro
+    passos:
+      - passo: "Acessar módulo de Vendas no sistema"
+        detalhes: "Ir para Menu > Vendas > Novo Pedido ou clicar no botão 'Nova Venda'"
+      - passo: "Buscar ou criar cliente"
+        detalhes: "Pesquisar cliente existente ou criar novo registro com dados de CPF/CNPJ, nome, endereço, email e telefone"
+      - passo: "Adicionar itens do pedido"
+        detalhes: "Pesquisar produtos, verificar estoque disponível, escolher quantidade e validar se há desconto aplicável"
+      - passo: "Revisar totalizadores"
+        detalhes: "Conferir valor dos produtos, aplicar descontos se autorizado, revisar frete calculado automaticamente"
+      - passo: "Definir forma e prazo de pagamento"
+        detalhes: "Escolher entre dinheiro, cartão, pix, boleto ou prazo. Se prazo, definir número de parcelas"
+      - passo: "Confirmar pedido"
+        detalhes: "Clicar em 'Confirmar Venda'. Sistema gerará número de pedido e enviará confirmação ao cliente"
+    validacoes_importantes:
+      - "Cliente com crédito disponível e ativo no sistema"
+      - "Produtos solicitados existem em estoque"
+      - "Valores de pedido conferem com itens"
+      - "Forma de pagamento é válida para o cliente"
+    dicas:
+      - "Se cliente é novo, preencher todos os dados corretamente para não ter problemas em envios posteriores"
+      - "Conferir endereço de faturamento vs endereço de entrega"
+      - "Avisar cliente sobre prazo de entrega estimado"
+    
+  - nome: "Processar Devolução de Produto"
+    descricao: "Receber solicitação de devolução, avaliar motivo, verificar se produto está dentro do prazo de garantia, autorizar devolução e gerar documento de retorno. Coordenar coleta com transportadora."
+    frequencia: diaria
+    tempo_estimado: "20 a 40 minutos por devolução"
+    papeis_necessarios:
+      - gerente_vendas
+      - analista_vendas
+      - gerente_estoque
+    modulos_envolvidos:
+      - modulo_vendas
+      - modulo_estoque
+      - modulo_financeiro
+    passos:
+      - passo: "Localizar pedido original no sistema"
+        detalhes: "Buscar por número do pedido, número de nota ou nome do cliente"
+      - passo: "Verificar elegibilidade de devolução"
+        detalhes: "Conferir data de venda (produto deve estar dentro de 30 dias), verificar se há garantia aplicável"
+      - passo: "Preencher formulário de devolução"
+        detalhes: "Indicar motivo (defeito, não atende especificação, cliente mudou de ideia), descrever situação do produto"
+      - passo: "Gerar autorização de devolução (RMA)"
+        detalhes: "Sistema gera número RMA que deve ser informado ao cliente na embalagem"
+      - passo: "Coordenar logística"
+        detalhes: "Se aplicável, solicitar ao departamento de logística coleta do produto junto ao cliente"
+      - passo: "Atualizar estoque"
+        detalhes: "Quando produto retorna ao depósito, registrar entrada no sistema e indicar se vai para venda ou descarte"
+    validacoes_importantes:
+      - "Produto dentro do prazo de garantia ou política de devolução"
+      - "RMA criado e informado ao cliente"
+      - "Crédito ou troca autorizado pelo gerente"
+    dicas:
+      - "Fotos do produto podem ajudar na análise se há dano"
+      - "Informar ao cliente o prazo para receber crédito ou produto de troca"
+      - "Manter registro de devoluções frequentes para identificar produtos com problemas"

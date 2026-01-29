@@ -1,0 +1,34 @@
+tipo: "documentacao_regras"
+categoria: "regras_negocio"
+
+estrutura_arquivo:
+  identificacao:
+    - "regra: <nome_da_regra>"
+    - "descricao_curta: '<descrição em uma linha>'"
+    - "categoria: '<categoria_principal>'"
+    - "prioridade: 'alta|média|baixa'"
+    - "ultima_atualizacao: '<data YYYY-MM-DD>'"
+  
+  contexto:
+    - "descricao_completa: |"
+    - "  <explicação detalhada da regra, seu propósito e impacto>"
+  
+  definicao:
+    - "enunciado: '<enunciado claro e direto da regra>'"
+    - "logica_aplicacao: |"
+    - "  <como e quando a regra é aplicada>"
+  
+  casos_uso:
+    - "casos_aplicacao:"
+    - "  - situacao: '<cenário de uso>'"
+    - "    acao: '<o que fazer>'"
+  
+  impacto:
+    - "impactos:"
+    - "  tabelas_afetadas: [tabela1, tabela2]"
+    - "  campos_relacionados: [campo1, campo2]"
+    - "  processos_impactados: [processo1, processo2]"
+  
+  exemplo:
+    - "exemplo: |"
+    - "  <exemplo concreto de aplicação da regra>"

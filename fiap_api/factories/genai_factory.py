@@ -6,8 +6,6 @@ Suporta: LMStudio, OpenAI, Azure OpenAI
 import os
 from typing import Optional
 from enum import Enum
-from langchain.chat_models import ChatOpenAI
-from langchain.llms import LlamaCpp
 import json
 
 
@@ -162,7 +160,7 @@ class GenAIFactory:
     @staticmethod
     def _create_lmstudio(config: GenAIConfig):
         """Cria cliente LMStudio via OpenAI API"""
-        from langchain.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI
         
         return ChatOpenAI(
             base_url=config.get_api_url(),
@@ -176,7 +174,7 @@ class GenAIFactory:
     @staticmethod
     def _create_openai(config: GenAIConfig):
         """Cria cliente OpenAI"""
-        from langchain.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI
         
         return ChatOpenAI(
             api_key=config.api_key,
@@ -189,7 +187,7 @@ class GenAIFactory:
     @staticmethod
     def _create_azure(config: GenAIConfig):
         """Cria cliente Azure OpenAI"""
-        from langchain.chat_models import AzureChatOpenAI
+        from langchain_openai import AzureChatOpenAI
         
         return AzureChatOpenAI(
             azure_endpoint=config.base_url,

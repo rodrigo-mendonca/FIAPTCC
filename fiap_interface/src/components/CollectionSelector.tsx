@@ -137,12 +137,16 @@ const CollectionSelector: React.FC = () => {
               },
             }}
           >
-            {availableCollections?.map((collection) => (
-              <MenuItem key={collection.id} value={collection.name}>
-                {collection.name} ({collection.count} docs)
+            {availableCollections && availableCollections.length > 0 ? (
+              availableCollections.map((collection) => (
+                <MenuItem key={collection.id} value={collection.name}>
+                  {collection.name} ({collection.count} docs)
+                </MenuItem>
+              ))
+            ) : (
+              <MenuItem value="" disabled>
+                Nenhuma coleção disponível
               </MenuItem>
-            )) || (
-              <MenuItem value="sistema_comercial">sistema_comercial</MenuItem>
             )}
             <MenuItem value="__NEW_COLLECTION__" sx={{ borderTop: '1px solid #ddd', pt: 1, mt: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main', fontWeight: 'bold' }}>

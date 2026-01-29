@@ -1,0 +1,38 @@
+tipo: "documentacao_servicos"
+categoria: "servicos"
+
+estrutura_arquivo:
+  identificacao:
+    - "servico: <nome_do_servico>"
+    - "descricao_curta: '<descrição em uma linha>'"
+    - "tipo_servico: '<backup|validacao|importacao|exportacao|alerta|sincronizacao|manutencao>'"
+    - "frequencia: '<tempo_real|continua|minuto|hora|diaria|semanal|mensal|sob_demanda>'"
+    - "ultima_atualizacao: '<data YYYY-MM-DD>'"
+  
+  contexto:
+    - "descricao_completa: |"
+    - "  <explicação do serviço, seu propósito e impacto no sistema>"
+  
+  detalhes:
+    - "detalhes_execucao:"
+    - "  entrada: '<o que o serviço recebe como input>'"
+    - "  processamento: '<o que o serviço faz>'"
+    - "  saida: '<o que o serviço produz>'"
+  
+  parametros:
+    - "parametros:"
+    - "  - nome: <param_name>"
+    - "    tipo: '<tipo_dado>'"
+    - "    obrigatorio: <true/false>"
+    - "    descricao: '<descrição>'"
+  
+  relacionamentos:
+    - "relacionamentos:"
+    - "  tabelas_envolvidas: [tabela1, tabela2]"
+    - "  sistemas_externos: [sistema1, sistema2]"
+    - "  dependencias: [servico1, servico2]"
+  
+  monitoramento:
+    - "monitoramento:"
+    - "  alertas: '<quais alertas pode disparar>'"
+    - "  logs: '<tipo de log gerado>'"

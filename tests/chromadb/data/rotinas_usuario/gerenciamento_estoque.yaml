@@ -1,0 +1,117 @@
+# Rotinas de Usuário - Gerenciamento de Estoque
+# Tarefas manuais realizadas por analistas e gerentes de estoque
+
+rotinas_usuario:
+  - nome: "Fazer Contagem Cíclica de Estoque"
+    descricao: "Verificar quantidade física de produtos em determinada área do depósito, comparar com registros do sistema, registrar diferenças e fazer ajustes. Parte de processo contínuo de validação de inventário."
+    frequencia: semanal
+    tempo_estimado: "2 a 4 horas por área"
+    papeis_necessarios:
+      - gerente_estoque
+      - analista_estoque
+      - operario_depósito
+    modulos_envolvidos:
+      - modulo_estoque
+      - modulo_operacoes
+    passos:
+      - passo: "Selecionar área para contagem"
+        detalhes: "Gerente designa qual seção do depósito será contada (ex: produtos eletrônicos, alimentos, etc)"
+      - passo: "Acessar lista de produtos a contar"
+        detalhes: "Sistema gera lista com código, descrição e quantidade registrada para a área selecionada"
+      - passo: "Contar quantidade física"
+        detalhes: "Operários contam itens na prateleira, usam scanner para código de barras se disponível"
+      - passo: "Registrar diferenças"
+        detalhes: "Se quantidade contada diferir do sistema, anotam discrepância (ex: 50 unidades contadas vs 45 no sistema)"
+      - passo: "Analisar causas"
+        detalhes: "Gerente investiga se há produtos com danos, roubos, problemas com etiquetagem"
+      - passo: "Registrar ajustes no sistema"
+        detalhes: "Criar movimentação de estoque 'Ajuste por Contagem' com quantidade corrigida e motivo (dano, diferença de contagem, erro de etiquetagem)"
+      - passo: "Gerar relatório"
+        detalhes: "Sistema lista diferenças encontradas e valor financeiro do ajuste"
+    validacoes_importantes:
+      - "Contagem foi feita por 2 pessoas para evitar erros"
+      - "Todas as diferenças foram registradas"
+      - "Produtos danificados foram segregados"
+      - "Relatório foi assinado por responsáveis"
+    dicas:
+      - "Fazer contagem em horários de baixo movimento para não prejudicar operações"
+      - "Usar planilha impressa e depois transferir para sistema"
+      - "Se diferença for > 5%, revisar procedimento de recebimento naquela categoria"
+    
+  - nome: "Gerar Ordem de Compra para Reposição"
+    descricao: "Analisar níveis de estoque de produtos críticos, avaliar histórico de vendas, determinar quantidade a comprar, selecionar fornecedor e gerar ordem de compra no sistema."
+    frequencia: semanal
+    tempo_estimado: "1 a 2 horas"
+    papeis_necessarios:
+      - gerente_estoque
+      - analista_compras
+      - gerente_suprimentos
+    modulos_envolvidos:
+      - modulo_estoque
+      - modulo_compras
+      - modulo_financeiro
+    passos:
+      - passo: "Analisar níveis de estoque"
+        detalhes: "Acessar Estoque > Análise de Níveis. Visualizar quais produtos estão abaixo do limite mínimo"
+      - passo: "Revisar histórico de vendas"
+        detalhes: "Verificar vendas dos últimos 30-90 dias para calcular demanda média e tempo de reposição"
+      - passo: "Calcular quantidade a comprar"
+        detalhes: "Usar fórmula: (Demanda Média × Lead Time) + Estoque Segurança. Considerar lotes mínimos do fornecedor"
+      - passo: "Consultar preços de fornecedores"
+        detalhes: "Verificar histórico de compras, consultar 2-3 fornecedores para melhor preço"
+      - passo: "Gerar ordem de compra"
+        detalhes: "Compras > Nova Ordem de Compra. Inserir produto, quantidade, fornecedor, preço unitário"
+      - passo: "Revisar total e orçamento"
+        detalhes: "Verificar se valor está dentro do orçamento de compras para o período"
+      - passo: "Enviar ao fornecedor"
+        detalhes: "Sistema gera PDF com número da OC. Enviar por email ou submeter no portal do fornecedor"
+      - passo: "Registrar data esperada de entrega"
+        detalhes: "Gerente compras adiciona prazo de entrega estimado"
+    validacoes_importantes:
+      - "Quantidade baseada em demanda real, não em suposições"
+      - "Preço negociado é competitivo"
+      - "Ordem está aprovada por gerente"
+      - "Tem orçamento disponível"
+    dicas:
+      - "Consolidar compras quando possível para negociar melhor preço"
+      - "Avisar gerente de compras com antecedência se produto pode sair do estoque"
+      - "Rever contrato de fornecimento para descontos por volume"
+    
+  - nome: "Receber e Conferir Mercadoria"
+    descricao: "Receber nota fiscal de compra, contar produtos, comparar com ordem de compra, conferir qualidade e registrar entrada no estoque."
+    frequencia: diaria
+    tempo_estimado: "30 a 60 minutos por entrega"
+    papeis_necessarios:
+      - recebedor_estoque
+      - gerente_estoque
+      - inspetor_qualidade
+    modulos_envolvidos:
+      - modulo_estoque
+      - modulo_compras
+    passos:
+      - passo: "Receber documentação"
+        detalhes: "Recebedor coleta nota fiscal, romaneio (lista de volumes), e compara com ordem de compra no sistema"
+      - passo: "Contar volumes recebidos"
+        detalhes: "Verificar quantidade de caixas/paletes contra quantidade esperada"
+      - passo: "Conferir itens"
+        detalhes: "Abrir caixas, contar quantidade de unidades, validar contra nota fiscal"
+      - passo: "Inspecionar qualidade"
+        detalhes: "Verificar se produtos têm danos, verificar datas de validade (se aplicável), testar funcionamento (se eletrônicos)"
+      - passo: "Identificar discrepâncias"
+        detalhes: "Se quantidade não coincide, qualidade ruim, ou produto errado, registrar e informar gerente"
+      - passo: "Registrar recebimento no sistema"
+        detalhes: "Compras > Recebimento de Nota Fiscal. Informar quantidade recebida, registrar ocorrências"
+      - passo: "Armazenar produtos"
+        detalhes: "Colocar produtos na localização correta no depósito (prateleira, endereço de estoque)"
+      - passo: "Gerar etiqueta de estoque"
+        detalhes: "Sistema gera código de barras com código do produto e quantidade. Colar na embalagem ou prateleira"
+    validacoes_importantes:
+      - "Quantidade recebida coincide com nota fiscal"
+      - "Produtos não estão danificados"
+      - "Data de validade (quando aplicável) está ok"
+      - "Preço na nota corresponde com ordem de compra"
+      - "Registro no sistema foi feito corretamente"
+    dicas:
+      - "Conferir quantidade nos primeiros dias de recebimento para reclamar em tempo"
+      - "Fotografar produtos danificados como comprovação"
+      - "Usar scanner de código de barras quando disponível para acelerar conferência"

@@ -1,0 +1,36 @@
+tipo: "documentacao_procedimentos"
+categoria: "rotinas_usuario"
+
+estrutura_arquivo:
+  identificacao:
+    - "rotina: <nome_da_rotina>"
+    - "descricao_curta: '<descrição em uma linha>'"
+    - "frequencia: '<diaria|semanal|mensal|conforme_necessario>'"
+    - "tempo_estimado: '<tempo em minutos ou horas>'"
+    - "ultima_atualizacao: '<data YYYY-MM-DD>'"
+  
+  contexto:
+    - "descricao_completa: |"
+    - "  <explicação do que a rotina faz, por que é importante>"
+  
+  prerequisitos:
+    - "prerequisitos:"
+    - "  papeis_necessarios: [papel1, papel2]"
+    - "  modulos_envolvidos: [modulo1, modulo2]"
+    - "  permissoes_requeridas: '<quais permissões>'"
+  
+  passos:
+    - "passos:"
+    - "  - numero: 1"
+    - "    titulo: '<título do passo>'"
+    - "    instrucao: '<o que fazer em detalhe>'"
+    - "    sistema_modulo: '<qual tela/módulo usar>'"
+  
+  validacoes:
+    - "validacoes_importantes:"
+    - "  - verificacao: '<o que verificar>'"
+    - "    consequencia: '<o que acontece se não verificar>'"
+  
+  dicas:
+    - "dicas_boas_praticas:"
+    - "  - tip: '<dica para executar melhor>'"

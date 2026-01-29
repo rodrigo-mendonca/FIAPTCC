@@ -1,0 +1,36 @@
+tipo: documentacao_tabelas
+categoria: docs_cg
+estrutura_arquivo:
+  identificacao:
+  - 'tabela: <nome_da_tabela>'
+  - 'descricao_curta: ''<descrição em uma linha>'''
+  - 'database: ''PragmaNext'' ou ''SistemaComercial'''
+  - 'total_registros: <número>'
+  - 'ultima_atualizacao: ''<data YYYY-MM-DD>'''
+  contexto:
+  - 'contexto_negocio: |'
+  - '  <explicação em bloco: propósito, uso, relacionamentos principais>'
+  chaves:
+  - 'chaves:'
+  - '  pk: [<coluna_pk>]'
+  - '  principais_fks:'
+  - '    - nome: <FK_NAME>'
+  - '      tabela_referencia: <tabela>'
+  - '      descricao: ''<descrição>'''
+  colunas:
+  - 'colunas_importantes:'
+  - '  - nome: <coluna>'
+  - '    tipo: <tipo_dado>'
+  - '    nulo: <true/false>'
+  - '    descricao: ''<descrição>'''
+  - '    exemplo_significativo: ''<valor_exemplo>'''
+  relacionamentos:
+  - 'relacionamentos:'
+  - '  - tabela_referencia: <tabela>'
+  - '    descricao: ''<como se relaciona>'''
+  indices:
+  - 'indices:'
+  - '  - nome: <idx_name>'
+  - '    colunas: [col1, col2]'
+  - '    unico: <true/false>'
+  - '    descricao: ''<propósito>'''

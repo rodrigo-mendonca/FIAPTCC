@@ -4,35 +4,59 @@ echo ==============================================
 echo    FIAP - Full Stack with LMStudio + ChromaDB
 echo ==============================================
 echo.
-echo Checking Docker...
-docker --version >nul 2>&1
+echo Checking LMStudio...
+netstat -ano | findstr :1234 >nul 2>&1
 if errorlevel 1 (
-    echo WARNING: Docker not found. ChromaDB will not start.
-    echo Please install Docker Desktop to use ChromaDB.
+    echo WARNING: LMStudio not found on port 1234
+    echo Please start LMStudio before running this script
     echo.
+    pause
+    exit /b 1
+) else (
+    echo [OK] LMStudio is running on port 1234
 )
 echo.
 echo Starting services...
 echo.
-echo [1] Starting ChromaDB...
-docker run -d --name lmstudio-chromadb -p 8200:8200 -v chromadb-data:/chroma/data chromadb/chroma:latest >nul 2>&1
+echo [1] Starting ChromaDB locally...
+start "ChromaDB" cmd /k "cd /d C:\Source\FIAPTCC\fiap_chromadb && python run_server.py"
+if errorlevel 1 (
+    echo [ERROR] Failed to start ChromaDB
+    pause
+    exit /b 1
+)
 timeout /t 5 /nobreak
+echo [OK] ChromaDB started
 echo.
+
 echo [2] Starting Python API...
-start cmd /k "cd /d C:\Source\FIAPTCC\fiap_api && python main.py"
-timeout /t 15 /nobreak
+start "API" cmd /k "cd /d C:\Source\FIAPTCC\fiap_api && python main.py"
+if errorlevel 1 (
+    echo [ERROR] Failed to start Python API
+    pause
+    exit /b 1
+)
+timeout /t 5 /nobreak
+echo [OK] Python API started
 echo.
+
 echo [3] Starting React Interface...
-start cmd /k "cd /d C:\Source\FIAPTCC\fiap_interface && npm start"
+start "UI" cmd /k "cd /d C:\Source\FIAPTCC\fiap_interface && npm start"
+if errorlevel 1 (
+    echo [ERROR] Failed to start React Interface
+    pause
+    exit /b 1
+)
+echo [OK] React Interface started
 echo.
+
 echo ==============================================
-echo Services starting:
+echo Services started successfully:
 echo  API: http://localhost:8000
 echo  UI: http://localhost:3000
 echo  ChromaDB: http://localhost:8200
 echo ==============================================
 timeout /t 3 /nobreak
-start http://localhost:3000
 echo.
 echo Done!
 pause

@@ -1,0 +1,24 @@
+tabela:
+  nome_tabela: TMOV_GERENCIAL_TEST
+  area_negocio: Financeiro
+  descricao: Tabela de movimentação gerencial para testes
+  chave_primaria:
+    campos:
+    - ID
+  fields:
+    ID:
+      tipo: INTEGER
+      descricao: Identificador único
+      pesquisavel: true
+    DATA:
+      tipo: DATE
+      descricao: Data da movimentação
+      pesquisavel: true
+    DESCRICAO:
+      tipo: VARCHAR
+      descricao: Descrição do movimento
+      pesquisavel: true
+    VALOR:
+      tipo: DECIMAL
+      descricao: Valor do movimento
+      pesquisavel: true

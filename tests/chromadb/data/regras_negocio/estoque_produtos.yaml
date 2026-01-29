@@ -1,0 +1,28 @@
+# Regras de Negócio - Estoque e Produtos
+# Foco: Gestão de inventário e catálogo de produtos
+
+regras_negocio:
+  - nome: "Produto Requer Código Único"
+    explicacao: "Todo produto no catálogo deve ter um código interno único que não se repete. Este código é usado para identificação rápida, busca e rastreamento de estoque."
+    tipo: restricao
+    prioridade: alta
+    
+  - nome: "Estoque Mínimo Define Reposição"
+    explicacao: "Cada produto tem uma quantidade mínima que deve ser mantida em estoque. Quando o estoque atinge ou fica abaixo deste limite, o sistema gera alerta para reposição com o fornecedor."
+    tipo: logica_negocio
+    prioridade: media
+    
+  - nome: "Custo Não Pode Superar Preço"
+    explicacao: "O preço de venda de um produto sempre deve ser maior que seu preço de custo, garantindo que haja margem de lucro. O sistema valida automaticamente ao criar ou atualizar produtos."
+    tipo: validacao
+    prioridade: media
+    
+  - nome: "Movimentação de Estoque Rastreada"
+    explicacao: "Toda alteração no estoque (entrada, saída, devolução, ajuste) deve ser registrada com data, quantidade e motivo. Isso cria um histórico completo para auditoria e controle de discrepâncias."
+    tipo: automacao
+    prioridade: alta
+    
+  - nome: "Produto Ativo no Catálogo"
+    explicacao: "Apenas produtos marcados como ativos aparecem no catálogo disponível para venda. Produtos inativos são mantidos no sistema para histórico mas não podem gerar novas vendas."
+    tipo: logica_negocio
+    prioridade: media

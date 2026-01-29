@@ -1,0 +1,23 @@
+# Regras de Negócio - Identificação e Validação de Clientes
+# Foco: Como os clientes são identificados e validados no sistema
+
+regras_negocio:
+  - nome: "Validação de Documento de Identificação"
+    explicacao: "Cada cliente deve possuir um documento de identificação único e válido. Para pessoas físicas, é obrigatório o CPF com 11 dígitos validados pelo algoritmo de dígito verificador. Para pessoas jurídicas, é obrigatório o CNPJ com 14 dígitos também validado."
+    tipo: validacao
+    prioridade: alta
+    
+  - nome: "Unicidade de Documento"
+    explicacao: "O sistema não permite duplicação de documentos. Não é possível ter dois cadastros com o mesmo CPF ou CNPJ, mesmo que um esteja inativo. Isso garante integridade e evita fraudes."
+    tipo: restricao
+    prioridade: alta
+    
+  - nome: "Tipo de Pessoa Define Campos"
+    explicacao: "A classificação entre pessoa física ou jurídica define quais informações adicionais são esperadas. Pessoas jurídicas podem ter nome fantasia, enquanto pessoas físicas são registradas apenas com nome completo."
+    tipo: logica_negocio
+    prioridade: media
+    
+  - nome: "Nome Razão Social Obrigatório"
+    explicacao: "Todo cliente deve ter um nome ou razão social preenchido, sendo este o identificador principal do cliente no sistema para comunicações e documentos."
+    tipo: validacao
+    prioridade: alta

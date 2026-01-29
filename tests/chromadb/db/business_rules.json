@@ -1,6 +1,6 @@
 {
   "business_rules": {
-    "database_name": "sistema_comercial",
+    "database_name": "",
     "version": "3.0",
     "last_updated": "2025-10-06T10:00:00Z",
     "description": "Regras de negócio e validações para o sistema comercial",

@@ -13,7 +13,7 @@ interface CollectionContextType {
     count: number;
     id: string;
   }>) => void;
-  refreshCollections: () => Promise<void>;
+  refreshCollections: (collectionNameToUse?: string) => Promise<void>;
   createCollection: (collectionName: string) => Promise<void>;
   deleteCollection: (collectionName: string) => Promise<void>;
 }
@@ -25,7 +25,7 @@ interface CollectionProviderProps {
 }
 
 export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
-  const [selectedCollection, setSelectedCollectionState] = useState<string>('sistema_comercial');
+  const [selectedCollection, setSelectedCollectionState] = useState<string>('');
   const [availableCollections, setAvailableCollections] = useState<Array<{
     name: string;
     count: number;
@@ -49,14 +49,19 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   };
 
   // Função para atualizar a lista de coleções disponíveis
-  const refreshCollections = async () => {
+  const refreshCollections = async (collectionNameToUse?: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/stats?collection_name=${selectedCollection}`);
+      // Sempre passa collection_name vazio para obter TODAS as coleções
+      // Isso garante que a lista sempre fica atualizada
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/stats?collection_name=`);
       if (response.ok) {
         const data = await response.json();
         if (data.collections) {
+          console.log('✓ Coleções atualizadas:', data.collections.length);
           setAvailableCollections(data.collections);
         }
+      } else {
+        console.error('Erro ao atualizar coleções:', response.status);
       }
     } catch (error) {
       console.error('Erro ao atualizar coleções:', error);
@@ -68,6 +73,15 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     refreshCollections();
   }, [selectedCollection]);
 
+  // Carrega coleções periodicamente para manter sincronizado
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshCollections();
+    }, 5000); // Atualiza a cada 5 segundos
+    
+    return () => clearInterval(interval);
+  }, [selectedCollection]);
+
   // Função para criar uma nova coleção
   const createCollection = async (collectionName: string) => {
     try {
@@ -76,7 +90,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ collection_name: collectionName }),
+        body: JSON.stringify({ name: collectionName }),
       });
 
       if (!response.ok) {
@@ -97,8 +111,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Função para deletar uma coleção
   const deleteCollection = async (collectionName: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/collection/${encodeURIComponent(collectionName)}`, {
-        method: 'DELETE',
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/collection/${encodeURIComponent(collectionName)}/delete`, {
+        method: 'POST',
       });
 
       if (!response.ok) {
@@ -106,15 +120,18 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         throw new Error(error.detail || 'Erro ao deletar coleção');
       }
 
-      // Se a coleção deletada era a atual, volta para a padrão
-        // Antes de recarregar, define a coleção selecionada para a padrão
+      // Se a coleção deletada era a atual, redefine para vazia
+      if (selectedCollection === collectionName) {
+        setSelectedCollectionState('');
         try {
-          localStorage.setItem('selectedCollection', 'sistema_comercial');
+          localStorage.setItem('selectedCollection', '');
         } catch (e) {
           // ignore
         }
-        // Recarrega a aplicação para refletir mudanças nas coleções
-        window.location.reload();
+      }
+      
+      // Atualiza a lista de coleções após deletar (passa qualquer nome só pra fazer a chamada)
+      await refreshCollections('');
     } catch (error) {
       throw error;
     }

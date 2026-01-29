@@ -1,0 +1,12 @@
+tabela:
+  nome_tabela: PRAGMA_TEST
+  area_negocio: Test
+  descricao: Pragma test
+  chave_primaria:
+    campos:
+    - ID
+  fields:
+    ID:
+      tipo: INTEGER
+      descricao: ID
+      pesquisavel: true

@@ -671,12 +671,13 @@ const chatConfigs = {
   help: {
     title: '❓ Chat Dúvidas',
     icon: <HelpIcon />,
-    endpoint: '/api/chat/help',
-    streamEndpoint: '/api/chat/help/stream',
+    endpoint: '/api/chat',
+    streamEndpoint: '/api/chat/stream',
     placeholder: 'Ex: Como funciona o processo de vendas?',
     description: 'Assistente de Dúvidas',
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
     suggestions: [
+      "O que você sabe?",
       "Como funciona o processo de vendas?",
       "Quais são as regras de desconto?",
       "Como calcular comissões?",
@@ -696,13 +697,12 @@ const chatConfigs = {
     suggestionsTitle: 'Exemplos de Dúvidas',
     suggestionsDescription: 'Clique nas sugestões abaixo para fazer perguntas:',
     isSQL: false
-  }
-  ,
+  },
   aluno: {
     title: '🧠 Chat Aluno',
     icon: <BotIcon />,
-    endpoint: '/api/chat/help',
-    streamEndpoint: '/api/chat/help/stream',
+    endpoint: '/api/chat',
+    streamEndpoint: '/api/chat/stream',
     placeholder: 'Descreva a informação que você quer que eu aprenda...',
     description: 'Este chat aprenderá com base no que você informar.',
     emptyStateMessage: 'Explique algo que deseja registrar no sistema. Quando estiver pronto, revise e confirme para registrar.',

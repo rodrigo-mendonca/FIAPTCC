@@ -1,6 +1,6 @@
 {
   "system_services": {
-    "system_name": "sistema_comercial",
+    "system_name": "",
     "version": "3.0",
     "last_updated": "2025-10-06T10:00:00Z",
     "description": "Catálogo de serviços e processos automatizados do sistema comercial",
@@ -33,7 +33,7 @@
           "retention_days": 30
         },
         "outputs": {
-          "backup_file": "sistema_comercial_YYYYMMDD.sql.gz",
+          "backup_file": "YYYYMMDD.sql.gz",
           "log_file": "backup_YYYYMMDD.log"
         },
         "notifications": {

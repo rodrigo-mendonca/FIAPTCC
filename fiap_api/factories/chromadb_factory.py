@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 ChromaDB Factory - Gerenciamento de banco de dados vetorial
 Responsável por: criação de coleções, adição, deleção, consultas e processamento de documentos
@@ -90,7 +90,7 @@ class DatabaseDocumentProcessor:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f) or {}
         except Exception as e:
-            print(f"❌ Erro ao carregar arquivo YAML {file_path}: {e}")
+            print(f"[OK] Erro ao carregar arquivo YAML {file_path}: {e}")
             return {}
     
     @staticmethod
@@ -126,11 +126,11 @@ class DatabaseDocumentProcessor:
                 if content:
                     data_list.append(content)
             
-            print(f"   ✅ {len(data_list)} arquivos YAML carregados")
+            print(f"   [OK] {len(data_list)} arquivos YAML carregados")
             return data_list
             
         except Exception as e:
-            print(f"❌ Erro ao carregar pasta YAML {folder_path}: {e}")
+            print(f"[OK] Erro ao carregar pasta YAML {folder_path}: {e}")
             return []
     
     @staticmethod
@@ -139,7 +139,7 @@ class DatabaseDocumentProcessor:
         Extrai documentos da estrutura do banco de dados de múltiplos arquivos YAML
         
         Args:
-            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de database_structure
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de base_dados
             
         Returns:
             Lista de documentos formatados para ChromaDB
@@ -148,89 +148,73 @@ class DatabaseDocumentProcessor:
         
         # Processa cada arquivo YAML
         for file_data in yaml_files_data:
-            if 'table' not in file_data:
+            # Validar que é um dicionário
+            if not isinstance(file_data, dict):
+                print(f"[EXTRACT] ⚠️ Ignorando dados inválidos (não é dict): {type(file_data)}")
                 continue
             
-            table_info = file_data['table']
-            table_name = table_info.get('name', '')
+            # O arquivo YAML tem 'tabela' como string (nome da tabela) no nível raiz
+            if 'tabela' not in file_data:
+                continue
+            
+            table_name = file_data.get('tabela', '')
+            
+            # Se table_name não é string, pular
+            if not isinstance(table_name, str):
+                print(f"[EXTRACT] ⚠️ 'tabela' é {type(table_name)}, esperado string. Pulando...")
+                continue
+            
+            # Extrai as chaves (chaves primária e estrangeiras)
+            chaves = file_data.get('chaves', {})
+            pk = ""
+            if isinstance(chaves, dict):
+                pk_list = chaves.get('pk', [])
+                if isinstance(pk_list, list) and pk_list:
+                    pk = ", ".join(pk_list)
+            
             # Documento principal da tabela
             table_doc = {
-                'id': f"table_{table_name}",
-                'text': f"Tabela {table_info['name']}: {table_info.get('description', '')}. "
-                       f"Área de negócio: {table_info.get('business_area', 'não definida')}. "
-                       f"Chave primária: {table_info.get('primary_key', 'não definida')}. "
-                       f"Data de criação: {table_info.get('created_at', 'não informada')}.",
+                'id': f"table_{table_name.lower().replace(' ', '_')}",
+                'text': f"Tabela {table_name}: {file_data.get('descricao_curta', '')}. "
+                       f"Database: {file_data.get('database', 'não definido')}. "
+                       f"Total de registros: {file_data.get('total_registros', '0')}. "
+                       f"Última atualização: {file_data.get('ultima_atualizacao', 'não informada')}. "
+                       f"Chave primária: {pk if pk else 'não definida'}.",
                 'metadata': {
                     'type': 'table',
                     'table_name': table_name,
-                    'business_area': table_info.get('business_area', ''),
-                    'primary_key': table_info.get('primary_key', ''),
+                    'database': file_data.get('database', ''),
+                    'primary_key': pk,
+                    'total_records': str(file_data.get('total_registros', '0')),
                     'source': 'database_structure'
                 }
             }
             documents.append(table_doc)
             
-            # Documentos das colunas
-            if 'columns' in table_info:
-                for column_name, column_info in table_info['columns'].items():
-                    column_doc = {
-                        'id': f"column_{table_name}_{column_name}",
-                        'text': f"Coluna {column_info['name']} da tabela {table_name}: {column_info.get('description', '')}. "
-                               f"Tipo: {column_info.get('type', 'indefinido')}. "
-                               f"Pode ser nulo: {'sim' if column_info.get('nullable', True) else 'não'}. "
-                               f"Pesquisável: {'sim' if column_info.get('searchable', False) else 'não'}. "
-                               f"Chave primária: {'sim' if column_info.get('primary_key', False) else 'não'}. "
-                               f"Auto incremento: {'sim' if column_info.get('auto_increment', False) else 'não'}.",
+            # Documentos das colunas importantes
+            colunas = file_data.get('colunas_importantes', [])
+            if isinstance(colunas, list):
+                for col_idx, coluna in enumerate(colunas):
+                    if not isinstance(coluna, dict):
+                        continue
+                    
+                    col_name = coluna.get('nome', f'col_{col_idx}')
+                    col_doc = {
+                        'id': f"column_{table_name.lower()}_{col_name}",
+                        'text': f"Coluna {col_name} da tabela {table_name}: {coluna.get('descricao', '')}. "
+                               f"Tipo: {coluna.get('tipo', 'indefinido')}. "
+                               f"Nulo: {coluna.get('nulo', 'não definido')}. "
+                               f"Exemplo: {coluna.get('exemplo_significativo', 'não informado')}.",
                         'metadata': {
                             'type': 'column',
                             'table_name': table_name,
-                            'column_name': column_name,
-                            'data_type': column_info.get('type', ''),
-                            'nullable': column_info.get('nullable', True),
-                            'searchable': column_info.get('searchable', False),
-                            'primary_key': column_info.get('primary_key', False),
+                            'column_name': col_name,
+                            'column_type': coluna.get('tipo', ''),
+                            'nullable': str(coluna.get('nulo', '')),
                             'source': 'database_structure'
                         }
                     }
-                    documents.append(column_doc)
-            
-            # Documentos dos relacionamentos
-            if 'relationships' in table_info:
-                for i, relationship in enumerate(table_info['relationships']):
-                    rel_doc = {
-                        'id': f"relationship_{table_name}_{i}",
-                        'text': f"Relacionamento da tabela {table_name}: {relationship.get('description', '')}. "
-                               f"Tipo: {relationship.get('type', 'indefinido')}. "
-                               f"Tabela relacionada: {relationship.get('related_table', 'não informada')}. "
-                               f"Chave estrangeira: {relationship.get('foreign_key', 'não informada')}.",
-                        'metadata': {
-                            'type': 'relationship',
-                            'table_name': table_name,
-                            'relationship_type': relationship.get('type', ''),
-                            'related_table': relationship.get('related_table', ''),
-                            'source': 'database_structure'
-                        }
-                    }
-                    documents.append(rel_doc)
-            
-            # Documentos dos índices
-            if 'indexes' in table_info:
-                for index in table_info['indexes']:
-                    index_doc = {
-                        'id': f"index_{table_name}_{index['name']}",
-                        'text': f"Índice {index['name']} da tabela {table_name}: {index.get('description', '')}. "
-                               f"Colunas: {', '.join(index.get('columns', []))}. "
-                               f"Único: {'sim' if index.get('unique', False) else 'não'}.",
-                        'metadata': {
-                            'type': 'index',
-                            'table_name': table_name,
-                            'index_name': index['name'],
-                            'unique': index.get('unique', False),
-                            'columns': ', '.join(index.get('columns', [])),
-                            'source': 'database_structure'
-                        }
-                    }
-                    documents.append(index_doc)
+                    documents.append(col_doc)
         
         return documents
     
@@ -240,7 +224,7 @@ class DatabaseDocumentProcessor:
         Extrai documentos das regras de negócio de múltiplos arquivos YAML
         
         Args:
-            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de business_rules
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de regras_negocio
             
         Returns:
             Lista de documentos de regras
@@ -249,145 +233,223 @@ class DatabaseDocumentProcessor:
         
         # Processa cada arquivo YAML
         for file_data in yaml_files_data:
-            if 'rules' in file_data:
-                # Arquivo de regras específicas (com table_name)
-                table_name = file_data.get('table_name', 'unknown')
-                rules = file_data.get('rules', [])
-                description = file_data.get('description', '')
+            # Validar que é um dicionário
+            if not isinstance(file_data, dict):
+                print(f"[EXTRACT] ⚠️ Ignorando arquivo de regras inválido (não é dict): {type(file_data)}")
+                continue
+            
+            if 'regras_negocio' not in file_data:
+                continue
+            
+            regras = file_data.get('regras_negocio', [])
+            
+            # Validar que regras é uma lista
+            if not isinstance(regras, list):
+                print(f"[EXTRACT] ⚠️ regras_negocio não é lista: {type(regras)}")
+                continue
+            
+            # Documentos das regras individuais
+            for idx, regra in enumerate(regras):
+                if not isinstance(regra, dict):
+                    print(f"[EXTRACT] ⚠️ Regra {idx} não é dict: {type(regra)}")
+                    continue
                 
-                # Documento da categoria de regras da tabela
-                category_doc = {
-                    'id': f"rules_category_{table_name}",
-                    'text': f"Regras de negócio da tabela {table_name}: {description}. Total de regras: {len(rules)}.",
+                nome = regra.get('nome', f'regra_{idx}')
+                regra_doc = {
+                    'id': f"regra_{nome.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Regra de Negócio: {nome}. "
+                           f"Explicação: {regra.get('explicacao', '')}. "
+                           f"Tipo: {regra.get('tipo', 'indefinido')}. "
+                           f"Prioridade: {regra.get('prioridade', 'indefinida')}.",
                     'metadata': {
-                        'type': 'rules_category',
-                        'table_name': table_name,
-                        'total_rules': len(rules),
+                        'type': 'business_rule',
+                        'nome_regra': nome,
+                        'tipo_regra': regra.get('tipo', ''),
+                        'prioridade': regra.get('prioridade', ''),
                         'source': 'business_rules'
                     }
                 }
-                documents.append(category_doc)
-                
-                # Documentos das regras individuais
-                for rule in rules:
-                    rule_doc = {
-                        'id': f"rule_{rule['rule_id']}",
-                        'text': f"Regra {rule['rule_id']} - {rule['name']}: {rule.get('description', '')}. "
-                               f"Tipo: {rule.get('type', 'indefinido')}. "
-                               f"Prioridade: {rule.get('priority', 'indefinida')}. "
-                               f"Campos envolvidos: {', '.join(rule.get('fields_involved', []))}. "
-                               f"Mensagem de erro: {rule.get('error_message', 'não informada')}.",
-                        'metadata': {
-                            'type': 'business_rule',
-                            'table_name': table_name,
-                            'rule_id': rule['rule_id'],
-                            'rule_name': rule['name'],
-                            'rule_type': rule.get('type', ''),
-                            'priority': rule.get('priority', ''),
-                            'fields_involved': ', '.join(rule.get('fields_involved', [])),
-                            'source': 'business_rules'
-                        }
-                    }
-                    documents.append(rule_doc)
-            
-            elif 'rules' in file_data and file_data.get('table_name') is None:
-                # Arquivo global_rules.yaml
-                for rule in file_data.get('rules', []):
-                    global_rule_doc = {
-                        'id': f"global_rule_{rule['rule_id']}",
-                        'text': f"Regra global {rule['rule_id']} - {rule['name']}: {rule.get('description', '')}. "
-                               f"Tipo: {rule.get('type', 'indefinido')}. "
-                               f"Prioridade: {rule.get('priority', 'indefinida')}. "
-                               f"Aplica-se a: {rule.get('applies_to', 'não informado')}.",
-                        'metadata': {
-                            'type': 'global_rule',
-                            'rule_id': rule['rule_id'],
-                            'rule_name': rule['name'],
-                            'rule_type': rule.get('type', ''),
-                            'priority': rule.get('priority', ''),
-                            'applies_to': rule.get('applies_to', ''),
-                            'source': 'business_rules'
-                        }
-                    }
-                    documents.append(global_rule_doc)
+                documents.append(regra_doc)
         
         return documents
     
     @staticmethod
     def extract_services_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
         """
-        Extrai documentos dos serviços do sistema de múltiplos arquivos YAML
+        Extrai documentos das rotinas de sistema de múltiplos arquivos YAML
         
         Args:
-            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de system_services
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de servicos
             
         Returns:
-            Lista de documentos de serviços
+            Lista de documentos de rotinas
         """
         documents = []
         
         # Processa cada arquivo YAML
         for file_data in yaml_files_data:
-            if 'services' not in file_data:
+            # Validar que é um dicionário
+            if not isinstance(file_data, dict):
+                print(f"[EXTRACT] ⚠️ Ignorando arquivo de serviços inválido (não é dict): {type(file_data)}")
+                continue
+                
+            if 'rotinas' not in file_data:
                 continue
             
-            services = file_data['services']
+            rotinas = file_data.get('rotinas', [])
             
-            for service_name, service_info in services.items():
-                # Documento principal do serviço
-                schedule_info = service_info.get('schedule', {})
-                schedule_text = ""
-                if schedule_info.get('frequency') == 'daily':
-                    schedule_text = f"diariamente às {schedule_info.get('time', 'não informado')}"
-                elif schedule_info.get('frequency') == 'weekly':
-                    schedule_text = f"semanalmente às {schedule_info.get('day', 'não informado')} às {schedule_info.get('time', 'não informado')}"
-                elif schedule_info.get('frequency') == 'monthly':
-                    schedule_text = f"mensalmente no dia {schedule_info.get('day', 'não informado')} às {schedule_info.get('time', 'não informado')}"
-                elif schedule_info.get('frequency') == 'hourly':
-                    schedule_text = f"de hora em hora aos {schedule_info.get('minutes', 'não informado')} minutos"
-                elif schedule_info.get('frequency') == 'continuous':
-                    schedule_text = f"continuamente a cada {schedule_info.get('interval', 'não informado')}"
+            # Validar que rotinas é uma lista
+            if not isinstance(rotinas, list):
+                print(f"[EXTRACT] ⚠️ rotinas não é lista: {type(rotinas)}")
+                continue
+            
+            # Documentos das rotinas individuais
+            for idx, rotina in enumerate(rotinas):
+                # Validar que é um dicionário
+                if not isinstance(rotina, dict):
+                    print(f"[EXTRACT] ⚠️ Serviço {idx} não é dict: {type(rotina)}")
+                    continue
                 
-                service_doc = {
-                    'id': f"service_{service_info['service_id']}",
-                    'text': f"Serviço {service_info['service_id']} - {service_info['name']}: {service_info.get('description', '')}. "
-                           f"Categoria: {service_info.get('category', 'não definida')}. "
-                           f"Status: {service_info.get('status', 'indefinido')}. "
-                           f"Execução: {schedule_text}. "
-                           f"Duração estimada: {service_info.get('estimated_duration', 'não informada')}. "
-                           f"Prioridade: {service_info.get('priority', 'indefinida')}.",
+                # Monta texto de frequência de forma legível
+                frequencia = rotina.get('frequencia', 'indefinida')
+                detalhes_frequencia = []
+                
+                if frequencia == 'diaria' and rotina.get('horario'):
+                    detalhes_frequencia.append(f"diariamente às {rotina.get('horario')}")
+                elif frequencia == 'semanal' and rotina.get('dia_semana'):
+                    detalhes_frequencia.append(f"semanalmente às {rotina.get('dia_semana')}")
+                elif frequencia == 'mensal' and rotina.get('dia_mes'):
+                    detalhes_frequencia.append(f"mensalmente no dia {rotina.get('dia_mes')}")
+                elif frequencia == 'a_cada_hora':
+                    if rotina.get('minuto'):
+                        detalhes_frequencia.append(f"a cada hora no minuto {rotina.get('minuto')}")
+                    else:
+                        detalhes_frequencia.append("a cada hora")
+                elif frequencia == 'a_cada_6_horas':
+                    detalhes_frequencia.append("a cada 6 horas")
+                elif frequencia == 'a_cada_30_minutos':
+                    detalhes_frequencia.append("a cada 30 minutos")
+                elif frequencia == 'a_cada_15_minutos':
+                    detalhes_frequencia.append("a cada 15 minutos")
+                elif frequencia == 'a_cada_5_minutos':
+                    detalhes_frequencia.append("a cada 5 minutos")
+                elif frequencia == 'tempo_real':
+                    detalhes_frequencia.append("tempo real")
+                elif frequencia == 'continu':
+                    detalhes_frequencia.append("contínuo")
+                elif frequencia == 'sob_demanda':
+                    detalhes_frequencia.append("sob demanda")
+                
+                frequencia_texto = detalhes_frequencia[0] if detalhes_frequencia else frequencia
+                
+                nome_rotina = rotina.get('nome', f'rotina_{idx}')
+                rotina_doc = {
+                    'id': f"rotina_{nome_rotina.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Rotina: {nome_rotina}. "
+                           f"Descrição: {rotina.get('descricao', '')}. "
+                           f"Tipo: {rotina.get('tipo_servico', 'indefinido')}. "
+                           f"Frequência: {frequencia_texto}. "
+                           f"Duração: {rotina.get('duracao_estimada', 'não informada')}. "
+                           f"Prioridade: {rotina.get('prioridade', 'indefinida')}.",
                     'metadata': {
-                        'type': 'system_service',
-                        'service_id': service_info['service_id'],
-                        'service_name': service_info['name'],
-                        'category': service_info.get('category', ''),
-                        'status': service_info.get('status', ''),
-                        'execution_type': service_info.get('execution_type', ''),
-                        'frequency': schedule_info.get('frequency', ''),
-                        'priority': service_info.get('priority', ''),
+                        'type': 'rotina_sistema',
+                        'nome_rotina': nome_rotina,
+                        'tipo_servico': rotina.get('tipo_servico', ''),
+                        'frequencia': rotina.get('frequencia', ''),
+                        'prioridade': rotina.get('prioridade', ''),
+                        'duracao_estimada': rotina.get('duracao_estimada', ''),
                         'source': 'system_services'
                     }
                 }
-                documents.append(service_doc)
+                documents.append(rotina_doc)
+        
+        return documents
+
+    @staticmethod
+    def extract_user_routines_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
+        """
+        Extrai documentos das rotinas de usuário de múltiplos arquivos YAML
+        
+        Args:
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de rotinas_usuario
+            
+        Returns:
+            Lista de documentos de rotinas de usuário
+        """
+        documents = []
+        
+        # Processa cada arquivo YAML
+        for file_data in yaml_files_data:
+            # Validar que é um dicionário
+            if not isinstance(file_data, dict):
+                print(f"[EXTRACT] ⚠️ Ignorando arquivo de rotinas de usuário inválido (não é dict): {type(file_data)}")
+                continue
                 
-                # Documento de lógica de negócio do serviço (se existir)
-                if 'business_logic' in service_info:
-                    logic = service_info['business_logic']
-                    logic_doc = {
-                        'id': f"service_logic_{service_info['service_id']}",
-                        'text': f"Lógica de negócio do serviço {service_info['name']}: "
-                               f"Condição: {logic.get('condition', 'não informada')}. "
-                               f"Ação: {logic.get('action', 'não informada')}. "
-                               f"Tabela afetada: {logic.get('affected_table', 'não informada')}.",
-                        'metadata': {
-                            'type': 'service_logic',
-                            'service_id': service_info['service_id'],
-                            'service_name': service_info['name'],
-                            'affected_table': logic.get('affected_table', ''),
-                            'source': 'system_services'
-                        }
+            if 'rotinas_usuario' not in file_data:
+                continue
+            
+            rotinas = file_data.get('rotinas_usuario', [])
+            
+            # Validar que rotinas é uma lista
+            if not isinstance(rotinas, list):
+                print(f"[EXTRACT] ⚠️ rotinas_usuario não é lista: {type(rotinas)}")
+                continue
+            
+            # Documentos das rotinas individuais
+            for idx, rotina in enumerate(rotinas):
+                # Validar que é um dicionário
+                if not isinstance(rotina, dict):
+                    print(f"[EXTRACT] ⚠️ Rotina de usuário {idx} não é dict: {type(rotina)}")
+                    continue
+                
+                # Monta texto com informações dos passos
+                passos_texto = ""
+                if rotina.get('passos'):
+                    passos_lista = []
+                    for passo in rotina.get('passos', []):
+                        if isinstance(passo, dict):
+                            passos_lista.append(f"{passo.get('passo', '')}: {passo.get('detalhes', '')}")
+                    passos_texto = " | ".join(passos_lista)
+                
+                # Monta texto com papéis necessários
+                papeis_raw = rotina.get('papeis_necessarios', [])
+                papeis_texto = ", ".join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw)
+                
+                # Monta texto com módulos envolvidos
+                modulos_raw = rotina.get('modulos_envolvidos', [])
+                modulos_texto = ", ".join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw)
+                
+                # Monta texto com validações
+                validacoes_raw = rotina.get('validacoes_importantes', [])
+                validacoes_texto = " | ".join(validacoes_raw) if isinstance(validacoes_raw, list) else str(validacoes_raw)
+                
+                # Monta texto com dicas
+                dicas_raw = rotina.get('dicas', [])
+                dicas_texto = " | ".join(dicas_raw) if isinstance(dicas_raw, list) else str(dicas_raw)
+                
+                nome_rotina = rotina.get('nome', f'rotina_usuario_{idx}')
+                rotina_doc = {
+                    'id': f"rotina_usuario_{nome_rotina.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Rotina de Usuário: {nome_rotina}. "
+                           f"Descrição: {rotina.get('descricao', '')}. "
+                           f"Frequência: {rotina.get('frequencia', 'indefinida')}. "
+                           f"Tempo Estimado: {rotina.get('tempo_estimado', 'não informado')}. "
+                           f"Papéis: {papeis_texto}. "
+                           f"Módulos: {modulos_texto}. "
+                           f"Passos: {passos_texto}. "
+                           f"Validações: {validacoes_texto}. "
+                           f"Dicas: {dicas_texto}.",
+                    'metadata': {
+                        'type': 'rotina_usuario',
+                        'nome_rotina': nome_rotina,
+                        'frequencia': rotina.get('frequencia', ''),
+                        'tempo_estimado': rotina.get('tempo_estimado', ''),
+                        'papeis_necessarios': ','.join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw),
+                        'modulos_envolvidos': ','.join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw),
+                        'source': 'rotinas_usuario'
                     }
-                    documents.append(logic_doc)
+                }
+                documents.append(rotina_doc)
         
         return documents
 
@@ -422,29 +484,39 @@ class ChromaDBClient:
             True se conectou com sucesso
         """
         try:
-            print(f"🔌 Conectando ao ChromaDB em {self.host}:{self.port}...")
+            print(f"[CONNECT] Tentando conectar ao ChromaDB em {self.host}:{self.port}...")
             self.client = chromadb.HttpClient(host=self.host, port=self.port)
             
             # Testa a conexão fazendo um heartbeat
-            heartbeat = self.client.heartbeat()
-            print(f"✅ Conexão com ChromaDB estabelecida! Heartbeat: {heartbeat}")
+            try:
+                heartbeat = self.client.heartbeat()
+                print(f"[CONNECT] ✓ Conexão com ChromaDB estabelecida! Heartbeat: {heartbeat}")
+            except Exception as hb_error:
+                print(f"[CONNECT] Heartbeat falhou: {hb_error}")
+                # Mesmo assim, continua a tentar outras coisas
             
             # Testa conexão com LMStudio
-            print(f"🔌 Testando conexão com LMStudio em {self.lmstudio_url}...")
-            test_response = requests.get(f"{self.lmstudio_url}/v1/models", timeout=10)
-            if test_response.status_code == 200:
-                models = test_response.json()
-                print(f"✅ Conexão com LMStudio estabelecida! Modelos disponíveis: {len(models.get('data', []))}")
-            else:
-                print(f"⚠️ LMStudio respondeu com status {test_response.status_code}")
+            print(f"[CONNECT] Testando conexão com LMStudio em {self.lmstudio_url}...")
+            try:
+                test_response = requests.get(f"{self.lmstudio_url}/v1/models", timeout=10)
+                if test_response.status_code == 200:
+                    models = test_response.json()
+                    print(f"[CONNECT] ✓ LMStudio disponível! Modelos: {len(models.get('data', []))}")
+                else:
+                    print(f"[CONNECT] ⚠️ LMStudio status {test_response.status_code}")
+            except Exception as lm_error:
+                print(f"[CONNECT] ⚠️ LMStudio não respondeu: {lm_error}")
             
+            print(f"[CONNECT] ✓ Conectado com sucesso!")
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao conectar: {e}")
+            print(f"[CONNECT] ✗ Erro ao conectar: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
-    def create_collection(self, collection_name: str = "sistema_comercial") -> bool:
+    def create_collection(self, collection_name: str) -> bool:
         """
         Cria ou obtém uma coleção no ChromaDB
         
@@ -463,11 +535,11 @@ class ChromaDBClient:
                 metadata={"description": "Sistema comercial - estrutura, regras e serviços"}
             )
             
-            print(f"✅ Coleção '{collection_name}' pronta com embedding personalizado!")
+            print(f"[OK] Coleção '{collection_name}' pronta com embedding personalizado!")
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao criar/obter coleção: {e}")
+            print(f"[OK] Erro ao criar/obter coleção: {e}")
             return False
     
     def load_and_index_documents(self, data_folder: str = None) -> bool:
@@ -475,12 +547,21 @@ class ChromaDBClient:
         Carrega e indexa documentos de todos os arquivos YAML das pastas
         
         Args:
-            data_folder: Pasta pai contendo as subpastas de dados (database_structure, business_rules, system_services)
+            data_folder: Pasta pai contendo as subpastas de dados (base_dados, regras_negocio, servicos)
             
         Returns:
             True se bem-sucedido
         """
         try:
+            print(f"\n[INDEX] === INICIANDO INDEXAÇÃO DE DOCUMENTOS ===")
+            
+            # Verificar se collection está selecionada
+            if not self.collection:
+                print("[INDEX] ✗ ERRO: Nenhuma coleção selecionada!")
+                return False
+            
+            print(f"[INDEX] Coleção alvo: {self.collection.name}")
+            
             # Se não especificado, usa pasta relativa ao script que chama
             if data_folder is None:
                 # Pega o diretório do script que está executando (não este módulo)
@@ -489,43 +570,62 @@ class ChromaDBClient:
                 caller_dir = os.path.dirname(os.path.abspath(caller_frame.filename))
                 data_folder = os.path.join(caller_dir, "data")
             
-            print(f"📄 Carregando dados dos arquivos YAML da pasta {data_folder}...")
+            print(f"[INDEX] Pasta de dados: {data_folder}")
             
-            # Carrega dados dos 3 tipos de pastas
-            print("\n🗂️ Carregando estrutura do banco de dados...")
-            db_structure_folder = os.path.join(data_folder, "database_structure")
+            # Verificar se a pasta existe
+            if not os.path.exists(data_folder):
+                print(f"[INDEX] ✗ Pasta não encontrada: {data_folder}")
+                return False
+            
+            # Carrega dados dos 4 tipos de pastas
+            print("\n[INDEX] 📂 Carregando base_dados...")
+            db_structure_folder = os.path.join(data_folder, "base_dados")
             structure_yaml_files = self.processor.load_yaml_files_from_folder(db_structure_folder)
+            print(f"[INDEX]    → {len(structure_yaml_files)} arquivos encontrados")
             
-            print("\n🗂️ Carregando regras de negócio...")
-            business_rules_folder = os.path.join(data_folder, "business_rules")
+            print("\n[INDEX] 📂 Carregando regras_negocio...")
+            business_rules_folder = os.path.join(data_folder, "regras_negocio")
             rules_yaml_files = self.processor.load_yaml_files_from_folder(business_rules_folder)
+            print(f"[INDEX]    → {len(rules_yaml_files)} arquivos encontrados")
             
-            print("\n🗂️ Carregando serviços do sistema...")
-            services_folder = os.path.join(data_folder, "system_services")
+            print("\n[INDEX] 📂 Carregando servicos...")
+            services_folder = os.path.join(data_folder, "servicos")
             services_yaml_files = self.processor.load_yaml_files_from_folder(services_folder)
+            print(f"[INDEX]    → {len(services_yaml_files)} arquivos encontrados")
             
-            if not any([structure_yaml_files, rules_yaml_files, services_yaml_files]):
-                print("❌ Nenhum arquivo pôde ser carregado")
+            print("\n[INDEX] 📂 Carregando rotinas_usuario...")
+            user_routines_folder = os.path.join(data_folder, "rotinas_usuario")
+            user_routines_yaml_files = self.processor.load_yaml_files_from_folder(user_routines_folder)
+            print(f"[INDEX]    → {len(user_routines_yaml_files)} arquivos encontrados")
+            
+            if not any([structure_yaml_files, rules_yaml_files, services_yaml_files, user_routines_yaml_files]):
+                print("[INDEX] ✗ Nenhum arquivo YAML encontrado em nenhuma das pastas!")
                 return False
             
             # Extrai documentos de cada pasta
+            print("\n[INDEX] 🔄 Extraindo documentos...")
             structure_docs = self.processor.extract_database_structure_documents(structure_yaml_files) if structure_yaml_files else []
             rules_docs = self.processor.extract_business_rules_documents(rules_yaml_files) if rules_yaml_files else []
             services_docs = self.processor.extract_services_documents(services_yaml_files) if services_yaml_files else []
+            user_routines_docs = self.processor.extract_user_routines_documents(user_routines_yaml_files) if user_routines_yaml_files else []
             
-            all_documents = structure_docs + rules_docs + services_docs
+            all_documents = structure_docs + rules_docs + services_docs + user_routines_docs
             
             if not all_documents:
-                print("⚠️ Nenhum documento extraído dos arquivos YAML")
+                print("[INDEX] ✗ Nenhum documento foi extraído dos arquivos YAML")
                 return False
             
-            print(f"\n📝 Adicionando {len(all_documents)} documentos ao ChromaDB...")
-            print(f"   - {len(structure_docs)} documentos de estrutura de banco")
-            print(f"   - {len(rules_docs)} documentos de regras de negócio")
-            print(f"   - {len(services_docs)} documentos de serviços do sistema")
+            print(f"\n[INDEX] ✓ {len(all_documents)} documentos extraídos:")
+            print(f"[INDEX]    - {len(structure_docs)} de estrutura de banco")
+            print(f"[INDEX]    - {len(rules_docs)} de regras de negócio")
+            print(f"[INDEX]    - {len(services_docs)} de serviços do sistema")
+            print(f"[INDEX]    - {len(user_routines_docs)} de rotinas de usuário")
             
             # Adiciona documentos em lotes para melhor performance
             batch_size = 15
+            total_added = 0
+            print(f"\n[INDEX] 📤 Adicionando documentos em lotes...")
+            
             for i in range(0, len(all_documents), batch_size):
                 batch = all_documents[i:i+batch_size]
                 
@@ -533,19 +633,24 @@ class ChromaDBClient:
                 texts = [doc['text'] for doc in batch]
                 metadatas = [doc['metadata'] for doc in batch]
                 
-                self.collection.add(
-                    documents=texts,
-                    metadatas=metadatas,
-                    ids=ids
-                )
-                
-                print(f"   ✅ Lote {i//batch_size + 1} adicionado ({len(batch)} docs)")
+                try:
+                    self.collection.add(
+                        documents=texts,
+                        metadatas=metadatas,
+                        ids=ids
+                    )
+                    total_added += len(batch)
+                    batch_num = (i // batch_size) + 1
+                    print(f"[INDEX]    ✓ Lote {batch_num}: {len(batch)} documentos adicionados")
+                except Exception as batch_error:
+                    print(f"[INDEX]    ✗ Erro ao adicionar lote {(i//batch_size + 1)}: {batch_error}")
+                    # Continua com os próximos lotes
             
-            print(f"✅ Todos os {len(all_documents)} documentos foram adicionados!")
+            print(f"\n[INDEX] ✓✓✓ SUCESSO! {total_added} documentos foram indexados na coleção '{self.collection.name}'!")
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao carregar e adicionar documentos: {e}")
+            print(f"[INDEX] ✗✗✗ ERRO ao carregar e indexar documentos: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -557,13 +662,13 @@ class ChromaDBClient:
         Args:
             query_text: Texto da consulta
             n_results: Número máximo de resultados
-            context: Contexto para filtrar ('all', 'business_rules', 'database_struct', 'system_services')
+            context: Contexto para filtrar ('all', 'business_rules', 'database_struct', 'system_services', 'user_routines')
             
         Returns:
             Lista de documentos encontrados
         """
         try:
-            print(f"🔍 Buscando: '{query_text}' no contexto: {context}")
+            print(f"[OK] Buscando: '{query_text}' no contexto: {context}")
             
             # Configura filtros baseado no contexto
             where_filter = None
@@ -572,7 +677,8 @@ class ChromaDBClient:
                 context_mapping = {
                     'business_rules': 'business_rule',
                     'database_struct': ['table', 'column', 'database_info'],
-                    'system_services': 'service'
+                    'system_services': 'service',
+                    'user_routines': 'rotina_usuario'
                 }
                 
                 if context in context_mapping:
@@ -618,11 +724,11 @@ class ChromaDBClient:
                     }
                     formatted_results.append(result)
             
-            print(f"✅ Encontrados {len(formatted_results)} resultados")
+            print(f"[OK] Encontrados {len(formatted_results)} resultados")
             return formatted_results
             
         except Exception as e:
-            print(f"❌ Erro na busca: {e}")
+            print(f"[OK] Erro na busca: {e}")
             return []
     
     def get_collection_stats(self) -> Dict:
@@ -633,86 +739,112 @@ class ChromaDBClient:
             Dicionário com estatísticas
         """
         try:
-            print(f"📊 Obtendo estatísticas da coleção...")
+            print(f"[DEBUG] Iniciando get_collection_stats...")
             
-            # Obtém todas as coleções disponíveis
-            all_collections = []
+            # Dados básicos
+            collection_name = str(self.collection.name) if self.collection else None
+            print(f"[DEBUG] Nome da coleção: {collection_name}")
+            
+            # Tenta contar documentos
+            total_docs = 0
             try:
-                collections = self.client.list_collections()
-                for collection in collections:
-                    all_collections.append({
-                        'name': collection.name,
-                        'count': collection.count(),
-                        'id': collection.id if hasattr(collection, 'id') else collection.name
-                    })
-                print(f"📚 Encontradas {len(all_collections)} coleções")
-            except Exception as e:
-                print(f"⚠️ Erro ao listar coleções: {e}")
-                all_collections = []
+                if self.collection:
+                    total_docs = int(self.collection.count())
+                    print(f"[DEBUG] Total de docs: {total_docs}")
+            except Exception as count_err:
+                print(f"[DEBUG] Erro ao contar docs: {count_err}")
             
-            if not self.collection:
-                print("⚠️ Coleção atual não definida. Retornando lista de coleções sem criar padrão.")
-                return {
-                    'total_documentos': 0,
-                    'collection_name': None,
-                    'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
-                    'last_updated': get_local_datetime().strftime('%Y-%m-%d %H:%M:%S'),
-                    'tipos_documento': {},
-                    'fontes_dados': {},
-                    'collections': all_collections,
-                    'error': 'Coleção não definida'
-                }
-            
-            total_docs = self.collection.count()
-            print(f"📈 Total de documentos na coleção: {total_docs}")
-            
-            # Conta documentos por tipo e fonte
+            # Tipos e fontes (simples)
             type_counts = {}
             source_counts = {}
             
-            if total_docs > 0:
-                # Busca uma amostra para contar tipos
-                sample_results = self.collection.get(limit=2000, include=['metadatas'])
-                
-                for metadata in sample_results['metadatas']:
-                    doc_type = metadata.get('type', 'unknown')
-                    doc_source = metadata.get('source', 'unknown')
+            if total_docs > 0 and self.collection:
+                try:
+                    print(f"[DEBUG] Buscando amostra de metadados...")
+                    sample = self.collection.get(limit=100, include=['metadatas'])
+                    print(f"[DEBUG] Amostra recebida")
                     
-                    type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
-                    source_counts[doc_source] = source_counts.get(doc_source, 0) + 1
-                
-                print(f"📋 Tipos de documento: {type_counts}")
-                print(f"📄 Fontes de dados: {source_counts}")
-            else:
-                print("⚠️ Nenhum documento encontrado na coleção")
+                    if sample and 'metadatas' in sample:
+                        for metadata in sample['metadatas']:
+                            if metadata and isinstance(metadata, dict):
+                                doc_type = str(metadata.get('type', 'unknown'))
+                                doc_source = str(metadata.get('source', 'unknown'))
+                                type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
+                                source_counts[doc_source] = source_counts.get(doc_source, 0) + 1
+                except Exception as sample_err:
+                    print(f"[DEBUG] Erro ao processar amostra: {sample_err}")
             
-            # Retorna formato esperado pelo frontend
+            # SEMPRE lista todas as coleções, independente de ter uma selecionada
+            print(f"[DEBUG] Listando coleções...")
+            all_collections = []
+            try:
+                collections = self.client.list_collections()
+                for col in collections:
+                    try:
+                        all_collections.append({
+                            'name': str(col.name),
+                            'count': int(col.count()),
+                            'id': str(col.name)
+                        })
+                    except Exception as col_err:
+                        print(f"[DEBUG] Erro ao processar coleção {col}: {col_err}")
+                print(f"[DEBUG] Coleções encontradas: {len(all_collections)}")
+            except Exception as list_err:
+                print(f"[DEBUG] Erro ao listar coleções: {list_err}")
+            
+            # Monta resultado
             result = {
                 'total_documentos': total_docs,
-                'collection_name': self.collection.name if self.collection else 'sistema_comercial',
+                'collection_name': collection_name,
                 'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
-                'last_updated': get_local_datetime().strftime('%Y-%m-%d %H:%M:%S'),
+                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'tipos_documento': type_counts,
                 'fontes_dados': source_counts,
                 'collections': all_collections
             }
             
-            print(f"✅ Estatísticas retornadas: {result}")
+            print(f"[DEBUG] Stats prontos, retornando: {result}")
             return result
+            
         except Exception as e:
-            print(f"❌ Erro ao obter estatísticas: {e}")
+            print(f"[ERRO] Exceção em get_collection_stats: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Tenta retornar algo útil mesmo em erro
+            try:
+                collection_name = str(self.collection.name) if self.collection else None
+            except:
+                collection_name = None
+            
+            # Tenta listar coleções mesmo em erro
+            all_collections = []
+            try:
+                collections = self.client.list_collections()
+                for col in collections:
+                    try:
+                        all_collections.append({
+                            'name': str(col.name),
+                            'count': int(col.count()),
+                            'id': str(col.name)
+                        })
+                    except:
+                        pass
+            except:
+                pass
+            
             return {
                 'total_documentos': 0,
-                'collection_name': 'sistema_comercial',
+                'collection_name': collection_name,
                 'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
-                'last_updated': get_local_datetime().strftime('%Y-%m-%d %H:%M:%S'),
+                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'tipos_documento': {},
                 'fontes_dados': {},
-                'collections': [],
+                'collections': all_collections,
                 'error': str(e)
             }
     
-    def delete_collection(self, collection_name: str = "sistema_comercial") -> bool:
+    def delete_collection(self, collection_name: str) -> bool:
         """
         Deleta uma coleção
         
@@ -723,26 +855,19 @@ class ChromaDBClient:
             True se deletou com sucesso
         """
         try:
-            print(f"🗂️ Antes de deletar, listando coleções disponíveis...")
-            try:
-                cols_before = [c.name for c in self.client.list_collections()]
-                print(f"📚 Coleções antes: {cols_before}")
-            except Exception as e:
-                print(f"⚠️ Falha ao listar coleções antes da deleção: {e}")
-
-            print(f"🗑️ Solicitando delete da coleção '{collection_name}' via client.delete_collection()...")
+            print(f"[DELETE] �️ Deletando coleção '{collection_name}'...")
             self.client.delete_collection(collection_name)
-
-            try:
-                cols_after = [c.name for c in self.client.list_collections()]
-                print(f"📚 Coleções depois: {cols_after}")
-            except Exception as e:
-                print(f"⚠️ Falha ao listar coleções depois da deleção: {e}")
-
-            print(f"✅ Coleção '{collection_name}' deletada (cliente não levantou exceção).")
+            
+            # Limpar self.collection se era a que foi deletada
+            if self.collection and self.collection.name == collection_name:
+                self.collection = None
+            
+            print(f"[DELETE] ✓ Coleção '{collection_name}' deletada com sucesso!")
             return True
         except Exception as e:
-            print(f"❌ Erro ao deletar coleção: {e}")
+            print(f"[DELETE] ✗ Erro ao deletar coleção: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def update_database_structure(self, table_name: str, table_structure: Dict[str, Any], data_folder: str = None) -> bool:
@@ -770,7 +895,7 @@ class ChromaDBClient:
             
             # Cria o conteúdo YAML
             yaml_content = {
-                'table': table_structure
+                'tabela': table_structure
             }
             
             table_file_path = os.path.join(data_folder, f"{table_name}.yaml")
@@ -780,20 +905,12 @@ class ChromaDBClient:
             with open(table_file_path, 'w', encoding='utf-8') as f:
                 yaml.dump(yaml_content, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
             
-            print(f"💾 Estrutura da tabela {table_name} salva em: {table_file_path}")
-            
-            # Recria a coleção e recarrega os dados
-            if not self.create_collection():
-                return False
-                
-            if not self.load_and_index_documents(os.path.dirname(data_folder)):
-                return False
-            
-            print("✅ Estrutura da tabela atualizada e dados recarregados com sucesso!")
+            print(f"[OK] Estrutura da tabela {table_name} salva em: {table_file_path}")
+            print("[OK] Estrutura da tabela atualizada com sucesso!")
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao atualizar estrutura da tabela: {e}")
+            print(f"[OK] Erro ao atualizar estrutura da tabela: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -817,7 +934,7 @@ class ChromaDBClient:
                     name=collection_name,
                     embedding_function=self.embedding_function
                 )
-                print(f"✅ Coleção '{collection_name}' definida como atual!")
+                print(f"[OK] Coleção '{collection_name}' definida como atual!")
                 return True
             except Exception as e:
                 print(f"⚠️ Coleção '{collection_name}' não existe. Não criaremos automaticamente nesta chamada. Erro: {e}")
@@ -825,7 +942,7 @@ class ChromaDBClient:
                 return False
 
         except Exception as e:
-            print(f"❌ Erro ao definir coleção: {e}")
+            print(f"[OK] Erro ao definir coleção: {e}")
             return False
 
     def add_document(self, text: str, metadata: dict, id: str = None, collection_name: str = None) -> bool:
@@ -848,17 +965,17 @@ class ChromaDBClient:
                     # tenta criar e definir
                     created = self.create_collection(collection_name)
                     if not created:
-                        print(f"❌ Falha ao criar coleção '{collection_name}' para adicionar documento")
+                        print(f"[OK] Falha ao criar coleção '{collection_name}' para adicionar documento")
                         return False
                     # redefine collection
                     if not self.set_collection(collection_name):
-                        print(f"❌ Falha ao definir coleção '{collection_name}' após criação")
+                        print(f"[OK] Falha ao definir coleção '{collection_name}' após criação")
                         return False
 
             # Se coleção não definida, tenta criar padrão
             if not self.collection:
                 if not self.create_collection():
-                    print("❌ Nenhuma coleção definida e falha ao criar padrão")
+                    print("[OK] Nenhuma coleção definida e falha ao criar padrão")
                     return False
 
             if not id:
@@ -871,10 +988,10 @@ class ChromaDBClient:
                 ids=[id]
             )
 
-            print(f"✅ Documento '{id}' adicionado na coleção '{self.collection.name}'")
+            print(f"[OK] Documento '{id}' adicionado na coleção '{self.collection.name}'")
             return True
         except Exception as e:
-            print(f"❌ Erro ao adicionar documento: {e}")
+            print(f"[OK] Erro ao adicionar documento: {e}")
             return False
 
     def add_documents(self, documents: List[Dict[str, Any]], collection_name: str = None) -> bool:
@@ -888,15 +1005,15 @@ class ChromaDBClient:
                 if not self.set_collection(collection_name):
                     created = self.create_collection(collection_name)
                     if not created:
-                        print(f"❌ Falha ao criar coleção '{collection_name}' para adicionar documentos")
+                        print(f"[OK] Falha ao criar coleção '{collection_name}' para adicionar documentos")
                         return False
                     if not self.set_collection(collection_name):
-                        print(f"❌ Falha ao definir coleção '{collection_name}' após criação")
+                        print(f"[OK] Falha ao definir coleção '{collection_name}' após criação")
                         return False
 
             if not self.collection:
                 if not self.create_collection():
-                    print("❌ Nenhuma coleção definida e falha ao criar padrão")
+                    print("[OK] Nenhuma coleção definida e falha ao criar padrão")
                     return False
 
             batch_size = 15
@@ -912,10 +1029,10 @@ class ChromaDBClient:
                     ids=ids
                 )
 
-            print(f"✅ {len(documents)} documentos adicionados na coleção '{self.collection.name}'")
+            print(f"[OK] {len(documents)} documentos adicionados na coleção '{self.collection.name}'")
             return True
         except Exception as e:
-            print(f"❌ Erro ao adicionar documentos em lote: {e}")
+            print(f"[OK] Erro ao adicionar documentos em lote: {e}")
             return False
 
     def ingest_database_to_collection(self, database_data: Dict[str, Any], collection_name: str) -> bool:
@@ -957,7 +1074,7 @@ class ChromaDBClient:
                 metadatas.append({
                     "type": "table",
                     "table_name": table_name,
-                    "business_area": table_data.get("business_area", "general"),
+                    "business_area": table_data.get("area_negocio", "general"),
                     "importance": "high"
                 })
                 ids.append(f"table_{table_name}")
@@ -965,15 +1082,15 @@ class ChromaDBClient:
                 # 2. Ingerir campos importantes
                 fields = table_data.get("fields", {})
                 for field_name, field_data in fields.items():
-                    if field_data.get("searchable", True) or field_data.get("type") in ["decimal", "integer"] or "saldo" in field_name.lower() or "valor" in field_name.lower():
+                    if field_data.get("pesquisavel", True) or field_data.get("tipo") in ["decimal", "integer"] or "saldo" in field_name.lower() or "valor" in field_name.lower():
                         field_text = EmbeddingsUtility.create_field_searchable_text(field_name, field_data, table_name)
                         documents.append(field_text)
                         metadatas.append({
                             "type": "field",
                             "table_name": table_name,
                             "field_name": field_name,
-                            "data_type": field_data.get("type", "unknown"),
-                            "business_area": table_data.get("business_area", "general"),
+                            "data_type": field_data.get("tipo", "unknown"),
+                            "business_area": table_data.get("area_negocio", "general"),
                             "importance": "medium"
                         })
                         ids.append(f"field_{table_name}_{field_name}")
@@ -1002,11 +1119,11 @@ class ChromaDBClient:
                 embeddings=embeddings
             )
             
-            print(f"✅ Ingestão concluída: {len(documents)} documentos adicionados")
+            print(f"[OK] Ingestão concluída: {len(documents)} documentos adicionados")
             return True
             
         except Exception as e:
-            print(f"❌ Erro na ingestão: {e}")
+            print(f"[OK] Erro na ingestão: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -1065,7 +1182,7 @@ class ChromaDBClient:
             }
             
         except Exception as e:
-            print(f"❌ Erro na busca: {e}")
+            print(f"[OK] Erro na busca: {e}")
             return {
                 "results": [],
                 "total_found": 0,

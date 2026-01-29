@@ -1,0 +1,50 @@
+# Rotinas de Sistema - Exportação e Relatórios
+# Foco: Geração e envio de dados para sistemas externos
+
+rotinas:
+  - nome: "Exportação de Vendas Diárias para Fiscal"
+    descricao: "Extrai dados de todas as vendas do dia anterior, formata em layout XML conforme padrão NF-e e exporta para servidor de integração fiscal. Arquivo é validado antes de envio. Gera log de sucesso ou erro."
+    tipo_servico: exportacao
+    frequencia: diaria
+    horario: "23:00"
+    duracao_estimada: "5 a 10 minutos"
+    prioridade: alta
+    formato_saida: "XML (padrão NF-e)"
+    
+  - nome: "Relatório de Contas a Receber"
+    descricao: "Gera relatório em PDF com posição de contas a receber separado por cliente, faixa de vencimento e status de pagamento. Enviado por email para gerência diariamente. Inclui análise de tendências e alertas de atrasos."
+    tipo_servico: relatorio
+    frequencia: diaria
+    horario: "09:00"
+    duracao_estimada: "3 a 5 minutos"
+    prioridade: media
+    destinatarios: "gerencia@empresa.com"
+    
+  - nome: "Exportação de Comissões de Vendedores"
+    descricao: "Calcula comissões do mês anterior baseado em vendas realizadas, aplica descontos por devoluções e gera arquivo para processamento de folha de pagamento. Auditável e com assinatura digital."
+    tipo_servico: exportacao
+    frequencia: mensal
+    dia_mes: "3"
+    horario: "10:00"
+    duracao_estimada: "10 a 15 minutos"
+    prioridade: alta
+    formato_saida: "CSV com campos de rubrica"
+    
+  - nome: "Relatório Financeiro Mensal"
+    descricao: "Consolida todas as operações financeiras do mês (vendas, pagamentos, despesas) em relatório executivo. Inclui gráficos de tendência, análise de lucratividade por produto e comparativo com mês anterior. Enviado no último dia útil do mês."
+    tipo_servico: relatorio
+    frequencia: mensal
+    dia_mes: "ultimo_util"
+    horario: "17:00"
+    duracao_estimada: "15 a 20 minutos"
+    prioridade: alta
+    destinatarios: "financeiro@empresa.com"
+    
+  - nome: "Sincronização com Portal do Cliente"
+    descricao: "Exporta dados públicos (pedidos, rastreamento, faturas) para portal web dos clientes. Atualiza informações de status em tempo real. Sincronização bidirecional com confirmações de recebimento."
+    tipo_servico: exportacao
+    frequencia: a_cada_30_minutos
+    horario: "08:00-18:00"
+    duracao_estimada: "2 a 3 minutos"
+    prioridade: media
+    api_destino: "portal.clientes.api/sync"

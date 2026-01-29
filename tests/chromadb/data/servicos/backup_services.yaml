@@ -23,7 +23,7 @@ services:
       compression_level: "high"
       retention_days: 30
     outputs:
-      backup_file: "sistema_comercial_YYYYMMDD.sql.gz"
+      backup_file: "YYYYMMDD.sql.gz"
       log_file: "backup_YYYYMMDD.log"
     notifications:
       on_success: "email_admin"

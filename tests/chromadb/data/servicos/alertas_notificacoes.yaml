@@ -1,0 +1,44 @@
+# Rotinas de Sistema - Alertas e Notificações
+# Foco: Detecção de eventos e notificações automáticas
+
+rotinas:
+  - nome: "Alerta de Estoque Baixo"
+    descricao: "Monitora produtos que atingiram quantidade mínima de estoque. Gera alertas para compradores indicando necessidade de reposição. Integra com sistema de requisição automatizada para gerar ordem de compra automática se configurado."
+    tipo_servico: alerta
+    frequencia: a_cada_hora
+    duracao_estimada: "1 a 2 minutos"
+    prioridade: media
+    limiar_ativacao: "estoque <= estoque_minimo"
+    
+  - nome: "Alerta de Cliente com Crédito Bloqueado"
+    descricao: "Identifica clientes que ultrapassaram limite de crédito e marca seus pedidos como pendentes de aprovação. Notifica gerência comercial para análise. Previne sobrecarga de crédito no sistema."
+    tipo_servico: alerta
+    frequencia: a_cada_30_minutos
+    duracao_estimada: "2 a 3 minutos"
+    prioridade: alta
+    limiar_ativacao: "saldo_devedor >= limite_credito"
+    
+  - nome: "Alerta de Contas Vencidas"
+    descricao: "Identifica contas a receber que venceram há mais de X dias. Envia email para gerência com lista de atrasos. Cria tarefas de cobrança no sistema. Executa diariamente para acompanhamento constante."
+    tipo_servico: alerta
+    frequencia: diaria
+    horario: "09:30"
+    duracao_estimada: "5 a 8 minutos"
+    prioridade: alta
+    limiar_ativacao: "data_vencimento < hoje"
+    
+  - nome: "Alerta de Processamento com Erro"
+    descricao: "Monitora logs de sistema para identificar erros em rotinas agendadas. Notifica time de suporte imediatamente quando detecta falhas críticas (backup com erro, importação incompleta, exportação recusada)."
+    tipo_servico: alerta
+    frequencia: continu
+    duracao_estimada: "tempo real"
+    prioridade: alta
+    limiar_ativacao: "erro_critico_detectado"
+    
+  - nome: "Alerta de Desempenho do Sistema"
+    descricao: "Monitora métricas de sistema (CPU, memória, disco) e gera alerta quando atingem thresholds críticos. Previne travamentos e degradação de performance. Permite ação preventiva antes de impactar usuários."
+    tipo_servico: alerta
+    frequencia: a_cada_5_minutos
+    duracao_estimada: "1 minuto"
+    prioridade: media
+    limiar_ativacao: "cpu > 80% OR memoria > 85% OR disco > 90%"

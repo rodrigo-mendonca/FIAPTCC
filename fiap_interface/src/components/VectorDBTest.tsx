@@ -18,35 +18,57 @@ import {
   DialogActions,
   DialogContentText,
   Tabs,
-  Tab
+  Tab,
+  Chip
 } from '@mui/material';
 import {
   Send as SendIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  CheckCircle as CheckCircleIcon,
+  UploadFile as UploadFileIcon
 } from '@mui/icons-material';
 import React, { useState, useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useNotification } from '../contexts/NotificationContext';
+
 const VectorDBTest: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [subTab, setSubTab] = useState(0);
   const [dataSource, setDataSource] = useState('Todos');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [businessRulesFile, setBusinessRulesFile] = useState<File | null>(null);
-  const [databaseStructureFile, setDatabaseStructureFile] = useState<File | null>(null);
-  const [systemServicesFile, setSystemServicesFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [shouldReload, setShouldReload] = useState(false);
+  const [includeMetadata, setIncludeMetadata] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: string }>({});
   const [queryError, setQueryError] = useState<string | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
-  const { selectedCollection } = useCollection();
+  const [fileTypes, setFileTypes] = useState<any>(null);
+  const { selectedCollection, refreshCollections } = useCollection();
   const { showNotification } = useNotification();
+
+  // Carregar tipos de arquivo suportados
+  useEffect(() => {
+    const loadFileTypes = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/file-types`);
+        if (response.ok) {
+          const data = await response.json();
+          setFileTypes(data);
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar tipos de arquivo:', error);
+      }
+    };
+    loadFileTypes();
+  }, []);
 
   const handleSubTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setSubTab(newValue);
@@ -63,22 +85,30 @@ const VectorDBTest: React.FC = () => {
     setResults([]);
     setQueryError(null);
 
+    console.log('🔍 Fazendo query:', { question, collection: selectedCollection });
+
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/query?collection_name=${encodeURIComponent(selectedCollection)}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           question: question,
-          n_results: 5,
+          collection_name: selectedCollection,
           context: dataSource === 'Todos' ? 'all' : dataSource
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Resultados recebidos:', data);
         setResults(data.results || []);
+        
+        // Mostrar notificação com as tabelas encontradas
+        if (data.tables_found && data.tables_found.length > 0) {
+          showNotification(`Tabelas encontradas: ${data.tables_found.join(', ')}`, 'info');
+        }
       } else {
         let errText = response.statusText || `Status ${response.status}`;
         try {
@@ -171,102 +201,142 @@ const VectorDBTest: React.FC = () => {
     setConfirmDialogOpen(false);
   };
 
-  const handleBusinessRulesFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setBusinessRulesFile(file);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(files);
+    setUploadError(null);
+    setUploadSuccess(null);
+    setUploadProgress({});
   };
 
-  const handleDatabaseStructureFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setDatabaseStructureFile(file);
-  };
-
-  const handleSystemServicesFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setSystemServicesFile(file);
-  };
-
-  const handleUploadFiles = async () => {
-    const filesToUpload = [
-      { file: businessRulesFile, type: 'business_rules' },
-      { file: databaseStructureFile, type: 'database_struct' },
-      { file: systemServicesFile, type: 'system_services' }
-    ].filter(item => item.file !== null);
-
-    if (filesToUpload.length === 0) {
+  const handleUploadFile = async () => {
+    console.log('✓ handleUploadFile chamado');
+    console.log('selectedFiles:', selectedFiles);
+    console.log('selectedCollection:', selectedCollection);
+    
+    if (selectedFiles.length === 0) {
       showNotification('Selecione pelo menos um arquivo para enviar.', 'warning');
       return;
     }
 
-    setUploading(true);
+    setUploadingFiles(true);
     setUploadError(null);
+    setUploadSuccess(null);
+    setUploadProgress({});
 
     try {
-      for (const { file, type } of filesToUpload) {
-        if (!file) continue;
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('type', type);
-        formData.append('collection_name', selectedCollection);
-
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          // try to parse error body
-          let errText = response.statusText || `Status ${response.status}`;
-          try {
-            const body = await response.text();
-            if (body) {
-              try {
-                const json = JSON.parse(body);
-                errText = json.detail || json.message || body;
-              } catch {
-                errText = body;
-              }
-            }
-          } catch (e) {
-            // ignore
+      // Verificar conexão com ChromaDB antes de tentar upload
+      try {
+        const healthResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/health`);
+        const health = await healthResponse.json();
+        
+        if (!health.connected) {
+          console.log('ChromaDB desconectado, tentando reconectar...');
+          const reconnectResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/reconnect`, {
+            method: 'POST'
+          });
+          const reconnectResult = await reconnectResponse.json();
+          
+          if (reconnectResult.status !== 'ok') {
+            setUploadError('ChromaDB não está disponível. Verifique se o serviço está rodando.');
+            showNotification('ChromaDB não disponível', 'error');
+            setUploadingFiles(false);
+            return;
           }
-
-          // If backend indicates LMStudio problem, show friendly message
-          const lower = String(errText).toLowerCase();
-          if (lower.includes('lmstudio') || lower.includes('lm-studio') || response.status === 502 || response.status === 503) {
-            setUploadError('LMStudio não está disponível ou não possui modelos carregados. Verifique se o LMStudio está aberto e com os modelos carregados.');
-            showNotification('LMStudio não está disponível ou não possui modelos carregados.', 'error');
-          } else {
-            setUploadError(`Erro ao enviar ${type}: ${errText}`);
-            showNotification(`Erro ao enviar ${type}: ${errText}`, 'error');
-          }
-
-          throw new Error(errText);
         }
-
-        const result = await response.json();
-        console.log(`Arquivo ${type} enviado com sucesso:`, result);
+      } catch (healthError) {
+        console.warn('Erro ao verificar saúde do ChromaDB:', healthError);
       }
 
-      showNotification('Arquivos enviados com sucesso para o ChromaDB!', 'success');
+      // Preparar FormData para upload em lote
+      const formData = new FormData();
       
-      // Limpar os arquivos selecionados após o upload
-      setBusinessRulesFile(null);
-      setDatabaseStructureFile(null);
-      setSystemServicesFile(null);
+      // Adicionar todos os arquivos
+      for (const file of selectedFiles) {
+        formData.append('files', file);
+      }
       
-      // Resetar os inputs de arquivo
-      const inputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
-      inputs.forEach(input => input.value = '');
-      // Após upload bem-sucedido, sinaliza reload via hook
-      setShouldReload(true);
+      formData.append('collection_name', selectedCollection);
+      formData.append('include_metadata', String(includeMetadata));
 
-    } catch (error) {
+      console.log('📤 Enviando para:', `${process.env.REACT_APP_API_URL}/api/vectordb/upload-batch`);
+      console.log('📦 Arquivos:', selectedFiles.length);
+      console.log('📍 Coleção:', selectedCollection);
+
+      // Usar novo endpoint de batch upload
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/upload-batch`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errText = response.statusText || `Status ${response.status}`;
+        try {
+          const body = await response.text();
+          if (body) {
+            try {
+              const json = JSON.parse(body);
+              errText = json.detail || json.message || body;
+            } catch {
+              errText = body;
+            }
+          }
+        } catch {}
+
+        setUploadError(`❌ Erro: ${errText}`);
+        showNotification(`Erro ao enviar arquivos: ${errText}`, 'error');
+        setUploadingFiles(false);
+        return;
+      }
+
+      const result = await response.json();
+      
+      console.log('📨 Resposta do servidor:', result);
+      
+      // Processar resultado do batch
+      if (result.success_count > 0) {
+        const msg = `✅ ${result.success_count} arquivo(s) enviado(s) com sucesso${result.error_count > 0 ? ` (${result.error_count} falharam)` : ''}`;
+        setUploadSuccess(msg);
+        showNotification(msg, 'success');
+        
+        // Mostrar detalhes dos resultados
+        console.log('📋 Resultados do upload:', result.results);
+        console.log('📍 Coleção selecionada:', selectedCollection);
+        console.log('📊 Sucesso:', result.success_count, '| Erros:', result.error_count);
+        
+        // Aguardar um pouco para garantir que a indexação foi completada
+        console.log('⏳ Aguardando indexação ser concluída...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Atualizar lista de coleções no contexto
+        console.log('🔄 Atualizando lista de coleções...');
+        await refreshCollections();
+        console.log('✅ Lista atualizada');
+        
+        // Limpar UI sem reload
+        console.log('🧹 Limpando interface...');
+        setSelectedFiles([]);
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+        setUploadError(null);
+        setUploadProgress({});
+        
+        // Limpar mensagem de sucesso após 3 segundos
+        setTimeout(() => {
+          setUploadSuccess(null);
+        }, 3000);
+      } else if (result.error_count > 0) {
+        setUploadError(`❌ Todos os ${result.error_count} arquivo(s) falharam`);
+        showNotification(`Erro ao enviar arquivos`, 'error');
+      }
+
+    } catch (error: any) {
       console.error('Erro ao enviar arquivos:', error);
-      showNotification('Erro ao enviar arquivos. Verifique o console para mais detalhes.', 'error');
+      const msg = String(error?.message || error || 'Erro de conexão');
+      setUploadError(`❌ Erro: ${msg}`);
+      showNotification(`Erro: ${msg}`, 'error');
     } finally {
-      setUploading(false);
+      setUploadingFiles(false);
     }
   };
 
@@ -314,10 +384,11 @@ const VectorDBTest: React.FC = () => {
                     label="Fonte de Dados"
                     onChange={handleDataSourceChange}
                   >
-                    <MenuItem value="Todos">Todos</MenuItem>
-                    <MenuItem value="business_rules">Regras de Negócio</MenuItem>
-                    <MenuItem value="database_structure">Estrutura do Banco</MenuItem>
-                    <MenuItem value="system_services">Serviços do Sistema</MenuItem>
+                    <MenuItem value="Todos">Todos os Dados</MenuItem>
+                    <MenuItem value="regras_negocio">Regras de Negócio</MenuItem>
+                    <MenuItem value="base_dados">Estrutura do Banco</MenuItem>
+                    <MenuItem value="servicos">Serviços do Sistema</MenuItem>
+                    <MenuItem value="rotinas_usuario">Rotinas do Usuário</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -350,30 +421,45 @@ const VectorDBTest: React.FC = () => {
               <Card sx={{ mt: 3 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Resultados da Consulta
+                    📊 Resultados da Consulta ({results.length} resultado{results.length !== 1 ? 's' : ''})
                   </Typography>
                   
                   {results.map((result, index) => (
-                    <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
-                        Resultado {index + 1} (Relevância: {(result.similarity * 100).toFixed(1)}%)
-                      </Typography>
+                    <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1, backgroundColor: '#fafafa' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Box>
+                          <Typography variant="subtitle2" color="primary" gutterBottom sx={{ mb: 0.5 }}>
+                            Resultado {index + 1} - {result.type?.toUpperCase()}
+                          </Typography>
+                          {result.table && (
+                            <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: 'bold', mb: 1 }}>
+                              📊 Tabela: <strong>{result.table}</strong>
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip 
+                          label={`${(result.relevance || 0).toFixed(1)}% relevante`}
+                          size="small"
+                          color={(result.relevance || 0) >= 80 ? "success" : (result.relevance || 0) >= 60 ? "warning" : "default"}
+                          variant="outlined"
+                        />
+                      </Box>
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        <strong>Tipo:</strong> {result.type}
+                        <strong>Tipo:</strong> <Chip label={result.type} size="small" variant="outlined" sx={{ ml: 1 }} />
                       </Typography>
                       <Typography variant="body2">
                         {result.content}
                       </Typography>
                       {result.metadata && (
                         <Box sx={{ mt: 1 }}>
-                          {result.metadata.table_name && (
-                            <Typography variant="caption" display="block">
-                              <strong>Tabela:</strong> {result.metadata.table_name}
-                            </Typography>
-                          )}
                           {result.metadata.source && (
                             <Typography variant="caption" display="block">
                               <strong>Fonte:</strong> {result.metadata.source}
+                            </Typography>
+                          )}
+                          {result.metadata.field_name && (
+                            <Typography variant="caption" display="block">
+                              <strong>Campo:</strong> {result.metadata.field_name}
                             </Typography>
                           )}
                         </Box>
@@ -388,6 +474,133 @@ const VectorDBTest: React.FC = () => {
 
         {subTab === 1 && (
           <Box>
+            {/* Upload de Arquivo */}
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  📁 Carregar Arquivo de Dados
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Envie arquivos YAML ou JSON. O sistema detecta automaticamente o tipo: regras de negócio, estrutura do banco, serviços ou rotinas do usuário.
+                </Typography>
+
+                {uploadError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {uploadError}
+                  </Alert>
+                )}
+
+                {uploadSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
+                    {uploadSuccess}
+                  </Alert>
+                )}
+
+                <Box sx={{ mb: 3, p: 2, border: '2px dashed #1976d2', borderRadius: 2, backgroundColor: '#f5f5f5' }}>
+                  <input 
+                    type="file" 
+                    accept=".yaml,.yml,.json" 
+                    onChange={handleFileChange}
+                    id="file-input"
+                    multiple
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="file-input" style={{ width: '100%', cursor: 'pointer' }}>
+                    <Box sx={{ textAlign: 'center', p: 2 }}>
+                      <UploadFileIcon sx={{ fontSize: 40, color: '#1976d2', mb: 1 }} />
+                      <Typography variant="body2" color="primary">
+                        Clique para selecionar arquivos ou arraste aqui
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Formatos: YAML, YML ou JSON (múltiplos arquivos)
+                      </Typography>
+                    </Box>
+                  </label>
+                </Box>
+
+                {selectedFiles.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ mb: 2, p: 1.5, backgroundColor: '#e8f5e9', borderRadius: 1, border: '1px solid #4caf50' }}>
+                      <Typography variant="subtitle2" color="success.main">
+                        ✓ {selectedFiles.length} arquivo(s) selecionado(s):
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        {selectedFiles.map((file, idx) => (
+                          <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: '500' }}>
+                              • {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                            </Typography>
+                            {uploadProgress[file.name] && (
+                              <Typography variant="caption" sx={{ ml: 1, color: uploadProgress[file.name].includes('❌') ? '#d32f2f' : '#388e3c' }}>
+                                {uploadProgress[file.name]}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <input 
+                    type="checkbox" 
+                    id="include-metadata" 
+                    checked={includeMetadata}
+                    onChange={(e) => setIncludeMetadata(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label htmlFor="include-metadata" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                    <Typography variant="body2" sx={{ display: 'inline' }}>
+                      Incluir metadata (estrutura de documentação)
+                    </Typography>
+                  </label>
+                </Box>
+
+                <Button
+                  variant="contained"
+                  startIcon={uploadingFiles ? <CircularProgress size={20} /> : <SendIcon />}
+                  disabled={uploadingFiles || selectedFiles.length === 0}
+                  onClick={handleUploadFile}
+                  fullWidth
+                  size="large"
+                >
+                  {uploadingFiles ? `Enviando ${uploadProgress && Object.keys(uploadProgress).length}...` : `Enviar ${selectedFiles.length > 0 ? selectedFiles.length : '0'} Arquivo(s) para ChromaDB`}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Informações sobre tipos de arquivo */}
+            {fileTypes && (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    ℹ️ Tipos de Arquivo Aceitos
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    O sistema detecta automaticamente o tipo baseado no conteúdo:
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    {Object.entries(fileTypes.types || {}).map(([key, value]: [string, any]) => (
+                      <Box key={key} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" color="primary">
+                          {key}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          {value.description}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Palavras-chave: {value.keywords.join(', ')}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Limpar Base de Dados */}
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom color="error">
@@ -395,7 +608,7 @@ const VectorDBTest: React.FC = () => {
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Esta ação irá remover todos os documentos da base de dados.
+                  Esta ação irá remover todos os documentos da base de dados do ChromaDB.
                 </Typography>
 
                 <Button
@@ -416,83 +629,6 @@ const VectorDBTest: React.FC = () => {
                     {clearMessage}
                   </Alert>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  📁 Carregar Arquivos JSON
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Selecione arquivos JSON para adicionar à base:
-                </Typography>
-
-                {uploadError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {uploadError}
-                  </Alert>
-                )}
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Regras de Negócio
-                  </Typography>
-                  <input 
-                    type="file" 
-                    accept=".json" 
-                    onChange={handleBusinessRulesFileChange}
-                  />
-                  {businessRulesFile && (
-                    <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
-                      {businessRulesFile.name}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Estrutura do Banco
-                  </Typography>
-                  <input 
-                    type="file" 
-                    accept=".json" 
-                    onChange={handleDatabaseStructureFileChange}
-                  />
-                  {databaseStructureFile && (
-                    <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
-                      {databaseStructureFile.name}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Serviços do Sistema
-                  </Typography>
-                  <input 
-                    type="file" 
-                    accept=".json" 
-                    onChange={handleSystemServicesFileChange}
-                  />
-                  {systemServicesFile && (
-                    <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
-                      {systemServicesFile.name}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Button
-                  variant="contained"
-                  startIcon={uploading ? <CircularProgress size={20} /> : <SendIcon />}
-                  disabled={uploading || (!businessRulesFile && !databaseStructureFile && !systemServicesFile)}
-                  onClick={handleUploadFiles}
-                  fullWidth
-                  sx={{ mt: 2 }}
-                >
-                  {uploading ? 'Enviando...' : 'Enviar Arquivos para ChromaDB'}
-                </Button>
               </CardContent>
             </Card>
           </Box>

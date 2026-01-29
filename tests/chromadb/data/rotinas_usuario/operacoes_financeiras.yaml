@@ -1,0 +1,115 @@
+# Rotinas de Usuário - Operações Financeiras e Administrativas
+# Tarefas manuais realizadas por analistas financeiros, contadores e administradores
+
+rotinas_usuario:
+  - nome: "Fazer Reconciliação Bancária Diária"
+    descricao: "Comparar saldo bancário com registros do sistema financeiro, identificar diferenças, registrar juros e tarifas, conciliar pendências. Garantir que todas as transações estão refletidas corretamente."
+    frequencia: diaria
+    tempo_estimado: "30 a 60 minutos"
+    papeis_necessarios:
+      - analista_financeiro
+      - contador
+      - gerente_financeiro
+    modulos_envolvidos:
+      - modulo_financeiro
+      - modulo_contabil
+    passos:
+      - passo: "Acessar extrato bancário"
+        detalhes: "Baixar extrato do banco (internet banking ou arquivo em OFX/CSV) com todas as transações do dia"
+      - passo: "Importar ou revisar transações no sistema"
+        detalhes: "Ir para Financeiro > Reconciliação Bancária > Selecionar conta bancária e período. Sistema lista transações registradas"
+      - passo: "Comparar depósitos e pagamentos"
+        detalhes: "Para cada linha do extrato, marcar se existe transação correspondente no sistema. Se houver, clicar em 'Conciliar'"
+      - passo: "Registrar tarifas e juros"
+        detalhes: "Se banco cobrou tarifas ou creditou juros, adicionar registros manualmente no sistema"
+      - passo: "Identificar pendências"
+        detalhes: "Verificar transações no sistema que não aparecem no extrato (ainda não compensaram) e agendar nova reconciliação"
+      - passo: "Finalizar conciliação"
+        detalhes: "Quando saldos coincidem, clicar em 'Confirmar Reconciliação'. Sistema registra data e responsável"
+    validacoes_importantes:
+      - "Saldo do sistema coincide com saldo do banco"
+      - "Todas as tarifas foram registradas"
+      - "Não existem cheques ou transferências pendentes por mais de 3 dias"
+      - "Diferenças explicadas e documentadas"
+    dicas:
+      - "Se houver diferença, revisar cheques não compensados e transferências pendentes"
+      - "Reter extratos bancários por 90 dias para auditoria"
+      - "Alertar gerente se houver tarifas altas ou juros"
+    
+  - nome: "Gerar e Enviar Relatórios Mensais"
+    descricao: "Coletar dados de vendas, estoque, financeiro e recursos humanos. Compilar em relatório executivo com gráficos e análises. Enviar aos stakeholders (diretoria, clientes)."
+    frequencia: mensal
+    tempo_estimado: "2 a 4 horas"
+    papeis_necessarios:
+      - analista_negocio
+      - gerente_financeiro
+      - coordenador_operacoes
+    modulos_envolvidos:
+      - modulo_vendas
+      - modulo_estoque
+      - modulo_financeiro
+      - modulo_rh
+    passos:
+      - passo: "Extrair dados de desempenho"
+        detalhes: "Acessar relatórios prontos: Total de vendas, ticket médio, clientes novos, taxa de conversão"
+      - passo: "Compilar indicadores operacionais"
+        detalhes: "Estoque disponível, produtos mais vendidos, prazo médio de entrega, taxa de devolução"
+      - passo: "Incluir dados financeiros"
+        detalhes: "Receita, custos, margem de lucro, contas a receber, contas a pagar, fluxo de caixa"
+      - passo: "Criar visualizações (gráficos)"
+        detalhes: "Usando ferramenta de BI ou exportar para Excel: gráficos de tendência de vendas, distribuição de clientes, evolução de faturamento"
+      - passo: "Escrever análise e conclusões"
+        detalhes: "Comparar com mês anterior, identificar tendências, apontar desafios e oportunidades"
+      - passo: "Formatar e revisar documento"
+        detalhes: "Usar template padrão da empresa, revisar formatação, revisar números com gerente"
+      - passo: "Enviar aos stakeholders"
+        detalhes: "Enviar por email com cópia para arquivo, documentar data de envio"
+    validacoes_importantes:
+      - "Números conferem com sistema"
+      - "Relatório não contém dados confidenciais não autorizados"
+      - "Gráficos são legíveis e precisos"
+      - "Análise está alinhada com objetivos da empresa"
+    dicas:
+      - "Preparar rascunho alguns dias antes do prazo"
+      - "Manter arquivo com relatórios anteriores para comparação"
+      - "Destacar pontos críticos ou números fora do esperado"
+    
+  - nome: "Processar Folha de Pagamento"
+    descricao: "Coletar dados de horas trabalhadas, descontos e adições, calcular salários, gerar comprovantes, transferir para contas de funcionários e arquivar documentação."
+    frequencia: mensal
+    tempo_estimado: "1 a 2 horas (dependendo do tamanho da empresa)"
+    papeis_necessarios:
+      - analista_rh
+      - analista_financeiro
+      - gerente_rh
+    modulos_envolvidos:
+      - modulo_rh
+      - modulo_financeiro
+    passos:
+      - passo: "Coletar horas e frequência"
+        detalhes: "Baixar registro de ponto de todos os funcionários, verificar ausências, férias, licenças"
+      - passo: "Inserir dados no sistema de folha"
+        detalhes: "Acessar RH > Folha de Pagamento > Novo período. Importar ou inserir horas, adicionalidades (adicional noturno, insalubridade)"
+      - passo: "Registrar adições e descontos"
+        detalhes: "Bônus, comissões, abonos, adiantamentos, empréstimos consignados, desconto de faltas injustificadas"
+      - passo: "Sistema calcula impostos e descontos"
+        detalhes: "INSS, IR, FGTS são calculados automaticamente pela legislação vigente"
+      - passo: "Revisar cálculos"
+        detalhes: "Validar se totais estão corretos, comparar com período anterior, conferir se não há erros"
+      - passo: "Gerar comprovantes"
+        detalhes: "Sistema gera holerite (contracheque) para cada funcionário com detalhamento de descontos"
+      - passo: "Autorizar e processar pagamento"
+        detalhes: "Enviar para gerente financeiro aprovar, confirmar dados bancários, autorizar transferência"
+      - passo: "Efetuar pagamento"
+        detalhes: "Gerar arquivo de compensação bancária (.REM ou .CCC) e enviar ao banco"
+      - passo: "Arquivar documentação"
+        detalhes: "Guardar folha de pagamento, holerites e comprovantes de transferência por 5 anos conforme legislação"
+    validacoes_importantes:
+      - "Todos os funcionários foram inclusos"
+      - "Descontos de INSS e IR estão corretos"
+      - "Valor total coincide com orçamento de folha"
+      - "Documentação foi arquivada"
+    dicas:
+      - "Revisar folha 1-2 dias antes do pagamento para corrigir erros"
+      - "Comunicar aos funcionários sobre a data de pagamento"
+      - "Manter registro de todos os valores para auditoria fiscal"
