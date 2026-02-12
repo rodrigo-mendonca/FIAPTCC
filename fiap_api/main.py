@@ -241,23 +241,9 @@ async def generate_specialized_response_stream(
                 
                 if results and len(results) > 0:
                     print(f"✓ API: Obtidos {len(results)} resultados do banco de dados")
-                    context_parts = []
                     
-                    # Construir contexto com limite dinâmico de tokens
-                    # Estimativa: 1 token ≈ 4 caracteres
-                    max_context_chars = 3000  # ~750 tokens, deixando espaço para prompt do sistema e mensagem
-                    current_context_chars = len(system_prompt) + len(message)
-                    available_chars = max_context_chars - current_context_chars
-                    
-                    print(f"📊 API: Limite de contexto disponível: {available_chars} caracteres (estimativa)")
-                    
-                    for i, result in enumerate(results, 1):
-                        line = f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})"
-                        if len("\n".join(context_parts) + "\n" + line) > available_chars:
-                            print(f"📊 API: Limite de contexto atingido. Usando {i-1} de {len(results)} resultados")
-                            break
-                        context_parts.append(line)
-                    
+                    # Construir contexto com todos os resultados
+                    context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
                     chromadb_context = "\n".join(context_parts)
                     print(f"✓ Contexto de banco de dados obtido com sucesso ({len(chromadb_context)} caracteres, {len(context_parts)} resultados)")
                 else:
