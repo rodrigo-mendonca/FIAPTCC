@@ -47,7 +47,7 @@ services:
   #  networks:
   #    - lmstudio-network
 
-  # Python API
+  # API
   fiap-api:
     build:
       context: .
@@ -58,8 +58,7 @@ services:
     volumes:
       - ./fiap_api:/app
     env_file:
-      - .env
-      - .env.lmstudio
+      - ./fiap_api/.env
     environment:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8200
@@ -76,13 +75,13 @@ services:
       retries: 3
       start_period: 40s
 
-  # React Frontend
+  # Frontend
   fiap-interface:
     build:
       context: ./fiap_interface
       dockerfile: Dockerfile.dev
       args:
-        - REACT_APP_API_URL=http://localhost:8000
+        - API_URL=http://localhost:8000
     container_name: lmstudio-fiap-interface
     ports:
       - "3000:3000"
@@ -91,7 +90,7 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8000
+      - API_URL=http://localhost:8000
     command: npm start
     depends_on:
       - fiap-api
@@ -105,7 +104,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # ChromaDB Vector Database
+  # Vector Database
   chromadb:
     build:
       context: ./fiap_chromadb
@@ -132,5 +131,3 @@ services:
 networks:
   lmstudio-network:
     driver: bridge
-
-# Using host bind mount for ChromaDB data: `./data` -> `/chroma/data`

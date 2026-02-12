@@ -15,7 +15,6 @@ COPY . .
 
 # Set environment variables for production build
 ENV NODE_ENV=production
-ENV REACT_APP_API_URL=http://localhost:8000
 
 # Build the app
 RUN npm run build

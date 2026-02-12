@@ -1,0 +1,31 @@
+regras_negocio:
+- nome: Venda Requer Cliente Válido
+  explicacao: Nenhuma venda pode ser registrada sem estar associada a um cliente que
+    exista no sistema e esteja ativo. O cliente deve ter sido previamente cadastrado
+    e deve ter crédito disponível.
+  tipo: logica_negocio
+  prioridade: alta
+- nome: Valor de Venda Não Negativo
+  explicacao: O valor total de uma venda nunca pode ser negativo. Vendas com valor
+    zero são permitidas (por exemplo, devoluções, resgates ou promoções). Descontos
+    não podem superar o valor dos produtos.
+  tipo: validacao
+  prioridade: alta
+- nome: Produto Deve Estar Disponível
+  explicacao: Um produto só pode ser vendido se estiver ativo no catálogo. Produtos
+    descontinuados ou fora de linha não devem aparecer para venda. O estoque também
+    deve ser suficiente para atender o pedido.
+  tipo: logica_negocio
+  prioridade: alta
+- nome: Frete Deve Ser Recalculado
+  explicacao: O valor do frete é calculado automaticamente com base no CEP do cliente,
+    peso total dos produtos e transportadora selecionada. Este cálculo deve ser feito
+    sempre que há alteração nos itens do pedido.
+  tipo: automacao
+  prioridade: media
+- nome: Número de Venda Único
+  explicacao: Cada venda recebe um número sequencial único que não pode se repetir.
+    Este número é usado para rastreamento, emissão de nota fiscal e comunicação com
+    o cliente.
+  tipo: restricao
+  prioridade: alta

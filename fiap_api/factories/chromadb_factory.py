@@ -8,10 +8,8 @@ import os
 from chromadb import EmbeddingFunction, Documents
 import chromadb
 import requests
-import json
 import yaml
 from typing import List, Dict, Any, Optional
-import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -29,8 +27,10 @@ class LMStudioEmbeddingFunction(EmbeddingFunction):
     """
     Função de embedding personalizada que usa o LMStudio
     """
-    def __init__(self, lmstudio_url: str = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")):
-        self.lmstudio_url = lmstudio_url
+    def __init__(self, endpoint: str, model: str, embedding_dimension: int = 768):
+        self.lmstudio_url = endpoint
+        self.model = model
+        self.embedding_dimension = embedding_dimension
         
     def __call__(self, input: Documents) -> List[List[float]]:
         """
@@ -47,28 +47,33 @@ class LMStudioEmbeddingFunction(EmbeddingFunction):
         for text in input:
             try:
                 response = requests.post(
-                    f"{self.lmstudio_url}/v1/embeddings",
+                    f"{self.lmstudio_url}/embeddings",
                     headers={"Content-Type": "application/json"},
                     json={
                         "input": text,
-                        "model": "text-embedding-nomic-embed-text-v1.5"
+                        "model": self.model
                     },
                     timeout=30
                 )
                 
                 if response.status_code == 200:
                     result = response.json()
-                    embedding = result['data'][0]['embedding']
-                    embeddings.append(embedding)
+                    if 'data' in result and len(result['data']) > 0 and 'embedding' in result['data'][0]:
+                        embedding = result['data'][0]['embedding']
+                        embeddings.append(embedding)
+                    else:
+                        print(f"⚠️ Resposta de embedding inválida para '{text[:50]}...': {result}")
+                        # Fallback: gerar um embedding dummy
+                        embeddings.append([0.0] * self.embedding_dimension)
                 else:
-                    print(f"⚠️ Erro ao gerar embedding para '{text[:50]}...': {response.status_code}")
+                    print(f"⚠️ Erro ao gerar embedding para '{text[:50]}...': {response.status_code} - {response.text}")
                     # Fallback: gerar um embedding dummy
-                    embeddings.append([0.0] * 768)  # Tamanho típico do nomic-embed
+                    embeddings.append([0.0] * self.embedding_dimension)
                     
             except Exception as e:
-                print(f"⚠️ Erro na requisição de embedding: {e}")
+                print(f"⚠️ Erro na requisição de embedding: {e} - Resposta: {response.text if 'response' in locals() else 'N/A'}")
                 # Fallback: gerar um embedding dummy
-                embeddings.append([0.0] * 768)
+                embeddings.append([0.0] * self.embedding_dimension)
                 
         return embeddings
 
@@ -459,21 +464,37 @@ class ChromaDBClient:
     Cliente para interação com ChromaDB
     """
     
-    def __init__(self, host: str = os.getenv("CHROMADB_HOST", "localhost"), port: int = int(os.getenv("CHROMADB_PORT", "8200")), lmstudio_url: str = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")):
+    def __init__(self, host: str = None, port: int = None, endpoint: str = None, embeddings_model: str = None):
         """
         Inicializa o cliente ChromaDB
         
         Args:
-            host: Endereço do servidor ChromaDB
-            port: Porta do servidor ChromaDB
-            lmstudio_url: URL do LMStudio para embeddings
+            host: Endereço do servidor ChromaDB (opcional, carregado do env se não fornecido)
+            port: Porta do servidor ChromaDB (opcional, carregado do env se não fornecido)
+            endpoint: URL para embeddings (opcional, carregado do env se não fornecido)
+            embeddings_model: Modelo de embeddings (opcional, carregado do env se não fornecido)
         """
-        self.host = host
-        self.port = port
-        self.lmstudio_url = lmstudio_url
+        # Se parâmetros não foram fornecidos, carregar do env
+        if endpoint is None or embeddings_model is None:
+            from .env_factory import EnvFactory
+            try:
+                embeddings_params = EnvFactory.get_embeddings_params()
+                if endpoint is None:
+                    endpoint = embeddings_params.endpoint
+                if embeddings_model is None:
+                    embeddings_model = embeddings_params.model
+            except Exception as e:
+                print(f"[WARN] Erro ao carregar parâmetros de embeddings do env: {e}")
+                endpoint = endpoint or "http://localhost:1234"
+                embeddings_model = embeddings_model or "text-embedding-nomic-embed-text-v1.5"
+        
+        self.host = host or "localhost"
+        self.port = port or 8200
+        self.lmstudio_url = endpoint
+        self.embeddings_model = embeddings_model
         self.client = None
         self.collection = None
-        self.embedding_function = LMStudioEmbeddingFunction(lmstudio_url)
+        self.embedding_function = LMStudioEmbeddingFunction(self.lmstudio_url, self.embeddings_model)
         self.processor = DatabaseDocumentProcessor()
     
     def connect(self) -> bool:
@@ -498,7 +519,7 @@ class ChromaDBClient:
             # Testa conexão com LMStudio
             print(f"[CONNECT] Testando conexão com LMStudio em {self.lmstudio_url}...")
             try:
-                test_response = requests.get(f"{self.lmstudio_url}/v1/models", timeout=10)
+                test_response = requests.get(f"{self.lmstudio_url}/models", timeout=10)
                 if test_response.status_code == 200:
                     models = test_response.json()
                     print(f"[CONNECT] ✓ LMStudio disponível! Modelos: {len(models.get('data', []))}")
@@ -796,7 +817,7 @@ class ChromaDBClient:
             result = {
                 'total_documentos': total_docs,
                 'collection_name': collection_name,
-                'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
+                'embedding_model': self.embeddings_model,
                 'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'tipos_documento': type_counts,
                 'fontes_dados': source_counts,
@@ -836,7 +857,7 @@ class ChromaDBClient:
             return {
                 'total_documentos': 0,
                 'collection_name': collection_name,
-                'embedding_model': 'text-embedding-nomic-embed-text-v1.5',
+                'embedding_model': self.embeddings_model,
                 'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'tipos_documento': {},
                 'fontes_dados': {},

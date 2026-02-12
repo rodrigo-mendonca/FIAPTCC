@@ -47,9 +47,6 @@ const Statistics: React.FC = () => {
   });
   const { selectedCollection } = useCollection();
   const API_URL = process.env.REACT_APP_API_URL;
-  const CHROMADB_URL = process.env.REACT_APP_CHROMADB_URL || 'localhost:8200';
-  const LMSTUDIO_URL = 'http://192.168.50.30:1234';
-
   // Carrega estatísticas e status automaticamente
   useEffect(() => {
     loadStats();
@@ -105,8 +102,8 @@ const Statistics: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching stats from: ' + process.env.REACT_APP_API_URL + '/vectordb/stats?collection_name=' + selectedCollection);
-      const response = await fetch(process.env.REACT_APP_API_URL + '/vectordb/stats?collection_name=' + encodeURIComponent(selectedCollection));
+      console.log('Fetching stats from: ' + API_URL + '/vectordb/stats?collection_name=' + selectedCollection);
+      const response = await fetch(API_URL + '/vectordb/stats?collection_name=' + encodeURIComponent(selectedCollection));
       if (response.ok) {
         const data = await response.json();
         console.log('Stats data received:', data);

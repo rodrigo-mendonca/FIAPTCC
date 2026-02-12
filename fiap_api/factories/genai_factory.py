@@ -3,10 +3,10 @@ Fábrica de GenAI - Configuração e inicialização de modelos de geração de 
 Suporta: LMStudio, OpenAI, Azure OpenAI
 """
 
-import os
 from typing import Optional
 from enum import Enum
 import json
+from .env_factory import EnvFactory
 
 
 class GenAIProvider(str, Enum):
@@ -25,55 +25,25 @@ class GenAIConfig:
     """Configuração centralizada de modelos de GenIA"""
     
     def __init__(self):
+        params = EnvFactory.get_genai_params()
+        
         # Provider padrão
-        self.provider = os.getenv("GENAI_PROVIDER", "lmstudio").lower()
+        self.provider = params.provider
         
         # Configurações gerais
-        self.model_name = os.getenv("GENAI_MODEL_NAME", "gpt-3.5-turbo")
-        self.api_key = os.getenv("GENAI_API_KEY", "")
-        self.base_url = os.getenv("GENAI_BASE_URL", "")
-        self.api_version = os.getenv("GENAI_API_VERSION", "")
+        self.model_name = params.model
+        self.api_key = params.api_key
+        self.base_url = params.endpoint
+        self.api_version = params.api_version
         
         # Configurações de LMStudio (padrão)
-        self.lmstudio_url = os.getenv("LMSTUDIO_URL", "http://localhost:1234")
-        self.lmstudio_api_key = os.getenv("LMSTUDIO_API_KEY", "lm-studio")
-        
-        # Configurações de timeout
-        self.timeout = int(os.getenv("GENAI_TIMEOUT", "30"))
-        self.max_retries = int(os.getenv("GENAI_MAX_RETRIES", "3"))
+        self.lmstudio_url = params.endpoint if params.provider == "lmstudio" else ""
+        self.lmstudio_api_key = params.api_key if params.provider == "lmstudio" else ""
         
         # Configurações de temperatura e outros parâmetros
-        self.temperature = float(os.getenv("GENAI_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.getenv("GENAI_MAX_TOKENS", "2048"))
-        self.top_p = float(os.getenv("GENAI_TOP_P", "0.95"))
-        
-        # Environment
-        self.environment = os.getenv("ENVIRONMENT", "local")
-        
-        # Fallback para variáveis antigas (compatibilidade)
-        if not self.base_url and self.provider == "lmstudio":
-            self.base_url = self.lmstudio_url
-        
-        if not self.model_name and self.provider == "lmstudio":
-            self.model_name = os.getenv("LMSTUDIO_MODEL", "gpt-3.5-turbo")
-        
-        if not self.base_url and self.provider == "azure":
-            self.base_url = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        
-        if not self.api_key and self.provider == "openai":
-            self.api_key = os.getenv("OPENAI_API_KEY", "")
-        
-        if not self.model_name and self.provider == "openai":
-            self.model_name = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-        
-        if not self.api_key and self.provider == "azure":
-            self.api_key = os.getenv("AZURE_OPENAI_API_KEY", "")
-        
-        if not self.api_version and self.provider == "azure":
-            self.api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
-        
-        if not self.model_name and self.provider == "azure":
-            self.model_name = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-35-turbo")
+        self.temperature = params.temperature
+        self.max_tokens = params.max_tokens
+        self.top_p = params.top_p
     
     @property
     def is_lmstudio(self) -> bool:
@@ -136,8 +106,7 @@ class GenAIConfig:
     def __repr__(self) -> str:
         return (
             f"GenAIConfig(provider={self.provider}, "
-            f"model={self.model_name}, "
-            f"timeout={self.timeout}s)"
+            f"model={self.model_name})"
         )
 
 
@@ -262,7 +231,3 @@ class ChatResponseGenerator:
             full_prompt += f"\n\nCONTEXTO DA BASE DE CONHECIMENTO:\n{chromadb_context}"
         
         return full_prompt
-
-
-# Instância global de configuração
-genai_config = GenAIConfig()

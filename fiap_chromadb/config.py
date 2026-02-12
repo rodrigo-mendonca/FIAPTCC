@@ -6,7 +6,7 @@ import os
 # Configurações do servidor
 chroma_server_host = "0.0.0.0"
 chroma_server_http_port = 8200
-chroma_server_cors_allow_origins = os.getenv("CHROMA_CORS_ORIGINS", "http://localhost:3000,http://localhost:8000,http://localhost:8080").split(",")
+chroma_server_cors_allow_origins = os.getenv("CHROMA_CORS_ORIGINS", "").split(",") if os.getenv("CHROMA_CORS_ORIGINS") else []
 
 # Configurações de autenticação (opcional)
 # chroma_server_authn_credentials_file = "/chroma/auth/credentials.txt"

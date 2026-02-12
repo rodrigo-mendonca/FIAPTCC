@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 interface CollectionContextType {
   selectedCollection: string;
   setSelectedCollection: (collection: string) => void;
@@ -53,7 +55,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     try {
       // Sempre passa collection_name vazio para obter TODAS as coleções
       // Isso garante que a lista sempre fica atualizada
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/stats?collection_name=`);
+      const response = await fetch(`${API_URL}/vectordb/stats?collection_name=`);
       if (response.ok) {
         const data = await response.json();
         if (data.collections) {
@@ -85,7 +87,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Função para criar uma nova coleção
   const createCollection = async (collectionName: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/create-collection`, {
+      const response = await fetch(`${API_URL}/vectordb/create-collection`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +113,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Função para deletar uma coleção
   const deleteCollection = async (collectionName: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/collection/${encodeURIComponent(collectionName)}/delete`, {
+      const response = await fetch(`${API_URL}/vectordb/collection/${encodeURIComponent(collectionName)}/delete`, {
         method: 'POST',
       });
 

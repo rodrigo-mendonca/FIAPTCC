@@ -12,25 +12,37 @@ import requests
 import uuid
 from datetime import datetime
 import sys
-from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient
+from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory
 from factories.embeddings_factory import EmbeddingsUtility
 from factories.genai_factory import ChatResponseGenerator
 
 # Carrega variáveis de ambiente
 load_dotenv()
 
-# Configuração
+# Carrega system prompts do arquivo JSON
+def load_system_prompts():
+    try:
+        with open('system_prompts.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("[WARNING] system_prompts.json não encontrado, usando prompts padrão")
+        return {
+            "help": "Responda SOMENTE baseado no contexto fornecido abaixo.",
+            "sql": "Você é um especialista em SQL.",
+            "aluno": "Você é um assistente de aprendizado."
+        }
+    except Exception as e:
+        print(f"[ERROR] Erro ao carregar system_prompts.json: {e}")
+        return {
+            "help": "Responda SOMENTE baseado no contexto fornecido abaixo.",
+            "sql": "Você é um especialista em SQL.",
+            "aluno": "Você é um assistente de aprendizado."
+        }
+
+SYSTEM_PROMPTS = load_system_prompts()
+
+# Configuração - Variáveis obrigatórias serão validadas via EnvFactory
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
-CHROMADB_HOST = os.getenv("CHROMADB_HOST", "localhost")
-CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8200"))
-
-# Para compatibilidade com código existente que usa LMSTUDIO_BASE_URL
-# Se usar LMStudio, define a URL com /v1. Caso contrário, deixa vazio
-LMSTUDIO_URL = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")
-LMSTUDIO_API_KEY = os.getenv("LMSTUDIO_API_KEY", "lm-studio")
-LMSTUDIO_BASE_URL = f"{LMSTUDIO_URL}/v1"
-
-# ChromaDB Configuration
 CHROMADB_DEFAULT_RESULTS = int(os.getenv("CHROMADB_DEFAULT_RESULTS", "50"))  # Número padrão de resultados para queries
 
 # Inicializar GenAI
@@ -44,30 +56,25 @@ except Exception as e:
 # Inicializar Embeddings
 try:
     embeddings = EmbeddingsFactory.create()
-    print(f"[OK] Embeddings iniciado: provider={os.getenv('EMBEDDINGS_PROVIDER', 'lmstudio')}")
+    print(f"[OK] Embeddings iniciado")
 except Exception as e:
     print(f"[ERROR] Erro ao inicializar Embeddings: {e}")
     embeddings = None
 
-# Manter compatibilidade com código existente
-chromadb_client = ChromaDBClient(
-    host=CHROMADB_HOST,
-    port=CHROMADB_PORT,
-    lmstudio_url=os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")
-)
-
-# Tenta conectar ao ChromaDB (não sobrescrever a instância para evitar AttributeError nas rotas)
+# Inicializar ChromaDB
 try:
+    chromadb_client = ChromaDBClient()
+    
+    # Tenta conectar ao ChromaDB
     if chromadb_client.connect():
-        chroma_client = chromadb_client  # Compatibilidade com código existente
+        chroma_client = chromadb_client
+        print(f"[OK] ChromaDB iniciado")
     else:
         chroma_client = None
-        # mantém a instância em `chromadb_client` para permitir tentativas posteriores
 except Exception as e:
+    print(f"[ERROR] Erro ao inicializar ChromaDB: {e}")
     chroma_client = None
-    # mantém a instância em `chromadb_client`; erros de conexão serão tratados nas rotas
-
-# chroma_client = chromadb_client  # Temporário para debug
+    chromadb_client = None
 
 app = FastAPI(title="LMStudio Chat API", version="1.0.0")
 
@@ -163,34 +170,123 @@ async def generate_specialized_response_stream(
     use_chromadb: bool = True,
     collection_name: Optional[str] = None
 ) -> AsyncGenerator[str, None]:
-    """Gera resposta especializada com streaming usando LMStudio com contexto do ChromaDB"""
+    """Gera resposta especializada com streaming usando GenAI (LMStudio/OpenAI/Azure) com contexto do ChromaDB"""
+    
+    # Log dos parâmetros
+    print(f"📨 Iniciando streaming com parâmetros:")
+    print(f"  - Mensagem: {message[:100]}...")
+    print(f"  - Usar ChromaDB: {use_chromadb}")
+    print(f"  - Coleção: {collection_name or 'nenhuma'}")
+    print(f"  - Contexto anterior: {len(context) if context else 0} mensagens")
+    
+    # Obter parâmetros de GenAI
+    try:
+        genai_params = EnvFactory.get_genai_params()
+    except Exception as e:
+        yield f"data: {json.dumps({'error': f'Erro ao carregar configuração GenAI: {e}'})}\n\n"
+        return
 
     chromadb_context = ""
+    chromadb_error = None
     
     # Buscar contexto no ChromaDB se solicitado
-    if use_chromadb and chromadb_client:
+    if use_chromadb:
+        print(f"🔴 ChromaDB OBRIGATÓRIO para este endpoint")
+        
+        if not chromadb_client:
+            error_msg = "Banco de dados (ChromaDB) não inicializado"
+            print(f"🚨 ERRO CRÍTICO: {error_msg}")
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+            return
+        
         try:
             # Define a coleção a ser usada (padrão ou especificada)
             target_collection = collection_name if collection_name else ""
-            print(f"🎯 API: Usando coleção '{target_collection}' para chat")
+            print(f"🎯 API: Tentando conectar à coleção '{target_collection}'")
             
-            # Define a coleção (set_collection já cria se não existir)
-            if not chromadb_client.set_collection(target_collection):
-                print(f"Erro ao definir coleção '{target_collection}'")
+            if not target_collection or not target_collection.strip():
+                error_msg = "Nenhuma coleção especificada. Por favor, selecione uma coleção."
+                print(f"⚠️ ERRO: {error_msg}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
             
-            # Buscar contexto relevante - aumentado para capturar mais tabelas
-            results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS)
-            if results:
-                context_parts = []
-                for i, result in enumerate(results, 1):
-                    context_parts.append(
-                        f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})"
-                    )
+            # Verifica se chromadb_client tem os métodos necessários
+            if not hasattr(chromadb_client, 'set_collection'):
+                error_msg = "Banco de dados não possui método para definir coleção"
+                print(f"🚨 ERRO: {error_msg}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+            
+            # Tenta definir a coleção
+            collection_set = chromadb_client.set_collection(target_collection)
+            if not collection_set:
+                error_msg = f"Coleção '{target_collection}' não encontrada no banco de dados"
+                print(f"🚨 ERRO: {error_msg}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+            
+            print(f"✓ Coleção '{target_collection}' conectada com sucesso")
+            
+            # Verifica se chromadb_client tem o método query
+            if not hasattr(chromadb_client, 'query'):
+                error_msg = "Banco de dados não possui método para consultar"
+                print(f"🚨 ERRO: {error_msg}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+            
+            try:
+                # Buscar contexto relevante
+                print(f"🔍 API: Consultando banco de dados para '{message[:100]}...'")
+                results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS)
                 
-                chromadb_context = "\n".join(context_parts)
+                if results and len(results) > 0:
+                    print(f"✓ API: Obtidos {len(results)} resultados do banco de dados")
+                    context_parts = []
+                    
+                    # Construir contexto com limite dinâmico de tokens
+                    # Estimativa: 1 token ≈ 4 caracteres
+                    max_context_chars = 3000  # ~750 tokens, deixando espaço para prompt do sistema e mensagem
+                    current_context_chars = len(system_prompt) + len(message)
+                    available_chars = max_context_chars - current_context_chars
+                    
+                    print(f"📊 API: Limite de contexto disponível: {available_chars} caracteres (estimativa)")
+                    
+                    for i, result in enumerate(results, 1):
+                        line = f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})"
+                        if len("\n".join(context_parts) + "\n" + line) > available_chars:
+                            print(f"📊 API: Limite de contexto atingido. Usando {i-1} de {len(results)} resultados")
+                            break
+                        context_parts.append(line)
+                    
+                    chromadb_context = "\n".join(context_parts)
+                    print(f"✓ Contexto de banco de dados obtido com sucesso ({len(chromadb_context)} caracteres, {len(context_parts)} resultados)")
+                else:
+                    error_msg = f"Nenhum dado encontrado na coleção '{target_collection}'. A base de dados pode estar vazia ou danificada."
+                    print(f"🚨 ERRO: {error_msg}")
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
+                    
+            except AttributeError as ae:
+                error_msg = f"Base de dados está com problema ao tentar acessar a coleção '{target_collection}'"
+                print(f"🚨 ERRO DE ACESSO: {error_msg} - {ae}")
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+                
+            except Exception as qe:
+                error_msg = f"Erro ao consultar o banco de dados: {str(qe)}"
+                print(f"🚨 ERRO DE CONSULTA: {error_msg}")
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+                
         except Exception as e:
-            print(f"Erro ao buscar contexto ChromaDB: {e}")
-            chromadb_context = "Erro ao acessar base de conhecimento."
+            error_msg = f"Erro ao acessar o banco de dados: {str(e)}"
+            print(f"🚨 ERRO CRÍTICO: {error_msg}")
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+            return
     
     # Construir mensagens para LMStudio
     messages = []
@@ -219,39 +315,67 @@ async def generate_specialized_response_stream(
         "content": message
     })
     
-    # Fazer requisição ao LMStudio com streaming
+    # Fazer requisição ao GenAI com streaming
+    # Calcular max_tokens dinâmicamente para deixar espaço no contexto
+    # LMStudio tem n_ctx=4096, precisa espaço para: sistema + contexto + prompt + response
+    max_tokens_for_response = min(genai_params.max_tokens, 1024)  # Limitar a 1024 tokens para resposta
+    
     payload = {
-        "model": "local-model",
+        "model": genai_params.model,
         "messages": messages,
         "stream": True,
-        "temperature": 0.7,
-        "max_tokens": 1000
+        "temperature": genai_params.temperature,
+        "max_tokens": max_tokens_for_response
     }
+    
+    print(f"📣 API: Payload preparado:")
+    print(f"  - Model: {genai_params.model}")
+    print(f"  - Número de mensagens: {len(messages)}")
+    print(f"  - Stream: {payload['stream']}")
+    print(f"  - Temperature: {genai_params.temperature}")
+    print(f"  - Max tokens para resposta: {max_tokens_for_response} (configurado: {genai_params.max_tokens})")
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {LMSTUDIO_API_KEY}"
     }
     
+    # Adicionar autorização se houver API key
+    if genai_params.api_key:
+        headers["Authorization"] = f"Bearer {genai_params.api_key}"
+    
+    # Construir URL da API baseado no provider
+    api_url = f"{genai_params.endpoint}/chat/completions"
+    print(f"🎯 API: Enviando requisição para GenAI em {api_url}")
     async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream(
             "POST",
-            f"{LMSTUDIO_BASE_URL}/chat/completions",
+            api_url,
             json=payload,
             headers=headers
         ) as response:
             
             if response.status_code != 200:
-                yield f"data: {json.dumps({'error': f'Erro na API do LMStudio: {response.status_code}'})}\n\n"
+                error_detail = f"Erro HTTP {response.status_code}"
+                print(f"🚨 API: Erro na requisição ao GenAI: {error_detail}")
+                yield f"data: {json.dumps({'error': error_detail})}\n\n"
                 return
             
             buffer = ""
+            print(f"🎯 API: Recebendo resposta em streaming do GenAI")
+            chunk_count = 0
+            total_content = ""
+            bytes_received = 0
             
             async for chunk in response.aiter_bytes():
                 try:
+                    chunk_count += 1
+                    bytes_received += len(chunk) if chunk else 0
+                    
                     # Decodifica o chunk
                     chunk_str = chunk.decode('utf-8')
                     buffer += chunk_str
+                    
+                    print(f"📦 API: Chunk {chunk_count} recebido ({len(chunk)} bytes): {repr(chunk_str[:100])}")
                     
                     # Processa linhas completas
                     lines = buffer.split('\n')
@@ -260,130 +384,90 @@ async def generate_specialized_response_stream(
                     for line in lines[:-1]:
                         line = line.strip()
                         
+                        if not line:
+                            continue
+                            
+                        print(f"📄 API: Processando linha: {repr(line[:150])}")
+                        
+                        # Verificar se é um erro (event: error)
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                            print(f"📋 API: Evento recebido: {event_type}")
+                            # Não fazer nada, esperar pelo data
+                            continue
+                        
                         if line.startswith("data: "):
                             data_str = line[6:]  # Remove "data: "
                             if data_str.strip() == "[DONE]":
+                                print(f"✅ API: Streaming finalizado após {chunk_count} chunks e {bytes_received} bytes")
+                                print(f"📊 Total de conteúdo enviado: {len(total_content)} caracteres")
                                 return
                             
                             try:
                                 data = json.loads(data_str)
+                                print(f"✓ API: JSON parseado: {json.dumps(data)[:200]}")
+                                
+                                # Verificar se é um erro
+                                if "error" in data:
+                                    error_msg = data["error"]
+                                    if isinstance(error_msg, dict):
+                                        error_msg = error_msg.get("message", str(error_msg))
+                                    print(f"🚨 API: ERRO DO GENAI: {error_msg}")
+                                    yield f"data: {json.dumps({'error': f'Erro do servidor IA: {error_msg}'})}\n\n"
+                                    return
+                                
                                 if "choices" in data and len(data["choices"]) > 0:
                                     delta = data["choices"][0].get("delta", {})
                                     if "content" in delta:
                                         content = delta["content"]
+                                        total_content += content
+                                        print(f"📤 API: Enviando chunk {chunk_count}: {repr(content[:50])} (total: {len(total_content)})")
                                         yield f"data: {json.dumps({'content': content})}\n\n"
-                            except json.JSONDecodeError:
+                                    else:
+                                        print(f"⚠️ API: 'content' não encontrado em delta: {delta}")
+                                else:
+                                    print(f"⚠️ API: 'choices' vazio ou não existe em: {data}")
+                                    
+                            except json.JSONDecodeError as je:
+                                print(f"⚠️ API: Erro ao parsear JSON em linha '{data_str[:100]}...': {je}")
                                 continue
-                except UnicodeDecodeError:
+                        elif line:  # Se não começa com "data: " mas não é vazio
+                            print(f"📄 API: Linha ignorada: {repr(line[:100])}")
+                            
+                except UnicodeDecodeError as ue:
+                    print(f"⚠️ API: Erro de decodificação UTF-8: {ue}")
                     continue
                 except Exception as e:
-                    yield f"data: {json.dumps({'error': f'Erro ao gerar resposta: {str(e)}'})}\n\n"
-
-async def generate_specialized_response(
-    message: str, 
-    system_prompt: str,
-    context: Optional[List[ChatMessage]] = None,
-    use_chromadb: bool = True,
-    collection_name: Optional[str] = None
-) -> Dict[str, Any]:
-    """Gera resposta especializada usando LMStudio com contexto do ChromaDB"""
-    try:
-        chromadb_context = ""
-        
-        # Buscar contexto no ChromaDB se solicitado
-        if use_chromadb and chromadb_client:
-            try:
-                # Define a coleção a ser usada
-                if collection_name and collection_name.strip():
-                    chromadb_client.set_collection(collection_name)
-                else:
-                    # Cria coleção padrão se não existir
-                    if not chromadb_client.create_collection():
-                        print("Aviso: Não foi possível criar coleção")
-                
-                results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS)
-                if results:
-                    context_parts = []
-                    for i, result in enumerate(results, 1):
-                        context_parts.append(
-                            f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})"
-                        )
-                    chromadb_context = "\n".join(context_parts)
-                        
-            except Exception as e:
-                print(f"Erro ao buscar contexto ChromaDB: {e}")
-                chromadb_context = "Erro ao acessar base de conhecimento."
-        
-        # Construir mensagens para LMStudio
-        messages = []
-        
-        # Adicionar prompt do sistema com contexto
-        full_system_prompt = system_prompt
-        if chromadb_context:
-            # Melhorar formatação do contexto para o LLM
-            full_system_prompt += f"""
-
-=== CONTEXTO DA BASE DE CONHECIMENTO ===
-{chromadb_context}
-==="""
-        
-        messages.append({
-            "role": "system",
-            "content": full_system_prompt
-        })
-        
-        # Adicionar contexto da conversa
-        if context:
-            for msg in context[-10:]:  # Limitar histórico
-                messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-        
-        # Adicionar mensagem atual
-        messages.append({
-            "role": "user",
-            "content": message
-        })
-        
-        # Fazer requisição ao LMStudio
-        payload = {
-            "model": "local-model",
-            "messages": messages,
-            "stream": False,
-            "temperature": 0.7,
-            "max_tokens": 1000
-        }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {LMSTUDIO_API_KEY}"
-        }
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{LMSTUDIO_BASE_URL}/chat/completions",
-                json=payload,
-                headers=headers
-            )
+                    print(f"🚨 API: Erro ao processar chunk {chunk_count}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    yield f"data: {json.dumps({'error': f'Erro ao processar streaming: {str(e)}'})}\n\n"
+                    return
             
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=500, 
-                    detail=f"Erro na API do LMStudio: {response.status_code}"
-                )
+            print(f"🎯 API: Loop de chunks finalizado. Total: {chunk_count} chunks, {bytes_received} bytes")
+            print(f"📊 Buffer final: {repr(buffer[:200])}")
             
-            data = response.json()
-            ai_response = data["choices"][0]["message"]["content"]
+            # Processa buffer final se houver
+            if buffer.strip():
+                print(f"🎯 API: Processando buffer final: {repr(buffer[:100])}")
+                if buffer.startswith("data: "):
+                    data_str = buffer[6:].strip()
+                    if data_str and data_str != "[DONE]":
+                        try:
+                            data = json.loads(data_str)
+                            if "choices" in data and len(data["choices"]) > 0:
+                                delta = data["choices"][0].get("delta", {})
+                                if "content" in delta:
+                                    content = delta["content"]
+                                    total_content += content
+                                    print(f"📤 API: Enviando conteúdo final do buffer: {repr(content[:50])}")
+                                    yield f"data: {json.dumps({'content': content})}\n\n"
+                        except json.JSONDecodeError:
+                            pass
             
-            return {
-                "response": ai_response,
-                "context_used": chromadb_context if chromadb_context else None
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar resposta: {str(e)}")
-
+            if total_content == "":
+                print(f"🚨 ERRO CRÍTICO: Nenhum conteúdo foi enviado no streaming após {chunk_count} chunks e {bytes_received} bytes recebidos!")
+                yield f"data: {json.dumps({'error': 'Nenhuma resposta foi recebida da IA. Verifique se o servidor GenAI está respondendo corretamente.'})}\n\n"
 
 def detect_file_type(content: str, filename: str) -> Optional[str]:
     """
@@ -1113,15 +1197,16 @@ async def health_chromadb():
 
 @app.get("/health/lmstudio")
 async def health_lmstudio():
-    """Verifica saúde do LMStudio (compatibilidade com frontend)"""
+    """Verifica saúde do GenAI (compatibilidade com frontend)"""
     try:
-        lmstudio_url = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")
-        response = requests.get(f"{lmstudio_url}/v1/models", timeout=5)
+        genai_params = EnvFactory.get_genai_params()
+        # Tentar acessar o endpoint do GenAI
+        response = requests.get(f"{genai_params.endpoint}/v1/models", timeout=5)
         if response.status_code == 200:
-            return {"status": "online", "connected": True}
-        return {"status": "offline", "connected": False}
-    except:
-        return {"status": "offline", "connected": False}
+            return {"status": "online", "connected": True, "provider": genai_params.provider}
+        return {"status": "offline", "connected": False, "provider": genai_params.provider}
+    except Exception as e:
+        return {"status": "offline", "connected": False, "error": str(e)}
 
 @app.get("/health")
 async def health_general():
@@ -1131,100 +1216,26 @@ async def health_general():
 
 # ============ ROTAS DE CHAT (Assistentes Especializados) ============
 
-@app.post("/api/chat")
-async def chat_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
+@app.post("/api/chat/help/stream")
+async def chat_help_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
     """
-    Endpoint de chat geral com contexto de conhecimento
-    Suporta:
-    - Chat de dúvidas (help)
-    - Chat SQL
-    - Chat de aprendizado (aluno)
-    
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto
-    - mode: 'help', 'sql', 'aluno' (padrão: 'help')
-    """
-    try:
-        # Usar collection_name do query param ou session_id do request body como fallback
-        effective_collection_name = collection_name or request.session_id or ""
-        
-        # Definir prompts baseado no tipo de chat
-        # O mode sempre é "help" por padrão
-        mode = "help"
-        
-        system_prompts = {
-            "help": """Responda SOMENTE baseado no contexto fornecido abaixo.
-Se a informação não está no contexto, diga claramente que não tem informações sobre o assunto.
-Não invente ou suponha informações.""",
-            
-            "sql": """Você é um especialista em SQL e bancos de dados comerciais.
-Gere consultas SQL otimizadas.
-Explique a lógica das consultas com textos curtos.""",
-            
-            "aluno": """Você é um assistente de aprendizado que registra informações de novos conhecimentos.
-Quando um usuário descreve algo novo utilize os meta dados para conferir se falta informação.
-Pergunte sobre detalhes importantes se necessário."""
-        }
-        
-        system_prompt = system_prompts.get(mode, system_prompts["help"])
-        
-        # Gerar resposta com contexto ChromaDB
-        response_data = await generate_specialized_response(
-            message=request.message,
-            system_prompt=system_prompt,
-            context=request.context,
-            use_chromadb=True,
-            collection_name=effective_collection_name if effective_collection_name else None
-        )
-        
-        return SpecializedChatResponse(
-            response=response_data["response"],
-            session_id=request.session_id or str(uuid.uuid4()),
-            context_used=response_data.get("context_used")
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat: {str(e)}")
-
-
-@app.post("/api/chat/stream")
-async def chat_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat com streaming de resposta
+    Endpoint de chat de dúvidas com streaming de resposta
     Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
     
     Query params opcionais:
     - collection_name: coleção ChromaDB para contexto
-    - mode: 'help', 'sql', 'aluno' (padrão: 'help')
     """
     try:
         # Usar collection_name do query param ou session_id do request body como fallback
         effective_collection_name = collection_name or request.session_id or ""
         
-        # Definir prompts baseado no tipo de chat
-        # O mode sempre é "help" por padrão
-        mode = "help"
+        print(f"🟦 Endpoint /api/chat/help/stream chamado")
+        print(f"  - collection_name param: '{collection_name}'")
+        print(f"  - session_id: '{request.session_id}'")
+        print(f"  - effective_collection_name: '{effective_collection_name}'")
         
-        system_prompts = {
-            "help": """Responda SOMENTE baseado no contexto fornecido abaixo.
-Se a informação não está no contexto, diga claramente que não tem informações sobre o assunto.
-Não invente ou suponha informações.
-Cite sempre as tabelas e campos relevantes quando aplicável.""",
-            
-            "sql": """Você é um especialista em SQL e bancos de dados comerciais.
-Gere consultas SQL otimizadas""",
-            
-            "aluno": """Você é um assistente de aprendizado que registra informações de novos conhecimentos.
-Quando um usuário descreve algo novo, organize e valide a informação.
-Reformule de forma estruturada e clara.
-Pergunte sobre detalhes importantes se necessário."""
-        }
-        
-        system_prompt = system_prompts.get(mode, system_prompts["help"])
+        # Definir prompt para help
+        system_prompt = SYSTEM_PROMPTS.get("help", "Responda baseado no contexto fornecido.")
         
         # Gerar resposta com streaming
         async def generate():
@@ -1241,17 +1252,179 @@ Pergunte sobre detalhes importantes se necessário."""
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/stream: {e}")
+        print(f"[ERROR] Erro no endpoint /api/chat/help/stream: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar chat help stream: {str(e)}")
 
 
-
-async def get_file_types():
+@app.post("/api/chat/aluno/stream")
+async def chat_aluno_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
     """
-    Retorna os tipos de arquivo aceitos e suas descrições
+    Endpoint de chat aluno com streaming de resposta
+    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    
+    Query params opcionais:
+    - collection_name: coleção ChromaDB para contexto
     """
+    try:
+        # Usar collection_name do query param ou session_id do request body como fallback
+        effective_collection_name = collection_name or request.session_id or ""
+        
+        print(f"🟩 Endpoint /api/chat/aluno/stream chamado")
+        print(f"  - collection_name param: '{collection_name}'")
+        print(f"  - session_id: '{request.session_id}'")
+        print(f"  - effective_collection_name: '{effective_collection_name}'")
+        
+        # Definir prompt para aluno
+        system_prompt = SYSTEM_PROMPTS.get("aluno", "Você é um assistente de aprendizado.")
+        
+        # Gerar resposta com streaming
+        async def generate():
+            async for chunk in generate_specialized_response_stream(
+                message=request.message,
+                system_prompt=system_prompt,
+                context=request.context,
+                use_chromadb=True,
+                collection_name=effective_collection_name if effective_collection_name else None
+            ):
+                yield chunk
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erro no endpoint /api/chat/aluno/stream: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao processar chat aluno stream: {str(e)}")
+
+
+
+
+@app.post("/api/chat/sql/stream")
+async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
+    """
+    Endpoint de chat SQL com streaming de resposta
+    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    
+    Query params opcionais:
+    - collection_name: coleção ChromaDB para contexto
+    """
+    try:
+        # Usar collection_name do query param ou session_id do request body como fallback
+        effective_collection_name = collection_name or request.session_id or ""
+        
+        print(f"🟦 Endpoint /api/chat/sql/stream chamado")
+        print(f"  - collection_name param: '{collection_name}'")
+        print(f"  - session_id: '{request.session_id}'")
+        print(f"  - effective_collection_name: '{effective_collection_name}'")
+        
+        # Definir prompt para SQL
+        system_prompt = SYSTEM_PROMPTS.get("sql", "Você é um especialista em SQL.")
+        
+        # Gerar resposta com streaming
+        async def generate():
+            async for chunk in generate_specialized_response_stream(
+                message=request.message,
+                system_prompt=system_prompt,
+                context=request.context,
+                use_chromadb=True,
+                collection_name=effective_collection_name if effective_collection_name else None
+            ):
+                yield chunk
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erro no endpoint /api/chat/sql/stream: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
+async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
+    """
+    Endpoint de chat SQL com streaming de resposta
+    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    
+    Query params opcionais:
+    - collection_name: coleção ChromaDB para contexto
+    """
+    try:
+        # Usar collection_name do query param ou session_id do request body como fallback
+        effective_collection_name = collection_name or request.session_id or ""
+        
+        print(f"🔵 Endpoint /api/chat/sql/stream chamado")
+        print(f"  - collection_name param: {collection_name}")
+        print(f"  - session_id: {request.session_id}")
+        print(f"  - effective_collection_name: {effective_collection_name}")
+        
+        # Definir prompt para SQL
+        system_prompt = SYSTEM_PROMPTS["sql"]
+        
+        # Gerar resposta com streaming
+        async def generate():
+            async for chunk in generate_specialized_response_stream(
+                message=request.message,
+                system_prompt=system_prompt,
+                context=request.context,
+                use_chromadb=True,
+                collection_name=effective_collection_name if effective_collection_name else None
+            ):
+                yield chunk
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erro no endpoint /api/chat/sql/stream: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
+
+
+@app.post("/api/chat/general/stream")
+async def chat_general_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
+    """
+    Endpoint de chat geral com streaming de resposta
+    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    
+    Query params opcionais:
+    - collection_name: coleção ChromaDB para contexto (não usado em chat geral)
+    """
+    try:
+        # Chat geral não usa ChromaDB, então collection_name é ignorado
+        
+        # Definir prompt para chat geral
+        system_prompt = SYSTEM_PROMPTS.get("general", "Você é um assistente amigável e prestativo.")
+        
+        # Gerar resposta com streaming
+        async def generate():
+            async for chunk in generate_specialized_response_stream(
+                message=request.message,
+                system_prompt=system_prompt,
+                context=request.context,
+                use_chromadb=False,  # Chat geral não usa ChromaDB
+                collection_name=None
+            ):
+                yield chunk
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erro no endpoint /api/chat/general/stream: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao processar chat geral stream: {str(e)}")
+
+
+# ===========================
+# FUNÇÕES AUXILIARES E MODELOS
+# ===========================
+
+def get_file_types_info():
+    """Retorna informações sobre tipos de arquivos aceitos"""
     return {
         "types": {
             "regras_negocio": {
@@ -1293,8 +1466,19 @@ async def get_vectordb_stats(collection_name: str = ""):
             return stats
         
         # Caso contrário, tenta obter stats de uma coleção específica
+        print(f"🔍 Buscando stats da coleção: '{collection_name}'")
         if not chromadb_client.set_collection(collection_name):
-            raise HTTPException(status_code=404, detail=f"Coleção '{collection_name}' não existe. Use POST /vectordb/create-collection para criar.")
+            # Lista coleções disponíveis para debug
+            try:
+                available_stats = chromadb_client.get_collection_stats()
+                available_collections = available_stats.get("collections", [])
+                collection_names =  [c.get("name", "unknown") for c in available_collections] if isinstance(available_collections, list) else []
+                error_msg = f"Coleção '{collection_name}' não existe. Coleções disponíveis: {collection_names}"
+            except:
+                error_msg = f"Coleção '{collection_name}' não existe."
+            
+            print(f"⚠️ {error_msg}")
+            raise HTTPException(status_code=404, detail=error_msg)
         
         stats = chromadb_client.get_collection_stats()
         
@@ -1310,6 +1494,66 @@ async def get_vectordb_stats(collection_name: str = ""):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/debug/chromadb/{collection_name}")
+async def debug_chromadb(collection_name: str):
+    """Endpoint de debug para testar a conexão e disponibilidade de uma coleção"""
+    try:
+        debug_info = {
+            "collection_name": collection_name,
+            "chromadb_client_exists": chromadb_client is not None,
+            "tests": {}
+        }
+        
+        if not chromadb_client:
+            debug_info["error"] = "ChromaDB client não inicializado"
+            return debug_info
+        
+        # Teste 1: Verificar se client existe
+        debug_info["tests"]["client_exists"] = hasattr(chromadb_client, 'client') and chromadb_client.client is not None
+        
+        # Teste 2: Tentar definir a coleção
+        print(f"🔧 DEBUG: Tentando definir coleção '{collection_name}'")
+        try:
+            collection_set = chromadb_client.set_collection(collection_name)
+            debug_info["tests"]["set_collection_success"] = collection_set
+            
+            if not collection_set:
+                # Listar coleções disponíveis
+                try:
+                    all_stats = chromadb_client.get_collection_stats()
+                    debug_info["available_collections"] = all_stats
+                except Exception as list_e:
+                    debug_info["available_collections_error"] = str(list_e)
+        except Exception as sc_e:
+            debug_info["tests"]["set_collection_error"] = str(sc_e)
+            debug_info["tests"]["set_collection_success"] = False
+        
+        # Teste 3: Verificar se collection está definida
+        debug_info["tests"]["has_query_method"] = hasattr(chromadb_client, 'query')
+        debug_info["tests"]["has_collection_attr"] = hasattr(chromadb_client, 'collection')
+        
+        # Teste 4: Tentar fazer uma query simples
+        if hasattr(chromadb_client, 'query') and debug_info["tests"]["set_collection_success"]:
+            try:
+                print(f"🔧 DEBUG: Tentando query na coleção '{collection_name}' com busca simples 'test'")
+                results = chromadb_client.query("test", n_results=1)
+                debug_info["tests"]["query_success"] = True
+                debug_info["tests"]["query_result_count"] = len(results) if results else 0
+                print(f"🔧 DEBUG: Query bem-sucedida. Resultados: {len(results) if results else 0}")
+            except Exception as q_e:
+                debug_info["tests"]["query_error"] = str(q_e)
+                debug_info["tests"]["query_success"] = False
+                print(f"🔧 DEBUG: Query falhou: {q_e}")
+        
+        return debug_info
+        
+    except Exception as e:
+        print(f"[ERRO] Exceção em debug_chromadb: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "collection_name": collection_name}
 
 
 @app.post("/vectordb/create-collection")

@@ -1,0 +1,26 @@
+regras_negocio:
+- nome: Limite de Crédito Não Negativo
+  explicacao: O limite de crédito de um cliente nunca pode ser negativo. Um valor
+    zero significa que o cliente não possui limite de crédito aprovado. Valores positivos
+    representam o montante máximo que o cliente pode dever.
+  tipo: validacao
+  prioridade: media
+- nome: Crédito Disponível para Compras
+  explicacao: 'Um cliente só pode realizar uma nova compra se tiver saldo de crédito
+    disponível. O saldo disponível é calculado como: limite de crédito - saldo devedor.
+    Se o resultado for zero ou negativo, novas compras não são permitidas.'
+  tipo: logica_negocio
+  prioridade: alta
+- nome: Atualização Automática de Saldo
+  explicacao: 'O saldo devedor do cliente é atualizado automaticamente pelo sistema
+    sempre que ocorrem movimentações como: criação de uma venda, pagamento de conta
+    ou cancelamento de operação. Isso garante que o saldo esteja sempre correto e
+    em tempo real.'
+  tipo: automacao
+  prioridade: alta
+- nome: Bloqueio de Cliente com Saldo Vencido
+  explicacao: Quando um cliente possui contas a receber vencidas há mais de 30 dias,
+    o sistema pode bloquear novas transações como proteção. O desbloqueio ocorre quando
+    o cliente regulariza os pagamentos.
+  tipo: logica_negocio
+  prioridade: media

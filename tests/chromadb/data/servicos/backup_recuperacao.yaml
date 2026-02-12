@@ -1,38 +1,41 @@
-# Rotinas de Sistema - Backup e Recuperação
-# Foco: Estratégias automatizadas para proteção de dados
-
 rotinas:
-  - nome: "Backup Completo Noturno"
-    descricao: "Executa backup completo de todo o banco de dados durante a madrugada quando o sistema tem menor utilização. Inclui compactação para otimizar espaço de armazenamento. Mantém 30 dias de histórico com possibilidade de recuperação de qualquer ponto no tempo."
-    tipo_servico: backup
-    frequencia: diaria
-    horario: "02:00"
-    timezone: "America/Sao_Paulo"
-    duracao_estimada: "15 a 30 minutos"
-    prioridade: alta
-    
-  - nome: "Backup Incremental a Cada Hora"
-    descricao: "Executa backup dos dados que foram alterados desde o último backup. Rápido e econômico em espaço. Ativo apenas durante o horário comercial (8h-18h) para evitar armazenamento desnecessário durante a noite."
-    tipo_servico: backup
-    frequencia: hourly
-    minuto: "30"
-    intervalo_horas: "08:00-18:00"
-    duracao_estimada: "2 a 5 minutos"
-    prioridade: media
-    
-  - nome: "Backup Diferencial Semanal"
-    descricao: "Realiza backup dos dados alterados desde o último backup completo, executado uma vez por semana. Serve como ponto intermediário entre backups completos e incrementais, otimizando recuperação de dados."
-    tipo_servico: backup
-    frequencia: semanal
-    dia_semana: "domingo"
-    horario: "04:00"
-    duracao_estimada: "10 a 20 minutos"
-    prioridade: alta
-    
-  - nome: "Validação de Integridade de Backups"
-    descricao: "Testa a integridade dos arquivos de backup realizando checksum e tentativa de leitura. Identifica backups corrompidos e gera alerta. Executado diariamente para garantir que backups são recuperáveis."
-    tipo_servico: validacao
-    frequencia: diaria
-    horario: "03:00"
-    duracao_estimada: "5 a 10 minutos"
-    prioridade: alta
+- nome: Backup Completo Noturno
+  descricao: Executa backup completo de todo o banco de dados durante a madrugada
+    quando o sistema tem menor utilização. Inclui compactação para otimizar espaço
+    de armazenamento. Mantém 30 dias de histórico com possibilidade de recuperação
+    de qualquer ponto no tempo.
+  tipo_servico: backup
+  frequencia: diaria
+  horario: 02:00
+  timezone: America/Sao_Paulo
+  duracao_estimada: 15 a 30 minutos
+  prioridade: alta
+- nome: Backup Incremental a Cada Hora
+  descricao: Executa backup dos dados que foram alterados desde o último backup. Rápido
+    e econômico em espaço. Ativo apenas durante o horário comercial (8h-18h) para
+    evitar armazenamento desnecessário durante a noite.
+  tipo_servico: backup
+  frequencia: hourly
+  minuto: '30'
+  intervalo_horas: 08:00-18:00
+  duracao_estimada: 2 a 5 minutos
+  prioridade: media
+- nome: Backup Diferencial Semanal
+  descricao: Realiza backup dos dados alterados desde o último backup completo, executado
+    uma vez por semana. Serve como ponto intermediário entre backups completos e incrementais,
+    otimizando recuperação de dados.
+  tipo_servico: backup
+  frequencia: semanal
+  dia_semana: domingo
+  horario: 04:00
+  duracao_estimada: 10 a 20 minutos
+  prioridade: alta
+- nome: Validação de Integridade de Backups
+  descricao: Testa a integridade dos arquivos de backup realizando checksum e tentativa
+    de leitura. Identifica backups corrompidos e gera alerta. Executado diariamente
+    para garantir que backups são recuperáveis.
+  tipo_servico: validacao
+  frequencia: diaria
+  horario: 03:00
+  duracao_estimada: 5 a 10 minutos
+  prioridade: alta

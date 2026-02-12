@@ -1,43 +1,48 @@
 rules:
-  - rule_id: GLB_001
-    name: "Auditoria de alterações"
-    description: "Todas as operações de inserção, alteração e exclusão devem ser registradas em tabela de auditoria com usuário, data/hora e valores anteriores."
-    type: audit
-    priority: medium
-    applies_to: all_tables
-  - rule_id: GLB_002
-    name: "Backup automático diário"
-    description: "Sistema deve realizar backup automático diário de toda a base de dados às 2:00h."
-    type: maintenance
-    priority: high
-    schedule: "daily_02:00"
-  - rule_id: GLB_003
-    name: "Validação de integridade referencial"
-    description: "Todas as chaves estrangeiras devem ser validadas antes de inserção/alteração para garantir consistência."
-    type: constraint
-    priority: high
-    applies_to: all_foreign_keys
-  - rule_id: GLB_004
-    name: "Criptografia de dados sensíveis"
-    description: "Dados sensíveis como senhas e informações pessoais devem ser criptografados."
-    type: security
-    priority: high
-    applies_to: sensitive_fields
-  - rule_id: GLB_005
-    name: "Log de acesso ao sistema"
-    description: "Todos os acessos ao sistema devem ser registrados com timestamp e IP de origem."
-    type: security
-    priority: medium
-    applies_to: all_sessions
-  - rule_id: GLB_006
-    name: "Validação de tipos de dados"
-    description: "Todos os campos devem ter validação de tipo de dados antes da inserção/atualização."
-    type: validation
-    priority: high
-    applies_to: all_fields
-  - rule_id: GLB_007
-    name: "Soft delete para registros críticos"
-    description: "Registros críticos devem usar soft delete (marcação como inativo) ao invés de exclusão física."
-    type: data_integrity
-    priority: medium
-    applies_to: critical_tables
+- rule_id: GLB_001
+  name: Auditoria de alterações
+  description: Todas as operações de inserção, alteração e exclusão devem ser registradas
+    em tabela de auditoria com usuário, data/hora e valores anteriores.
+  type: audit
+  priority: medium
+  applies_to: all_tables
+- rule_id: GLB_002
+  name: Backup automático diário
+  description: Sistema deve realizar backup automático diário de toda a base de dados
+    às 2:00h.
+  type: maintenance
+  priority: high
+  schedule: daily_02:00
+- rule_id: GLB_003
+  name: Validação de integridade referencial
+  description: Todas as chaves estrangeiras devem ser validadas antes de inserção/alteração
+    para garantir consistência.
+  type: constraint
+  priority: high
+  applies_to: all_foreign_keys
+- rule_id: GLB_004
+  name: Criptografia de dados sensíveis
+  description: Dados sensíveis como senhas e informações pessoais devem ser criptografados.
+  type: security
+  priority: high
+  applies_to: sensitive_fields
+- rule_id: GLB_005
+  name: Log de acesso ao sistema
+  description: Todos os acessos ao sistema devem ser registrados com timestamp e IP
+    de origem.
+  type: security
+  priority: medium
+  applies_to: all_sessions
+- rule_id: GLB_006
+  name: Validação de tipos de dados
+  description: Todos os campos devem ter validação de tipo de dados antes da inserção/atualização.
+  type: validation
+  priority: high
+  applies_to: all_fields
+- rule_id: GLB_007
+  name: Soft delete para registros críticos
+  description: Registros críticos devem usar soft delete (marcação como inativo) ao
+    invés de exclusão física.
+  type: data_integrity
+  priority: medium
+  applies_to: critical_tables

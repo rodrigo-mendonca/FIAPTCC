@@ -76,36 +76,13 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ open, onClose, darkMode }) => {
   }, [messages]);
 
   const clearChat = async () => {
-    if (!sessionId) {
-      // Se não há sessão, apenas limpa a interface
-      setMessages([]);
-      setSessionId(null);
-      return;
-    }
-
     setIsClearing(true);
     try {
-      const response = await fetch(`${API_URL}/chat/clear`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
-
-      if (response.ok) {
-        setMessages([]);
-        setSessionId(null);
-        console.log('Chat limpo com sucesso');
-      } else {
-        console.error('Erro ao limpar chat:', response.status);
-        // Limpa a interface mesmo se o servidor falhar
-        setMessages([]);
-        setSessionId(null);
-      }
+      setMessages([]);
+      setSessionId(null);
+      console.log('Chat limpo com sucesso');
     } catch (error) {
       console.error('Erro ao limpar chat:', error);
-      // Limpa a interface mesmo se houver erro
       setMessages([]);
       setSessionId(null);
     } finally {
@@ -155,7 +132,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ open, onClose, darkMode }) => {
       
       console.log('📤 Request body completo:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch(`${API_URL}/chat`, {
+      const response = await fetch(`${API_URL}/api/chat/general/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -172,7 +149,7 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ open, onClose, darkMode }) => {
 
       if (reader) {
         let buffer = '';
-        let endReceived = false;
+        let accumulatedContent = '';
         
         while (true) {
           const { done, value } = await reader.read();
@@ -187,49 +164,43 @@ const ChatDialog: React.FC<ChatDialogProps> = ({ open, onClose, darkMode }) => {
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                console.log('📡 Dados recebidos:', data);
-                
-                if (data.type === 'chunk' && data.content && !endReceived) {
-                  // Remove indicador de digitação assim que receber o primeiro chunk
-                  if (isTyping) {
-                    setIsTyping(false);
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr && jsonStr !== '[DONE]') {
+                try {
+                  const data = JSON.parse(jsonStr);
+                  
+                  if (data.content) {
+                    // Remove indicador de digitação ao receber primeiro chunk
+                    if (isTyping) {
+                      setIsTyping(false);
+                    }
+                    
+                    accumulatedContent += data.content;
+                    
+                    // Atualiza mensagem com conteúdo acumulado
+                    setMessages(prev => 
+                      prev.map(msg => 
+                        msg.id === botMessageId 
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      )
+                    );
+                    
+                    // Scroll para baixo
+                    setTimeout(() => scrollToBottom(), 10);
+                    
+                  } else if (data.error) {
+                    setMessages(prev => 
+                      prev.map(msg => 
+                        msg.id === botMessageId 
+                          ? { ...msg, content: `Erro: ${data.error}` }
+                          : msg
+                      )
+                    );
                   }
-                  
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === botMessageId 
-                        ? { ...msg, content: msg.content + data.content }
-                        : msg
-                    )
-                  );
-                  
-                  // Força scroll para baixo após cada chunk
-                  setTimeout(() => scrollToBottom(), 10);
-                  
-                } else if (data.type === 'session_info' && data.session_id) {
-                  // Armazena o session_id para próximas mensagens
-                  setSessionId(data.session_id);
-                  console.log('🎉 Session ID atualizado:', data.session_id);
-                  console.log('🎉 Dados completos do session_info:', data);
-                  
-                } else if (data.type === 'end') {
-                  console.log('📝 Recebido type: end - marcando como finalizado');
-                  endReceived = true;
-                  
-                } else if (data.type === 'error') {
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === botMessageId 
-                        ? { ...msg, content: `Erro: ${data.error}` }
-                        : msg
-                    )
-                  );
-                  break;
+                } catch (e) {
+                  console.error('Erro ao parsear JSON:', e);
                 }
-              } catch (e) {
-                console.error('Erro ao parsear JSON:', e);
               }
             }
           }

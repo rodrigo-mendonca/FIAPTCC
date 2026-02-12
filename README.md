@@ -83,15 +83,12 @@ lms server start --port 1234 --cors &
 
 ## Configuração de Providers (GenAI e Embeddings)
 
-O projeto suporta múltiplos provedores de IA generativa e embeddings: **LMStudio**, **OpenAI** e **Azure OpenAI**. A configuração é feita através de arquivos `.env` separados para facilitar a troca entre provedores.
+O projeto suporta múltiplos provedores de IA generativa e embeddings: **LMStudio**, **OpenAI** e **Azure OpenAI**. A configuração é feita através do arquivo `.env` único, alterando o `GENAI_PROVIDER` e as variáveis correspondentes.
 
 ### Estrutura de Configuração
 
 ```
-.env                 # Configuração geral (CHROMADB, CORS, ENVIRONMENT)
-.env.lmstudio       # Configuração do LMStudio
-.env.openai         # Configuração do OpenAI
-.env.azure          # Configuração do Azure OpenAI
+.env                 # Configuração completa (CHROMADB, CORS, ENVIRONMENT, GenAI, Embeddings)
 ```
 
 ### Variáveis Unificadas
@@ -110,41 +107,35 @@ Igual para embeddings: `EMBEDDINGS_PROVIDER`, `EMBEDDINGS_ENDPOINT`, `EMBEDDINGS
 
 #### 1. Localmente (sem Docker)
 
-Edite o `.env` e descomente o arquivo desejado:
+Edite o arquivo `.env` e altere o `GENAI_PROVIDER` e as variáveis correspondentes:
 
 ```bash
 # Use LMStudio (padrão)
-source .env && source .env.lmstudio && python fiap_api/main.py
+# GENAI_PROVIDER=lmstudio
+# GENAI_ENDPOINT=http://192.168.50.30:1234/v1
+# ...
 
 # Use OpenAI
-source .env && source .env.openai && python fiap_api/main.py
+# GENAI_PROVIDER=openai
+# GENAI_API_KEY=sk-...
+# ...
 
 # Use Azure
-source .env && source .env.azure && python fiap_api/main.py
+# GENAI_PROVIDER=azure
+# GENAI_ENDPOINT=https://seu-recurso.openai.azure.com/
+# GENAI_API_VERSION=2024-02-15-preview
+# ...
+```
+
+Depois execute:
+
+```bash
+python fiap_api/main.py
 ```
 
 #### 2. Com Docker Compose
 
-Altere o `docker-compose.yml` na seção `fiap-api`:
-
-```yaml
-# Para LMStudio (padrão)
-env_file:
-  - .env
-  - .env.lmstudio
-
-# Para OpenAI
-env_file:
-  - .env
-  - .env.openai
-
-# Para Azure
-env_file:
-  - .env
-  - .env.azure
-```
-
-Depois inicie:
+O `docker-compose.yml` já carrega o `.env` único. Apenas edite o arquivo `.env` como acima e inicie:
 
 ```powershell
 docker-compose up -d
@@ -153,30 +144,26 @@ docker-compose up -d
 #### 3. Via Command Line (Docker)
 
 ```bash
-# LMStudio
-docker-compose --env-file .env --env-file .env.lmstudio up -d
-
-# OpenAI
-docker-compose --env-file .env --env-file .env.openai up -d
-
-# Azure
-docker-compose --env-file .env --env-file .env.azure up -d
+# Edite o .env conforme acima
+docker-compose --env-file .env up -d
 ```
 
 ### Exemplos de Configuração
 
-**LMStudio** (`.env.lmstudio`)
+Edite o arquivo `.env` com as configurações desejadas. Aqui estão exemplos para cada provider:
+
+**LMStudio** (no `.env`)
 ```env
 GENAI_PROVIDER=lmstudio
-GENAI_ENDPOINT=http://192.168.50.30:1234
+GENAI_ENDPOINT=http://192.168.50.30:1234/v1
 GENAI_MODEL=gpt-3.5-turbo
 
 EMBEDDINGS_PROVIDER=lmstudio
-EMBEDDINGS_ENDPOINT=http://192.168.50.30:1234
+EMBEDDINGS_ENDPOINT=http://192.168.50.30:1234/v1
 EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
 ```
 
-**OpenAI** (`.env.openai`)
+**OpenAI** (no `.env`)
 ```env
 GENAI_PROVIDER=openai
 GENAI_MODEL=gpt-3.5-turbo
@@ -187,7 +174,7 @@ EMBEDDINGS_MODEL=text-embedding-3-small
 EMBEDDINGS_API_KEY=sk-...
 ```
 
-**Azure** (`.env.azure`)
+**Azure** (no `.env`)
 ```env
 GENAI_PROVIDER=azure
 GENAI_ENDPOINT=https://seu-recurso.openai.azure.com/

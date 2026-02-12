@@ -1,75 +1,78 @@
 services:
   backup_database:
     service_id: 1
-    name: "Backup Automático da Base de Dados"
-    description: "Realiza backup completo de todas as tabelas do sistema comercial, incluindo dados e estrutura, armazenando em local seguro com compactação"
+    name: Backup Automático da Base de Dados
+    description: Realiza backup completo de todas as tabelas do sistema comercial,
+      incluindo dados e estrutura, armazenando em local seguro com compactação
     category: backup
     status: active
     execution_type: scheduled
     schedule:
       frequency: daily
-      time: "02:00:00"
-      timezone: "America/Sao_Paulo"
-      description: "Executa diariamente às 2:00h da madrugada"
-    estimated_duration: "15-30 minutos"
+      time: 02:00:00
+      timezone: America/Sao_Paulo
+      description: Executa diariamente às 2:00h da madrugada
+    estimated_duration: 15-30 minutos
     priority: high
     dependencies: []
     resources_required:
-      disk_space: "500MB"
-      memory: "256MB"
-      cpu: "low"
+      disk_space: 500MB
+      memory: 256MB
+      cpu: low
     inputs:
-      backup_location: "/backup/daily/"
-      compression_level: "high"
+      backup_location: /backup/daily/
+      compression_level: high
       retention_days: 30
     outputs:
-      backup_file: "YYYYMMDD.sql.gz"
-      log_file: "backup_YYYYMMDD.log"
+      backup_file: YYYYMMDD.sql.gz
+      log_file: backup_YYYYMMDD.log
     notifications:
-      on_success: "email_admin"
-      on_failure: "email_admin_urgent"
-    last_execution: "2025-10-05T02:00:00Z"
-    next_execution: "2025-10-07T02:00:00Z"
+      on_success: email_admin
+      on_failure: email_admin_urgent
+    last_execution: '2025-10-05T02:00:00Z'
+    next_execution: '2025-10-07T02:00:00Z'
   backup_incremental:
     service_id: 8
-    name: "Backup Incremental"
-    description: "Realiza backup incremental dos dados alterados desde o último backup completo, otimizando tempo e espaço de armazenamento"
+    name: Backup Incremental
+    description: Realiza backup incremental dos dados alterados desde o último backup
+      completo, otimizando tempo e espaço de armazenamento
     category: backup
     status: active
     execution_type: scheduled
     schedule:
       frequency: hourly
       minutes: 30
-      timezone: "America/Sao_Paulo"
-      description: "Executa de hora em hora aos 30 minutos"
-      active_hours: "08:00-18:00"
-    estimated_duration: "2-5 minutos"
+      timezone: America/Sao_Paulo
+      description: Executa de hora em hora aos 30 minutos
+      active_hours: 08:00-18:00
+    estimated_duration: 2-5 minutos
     priority: medium
     dependencies: []
     resources_required:
-      disk_space: "50MB"
-      memory: "128MB"
-      cpu: "low"
+      disk_space: 50MB
+      memory: 128MB
+      cpu: low
     business_logic:
       backup_type: incremental
       change_detection: timestamp_based
       compression: enabled
     outputs:
-      backup_file: "incremental_YYYYMMDD_HH30.sql.gz"
+      backup_file: incremental_YYYYMMDD_HH30.sql.gz
     notifications:
-      on_failure: "email_admin"
+      on_failure: email_admin
   backup_diferencial:
     service_id: 16
-    name: "Backup Diferencial"
-    description: "Realiza backup diferencial de apenas dados alterados desde o último backup completo"
+    name: Backup Diferencial
+    description: Realiza backup diferencial de apenas dados alterados desde o último
+      backup completo
     category: backup
     status: active
     execution_type: scheduled
     schedule:
       frequency: every_4_hours
-      timezone: "America/Sao_Paulo"
+      timezone: America/Sao_Paulo
     priority: high
     resources_required:
-      disk_space: "100-300MB"
-      memory: "128MB"
-      cpu: "low"
+      disk_space: 100-300MB
+      memory: 128MB
+      cpu: low

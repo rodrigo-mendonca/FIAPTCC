@@ -39,7 +39,6 @@ interface Message {
 interface ChatConfig {
   title: string;
   icon: React.ReactElement;
-  endpoint: string;
   streamEndpoint: string;
   placeholder: string;
   description: string;
@@ -149,7 +148,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
       }));
 
       // Use endpoint de streaming com URL completa
-      const fullURL = `${process.env.REACT_APP_API_URL}${config.streamEndpoint}?collection_name=${encodeURIComponent(selectedCollection)}`;
+      const fullURL = `${API_URL}${config.streamEndpoint}?collection_name=${encodeURIComponent(selectedCollection)}`;
       
       const response = await fetch(fullURL, {
         method: 'POST',
@@ -274,7 +273,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
         payload['text'] = lastBot.content;
       }
 
-      const resp = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/add-item`, {
+      const resp = await fetch(`${API_URL}/vectordb/add-item`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -613,8 +612,7 @@ const chatConfigs = {
   general: {
     title: '💬 Chat Geral',
     icon: <ChatIcon />,
-    endpoint: '/api/chat',
-    streamEndpoint: '/api/chat/stream',
+    streamEndpoint: '/api/chat/general/stream',
     placeholder: 'Digite sua mensagem para conversar...',
     description: 'Dúvidas?',
     emptyStateMessage: 'Converse livremente com a IA sobre qualquer assunto.',
@@ -642,7 +640,6 @@ const chatConfigs = {
   sql: {
     title: '🔍 Chat SQL',
     icon: <CodeIcon />,
-    endpoint: '/api/chat/sql',
     streamEndpoint: '/api/chat/sql/stream',
     placeholder: 'Ex: Como buscar todos os clientes ativos?',
     description: 'Gerador de SQL',
@@ -671,8 +668,7 @@ const chatConfigs = {
   help: {
     title: '❓ Chat Dúvidas',
     icon: <HelpIcon />,
-    endpoint: '/api/chat',
-    streamEndpoint: '/api/chat/stream',
+    streamEndpoint: '/api/chat/help/stream',
     placeholder: 'Ex: Como funciona o processo de vendas?',
     description: 'Assistente de Dúvidas',
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
@@ -701,8 +697,7 @@ const chatConfigs = {
   aluno: {
     title: '🧠 Chat Aluno',
     icon: <BotIcon />,
-    endpoint: '/api/chat',
-    streamEndpoint: '/api/chat/stream',
+    streamEndpoint: '/api/chat/aluno/stream',
     placeholder: 'Descreva a informação que você quer que eu aprenda...',
     description: 'Este chat aprenderá com base no que você informar.',
     emptyStateMessage: 'Explique algo que deseja registrar no sistema. Quando estiver pronto, revise e confirme para registrar.',
@@ -765,6 +760,8 @@ const tabsConfig = {
     }
   }
 };
+
+const API_URL = process.env.REACT_APP_API_URL;
 
 const ChatTabs: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => {
   const [selectedTab, setSelectedTab] = useState(0);

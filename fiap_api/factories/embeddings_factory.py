@@ -3,40 +3,26 @@ Fábrica de Embeddings - Configuração e inicialização de modelos de embeddin
 Suporta: LMStudio, OpenAI, Azure OpenAI
 """
 
-import os
 from typing import Optional, List, Dict, Any
 import hashlib
 import re
 import unicodedata
+from .env_factory import EnvFactory
 
 class EmbeddingsConfig:
     """Configuração de Embeddings a partir de variáveis de ambiente (padrão unificado)"""
     
     def __init__(self):
+        params = EnvFactory.get_embeddings_params()
+        
         # Provider: lmstudio, openai, azure
-        self.provider = os.getenv("EMBEDDINGS_PROVIDER", "lmstudio").lower()
+        self.provider = params.provider
         
         # Configuração unificada
-        self.model = os.getenv("EMBEDDINGS_MODEL", "text-embedding-nomic-embed-text-v1.5")
-        self.api_key = os.getenv("EMBEDDINGS_API_KEY", "")
-        self.api_version = os.getenv("EMBEDDINGS_API_VERSION", "")
-        self.endpoint = os.getenv("EMBEDDINGS_ENDPOINT", "")
-        
-        # Fallback para variáveis antigas (compatibilidade)
-        if not self.endpoint and self.provider == "lmstudio":
-            self.endpoint = os.getenv("LMSTUDIO_URL", "http://192.168.50.30:1234")
-        
-        if not self.endpoint and self.provider == "azure":
-            self.endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        
-        if not self.api_key and self.provider == "openai":
-            self.api_key = os.getenv("OPENAI_API_KEY", "")
-        
-        if not self.api_key and self.provider == "azure":
-            self.api_key = os.getenv("AZURE_OPENAI_API_KEY", "")
-        
-        if not self.api_version and self.provider == "azure":
-            self.api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        self.model = params.model
+        self.api_key = params.api_key
+        self.api_version = params.api_version
+        self.endpoint = params.endpoint
         
     def validate(self):
         """Valida a configuração"""
@@ -72,7 +58,7 @@ class EmbeddingsFactory:
         from langchain_openai import OpenAIEmbeddings
         
         return OpenAIEmbeddings(
-            base_url=config.endpoint + "/v1",
+            base_url=config.endpoint,
             api_key="not-needed",
             model=config.model,
         )

@@ -1,90 +1,94 @@
 services:
   limpeza_logs_sistema:
     service_id: 7
-    name: "Limpeza de Logs do Sistema"
-    description: "Remove automaticamente logs antigos do sistema para otimizar espaço em disco, mantendo apenas logs dos últimos 90 dias"
+    name: Limpeza de Logs do Sistema
+    description: Remove automaticamente logs antigos do sistema para otimizar espaço
+      em disco, mantendo apenas logs dos últimos 90 dias
     category: manutencao
     status: active
     execution_type: scheduled
     schedule:
       frequency: weekly
-      day: "sunday"
-      time: "01:00:00"
-      timezone: "America/Sao_Paulo"
-      description: "Executa semanalmente aos domingos à 1:00h"
-    estimated_duration: "5-15 minutos"
+      day: sunday
+      time: 01:00:00
+      timezone: America/Sao_Paulo
+      description: Executa semanalmente aos domingos à 1:00h
+    estimated_duration: 5-15 minutos
     priority: low
     dependencies: []
     resources_required:
-      disk_space: "variable"
-      memory: "64MB"
-      cpu: "low"
+      disk_space: variable
+      memory: 64MB
+      cpu: low
     business_logic:
-      retention_period: "90 days"
+      retention_period: 90 days
       file_patterns:
-        - "*.log"
-        - "*.trace"
-        - "*.debug"
+      - '*.log'
+      - '*.trace'
+      - '*.debug'
       directories:
-        - "/logs/application/"
-        - "/logs/database/"
-        - "/logs/system/"
+      - /logs/application/
+      - /logs/database/
+      - /logs/system/
     notifications:
-      on_success: "log_only"
-      on_failure: "email_admin"
+      on_success: log_only
+      on_failure: email_admin
     metrics:
       files_deleted: integer
-      space_freed: "MB"
+      space_freed: MB
   otimizacao_indices_database:
     service_id: 19
-    name: "Otimização de Índices do Banco"
-    description: "Analisa e otimiza automaticamente índices do banco de dados para melhor performance"
+    name: Otimização de Índices do Banco
+    description: Analisa e otimiza automaticamente índices do banco de dados para
+      melhor performance
     category: manutencao
     status: active
     execution_type: scheduled
     schedule:
       frequency: weekly
-      day: "sunday"
-      time: "03:00:00"
-      timezone: "America/Sao_Paulo"
+      day: sunday
+      time: 03:00:00
+      timezone: America/Sao_Paulo
     priority: medium
     resources_required:
-      memory: "512MB"
-      cpu: "high"
+      memory: 512MB
+      cpu: high
   verificacao_integridade_dados:
     service_id: 24
-    name: "Verificação de Integridade de Dados"
-    description: "Executa verificações automáticas de integridade referencial e consistência de dados"
+    name: Verificação de Integridade de Dados
+    description: Executa verificações automáticas de integridade referencial e consistência
+      de dados
     category: manutencao
     status: active
     execution_type: scheduled
     schedule:
       frequency: daily
-      time: "04:00:00"
-      timezone: "America/Sao_Paulo"
+      time: 04:00:00
+      timezone: America/Sao_Paulo
     priority: high
     resources_required:
-      memory: "256MB"
-      cpu: "medium"
+      memory: 256MB
+      cpu: medium
   monitoramento_performance:
     service_id: 10
-    name: "Monitoramento de Performance do Sistema"
-    description: "Monitora performance do banco de dados, tempo de resposta das consultas e uso de recursos do sistema"
+    name: Monitoramento de Performance do Sistema
+    description: Monitora performance do banco de dados, tempo de resposta das consultas
+      e uso de recursos do sistema
     category: manutencao
     status: active
     execution_type: scheduled
     schedule:
       frequency: continuous
-      interval: "5 minutes"
-      timezone: "America/Sao_Paulo"
-      description: "Executa continuamente a cada 5 minutos"
-    estimated_duration: "30 segundos"
+      interval: 5 minutes
+      timezone: America/Sao_Paulo
+      description: Executa continuamente a cada 5 minutos
+    estimated_duration: 30 segundos
     priority: high
     dependencies: []
     resources_required:
-      disk_space: "5MB/day"
-      memory: "32MB"
-      cpu: "minimal"
+      disk_space: 5MB/day
+      memory: 32MB
+      cpu: minimal
     monitored_metrics:
       database_connections: integer
       query_response_time: milliseconds
@@ -92,12 +96,12 @@ services:
       memory_usage: percentage
       disk_usage: percentage
     thresholds:
-      cpu_warning: "80%"
-      cpu_critical: "95%"
-      memory_warning: "85%"
-      memory_critical: "95%"
-      query_time_warning: "2000ms"
+      cpu_warning: 80%
+      cpu_critical: 95%
+      memory_warning: 85%
+      memory_critical: 95%
+      query_time_warning: 2000ms
     notifications:
-      on_warning: "email_admin"
-      on_critical: "sms_admin"
-      dashboard_update: "real_time"
+      on_warning: email_admin
+      on_critical: sms_admin
+      dashboard_update: real_time

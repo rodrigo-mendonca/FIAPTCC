@@ -1,116 +1,115 @@
 tabela: vendas
-descricao_curta: "Registro de todas as vendas realizadas com dados do cliente, vendedor, valores e status para controle comercial e financeiro."
-database: "SistemaComercial"
+descricao_curta: Registro de todas as vendas realizadas com dados do cliente, vendedor,
+  valores e status para controle comercial e financeiro.
+database: SistemaComercial
 total_registros: 15340
-ultima_atualizacao: "2025-12-28"
+ultima_atualizacao: '2025-12-28'
+contexto_negocio: 'Esta tabela mantém o histórico completo de todas as transações
+  de venda da empresa.
 
-contexto_negocio: |
-  Esta tabela mantém o histórico completo de todas as transações de venda da empresa.
-  Cada registro representa uma venda realizada a um cliente, com informações de valores, forma de pagamento e status.
+  Cada registro representa uma venda realizada a um cliente, com informações de valores,
+  forma de pagamento e status.
+
   Relaciona clientes com vendedores responsáveis e agrupa itens de venda individual.
+
   Fundamental para análise de faturamento, comissões de vendedores e histórico comercial.
 
+  '
 chaves:
-  pk: [id_venda]
+  pk:
+  - id_venda
   principais_fks:
-    - id_cliente
-    - id_vendedor
-
+  - id_cliente
+  - id_vendedor
 colunas_importantes:
-  - nome: id_venda
-    tipo: integer
-    nulo: false
-    descricao: "Identificador único da venda, chave primária"
-    exemplo_significativo: "98765"
-
-  - nome: numero_venda
-    tipo: varchar
-    nulo: false
-    descricao: "Número sequencial único para referência interna e do cliente"
-    exemplo_significativo: "'NF-2025-001234'"
-
-  - nome: id_cliente
-    tipo: integer
-    nulo: false
-    descricao: "Referência ao cliente que realizou a compra"
-    exemplo_significativo: "12543"
-
-  - nome: id_vendedor
-    tipo: integer
-    nulo: true
-    descricao: "Referência ao vendedor responsável pela venda"
-    exemplo_significativo: "5"
-
-  - nome: data_venda
-    tipo: datetime
-    nulo: false
-    descricao: "Data e hora exata em que a venda foi confirmada"
-    exemplo_significativo: "2025-12-15T14:30:00"
-
-  - nome: valor_produtos
-    tipo: decimal
-    nulo: false
-    descricao: "Valor total dos produtos vendidos antes de descontos"
-    exemplo_significativo: "5000.00"
-
-  - nome: valor_desconto
-    tipo: decimal
-    nulo: true
-    descricao: "Valor total de desconto aplicado"
-    exemplo_significativo: "250.00"
-
-  - nome: valor_frete
-    tipo: decimal
-    nulo: true
-    descricao: "Valor do frete para entrega"
-    exemplo_significativo: "75.50"
-
-  - nome: valor_total
-    tipo: decimal
-    nulo: false
-    descricao: "Valor final: produtos - desconto + frete"
-    exemplo_significativo: "4825.50"
-
-  - nome: forma_pagamento
-    tipo: varchar
-    nulo: false
-    descricao: "Forma de pagamento utilizada"
-    exemplo_significativo: "'cartão', 'pix', 'boleto'"
-
-  - nome: status_venda
-    tipo: varchar
-    nulo: false
-    descricao: "Status atual (pendente, confirmada, cancelada, devolvida)"
-    exemplo_significativo: "'confirmada'"
-
-  - nome: observacoes
-    tipo: text
-    nulo: true
-    descricao: "Observações sobre a venda ou condições especiais"
-    exemplo_significativo: "'Entrega agendada para segunda-feira'"
-
+- nome: id_venda
+  tipo: integer
+  nulo: false
+  descricao: Identificador único da venda, chave primária
+  exemplo_significativo: '98765'
+- nome: numero_venda
+  tipo: varchar
+  nulo: false
+  descricao: Número sequencial único para referência interna e do cliente
+  exemplo_significativo: '''NF-2025-001234'''
+- nome: id_cliente
+  tipo: integer
+  nulo: false
+  descricao: Referência ao cliente que realizou a compra
+  exemplo_significativo: '12543'
+- nome: id_vendedor
+  tipo: integer
+  nulo: true
+  descricao: Referência ao vendedor responsável pela venda
+  exemplo_significativo: '5'
+- nome: data_venda
+  tipo: datetime
+  nulo: false
+  descricao: Data e hora exata em que a venda foi confirmada
+  exemplo_significativo: '2025-12-15T14:30:00'
+- nome: valor_produtos
+  tipo: decimal
+  nulo: false
+  descricao: Valor total dos produtos vendidos antes de descontos
+  exemplo_significativo: '5000.00'
+- nome: valor_desconto
+  tipo: decimal
+  nulo: true
+  descricao: Valor total de desconto aplicado
+  exemplo_significativo: '250.00'
+- nome: valor_frete
+  tipo: decimal
+  nulo: true
+  descricao: Valor do frete para entrega
+  exemplo_significativo: '75.50'
+- nome: valor_total
+  tipo: decimal
+  nulo: false
+  descricao: 'Valor final: produtos - desconto + frete'
+  exemplo_significativo: '4825.50'
+- nome: forma_pagamento
+  tipo: varchar
+  nulo: false
+  descricao: Forma de pagamento utilizada
+  exemplo_significativo: '''cartão'', ''pix'', ''boleto'''
+- nome: status_venda
+  tipo: varchar
+  nulo: false
+  descricao: Status atual (pendente, confirmada, cancelada, devolvida)
+  exemplo_significativo: '''confirmada'''
+- nome: observacoes
+  tipo: text
+  nulo: true
+  descricao: Observações sobre a venda ou condições especiais
+  exemplo_significativo: '''Entrega agendada para segunda-feira'''
 relacionamentos:
-  - tabela_referencia: clientes
-    descricao: "Cada venda pertence a um cliente específico"
-  - tabela_referencia: funcionarios
-    descricao: "Cada venda tem um vendedor responsável"
-  - tabela_referencia: itens_venda
-    descricao: "Uma venda contém múltiplos itens de produtos"
-
+- tabela_referencia: clientes
+  descricao: Cada venda pertence a um cliente específico
+- tabela_referencia: funcionarios
+  descricao: Cada venda tem um vendedor responsável
+- tabela_referencia: itens_venda
+  descricao: Uma venda contém múltiplos itens de produtos
 indices:
-  - nome: idx_numero_venda
-    colunas: [numero_venda]
-    unico: true
-    descricao: "Número de venda único"
-  - nome: idx_cliente_data
-    colunas: [id_cliente, data_venda]
-    unico: false
-    descricao: "Histórico do cliente"
-  - nome: idx_vendedor_data
-    colunas: [id_vendedor, data_venda]
-    unico: false
-    descricao: "Relatórios de vendedor"
-  - nome: idx_status_data
-    colunas: [status_venda, data_venda]
-    unico: false
-    descricao: "Relatórios por status"
+- nome: idx_numero_venda
+  colunas:
+  - numero_venda
+  unico: true
+  descricao: Número de venda único
+- nome: idx_cliente_data
+  colunas:
+  - id_cliente
+  - data_venda
+  unico: false
+  descricao: Histórico do cliente
+- nome: idx_vendedor_data
+  colunas:
+  - id_vendedor
+  - data_venda
+  unico: false
+  descricao: Relatórios de vendedor
+- nome: idx_status_data
+  colunas:
+  - status_venda
+  - data_venda
+  unico: false
+  descricao: Relatórios por status

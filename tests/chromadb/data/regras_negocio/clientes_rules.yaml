@@ -1,63 +1,70 @@
 table_name: clientes
-description: "Regras para cadastro e manutenção de clientes"
+description: Regras para cadastro e manutenção de clientes
 rules:
-  - rule_id: CLT_001
-    name: "Validação de CPF/CNPJ"
-    description: "CPF deve ter exatamente 11 dígitos numéricos e CNPJ deve ter 14 dígitos numéricos. Deve ser validado através do algoritmo de dígito verificador."
-    type: validation
-    fields_involved:
-      - cpf_cnpj
-      - tipo_pessoa
-    priority: high
-    error_message: "CPF/CNPJ inválido ou não confere com o tipo de pessoa"
-  - rule_id: CLT_002
-    name: "Unicidade de documento"
-    description: "Não é permitido cadastrar dois clientes com o mesmo CPF ou CNPJ, independente do status ativo/inativo."
-    type: constraint
-    fields_involved:
-      - cpf_cnpj
-    priority: high
-    error_message: "CPF/CNPJ já cadastrado no sistema"
-  - rule_id: CLT_003
-    name: "Limite de crédito não negativo"
-    description: "O limite de crédito do cliente não pode ser negativo. Valor zero indica que o cliente não possui limite aprovado."
-    type: validation
-    fields_involved:
-      - limite_credito
-    priority: medium
-    error_message: "Limite de crédito não pode ser negativo"
-  - rule_id: CLT_004
-    name: "Email formato válido"
-    description: "Quando informado, o email deve ter formato válido com @ e domínio. Validação através de regex padrão."
-    type: validation
-    fields_involved:
-      - email
-    priority: medium
-    error_message: "Formato de email inválido"
-  - rule_id: CLT_005
-    name: "Cliente inativo não pode comprar"
-    description: "Clientes com status inativo não podem realizar novas compras ou ter novas contas a receber geradas."
-    type: business_logic
-    fields_involved:
-      - ativo
-    priority: high
-    error_message: "Cliente inativo não pode realizar transações"
-  - rule_id: CLT_006
-    name: "Nome fantasia apenas para PJ"
-    description: "O campo nome_fantasia só pode ser preenchido para clientes pessoa jurídica (tipo_pessoa = 'J')."
-    type: business_logic
-    fields_involved:
-      - nome_fantasia
-      - tipo_pessoa
-    priority: low
-    error_message: "Nome fantasia só é válido para pessoa jurídica"
-  - rule_id: CLT_007
-    name: "Atualização automática de saldo"
-    description: "O saldo do cliente deve ser atualizado automaticamente sempre que uma conta a receber for criada, paga ou cancelada."
-    type: automation
-    fields_involved:
-      - saldo_atual
-    priority: high
-    trigger: after_insert_update_delete
-    related_tables:
-      - contas_receber
+- rule_id: CLT_001
+  name: Validação de CPF/CNPJ
+  description: CPF deve ter exatamente 11 dígitos numéricos e CNPJ deve ter 14 dígitos
+    numéricos. Deve ser validado através do algoritmo de dígito verificador.
+  type: validation
+  fields_involved:
+  - cpf_cnpj
+  - tipo_pessoa
+  priority: high
+  error_message: CPF/CNPJ inválido ou não confere com o tipo de pessoa
+- rule_id: CLT_002
+  name: Unicidade de documento
+  description: Não é permitido cadastrar dois clientes com o mesmo CPF ou CNPJ, independente
+    do status ativo/inativo.
+  type: constraint
+  fields_involved:
+  - cpf_cnpj
+  priority: high
+  error_message: CPF/CNPJ já cadastrado no sistema
+- rule_id: CLT_003
+  name: Limite de crédito não negativo
+  description: O limite de crédito do cliente não pode ser negativo. Valor zero indica
+    que o cliente não possui limite aprovado.
+  type: validation
+  fields_involved:
+  - limite_credito
+  priority: medium
+  error_message: Limite de crédito não pode ser negativo
+- rule_id: CLT_004
+  name: Email formato válido
+  description: Quando informado, o email deve ter formato válido com @ e domínio.
+    Validação através de regex padrão.
+  type: validation
+  fields_involved:
+  - email
+  priority: medium
+  error_message: Formato de email inválido
+- rule_id: CLT_005
+  name: Cliente inativo não pode comprar
+  description: Clientes com status inativo não podem realizar novas compras ou ter
+    novas contas a receber geradas.
+  type: business_logic
+  fields_involved:
+  - ativo
+  priority: high
+  error_message: Cliente inativo não pode realizar transações
+- rule_id: CLT_006
+  name: Nome fantasia apenas para PJ
+  description: O campo nome_fantasia só pode ser preenchido para clientes pessoa jurídica
+    (tipo_pessoa = 'J').
+  type: business_logic
+  fields_involved:
+  - nome_fantasia
+  - tipo_pessoa
+  priority: low
+  error_message: Nome fantasia só é válido para pessoa jurídica
+- rule_id: CLT_007
+  name: Atualização automática de saldo
+  description: O saldo do cliente deve ser atualizado automaticamente sempre que uma
+    conta a receber for criada, paga ou cancelada.
+  type: automation
+  fields_involved:
+  - saldo_atual
+  priority: high
+  trigger: after_insert_update_delete
+  related_tables:
+  - contas_receber

@@ -1,36 +1,38 @@
-# Rotinas de Sistema - Ingestão e Importação de Dados
-# Foco: Carregamento de dados de fontes externas
-
 rotinas:
-  - nome: "Importação de Catálogo de Produtos"
-    descricao: "Importa lista de produtos atualizada do ERP externo. Sincroniza nomes, descrições, preços e disponibilidade. Realiza merge com dados existentes, atualizando produtos modificados e marcando descontinuados. Gera relatório de alterações."
-    tipo_servico: importacao
-    frequencia: diaria
-    horario: "08:30"
-    duracao_estimada: "10 a 15 minutos"
-    prioridade: alta
-    fonte_dados: "api.erp.fornecedor.com/produtos"
-    
-  - nome: "Sincronização de Preços com Fornecedores"
-    descricao: "Atualiza tabela de preços consultando APIs de múltiplos fornecedores. Identifica mudanças significativas e gera alertas. Recalcula margem de lucro e recomenda ajustes de preço de venda se necessário."
-    tipo_servico: importacao
-    frequencia: a_cada_6_horas
-    horario: "06:00,12:00,18:00"
-    duracao_estimada: "5 a 8 minutos"
-    prioridade: media
-    
-  - nome: "Importação de Tabela Bancária"
-    descricao: "Importa extrato bancário em formato OFX/CSV. Processa transações, concilia com movimento de caixa registrado no sistema e identifica discrepâncias. Executa diariamente ao amanhecer para reconciliação noturna."
-    tipo_servico: importacao
-    frequencia: diaria
-    horario: "07:00"
-    duracao_estimada: "8 a 12 minutos"
-    prioridade: alta
-    arquivo_entrada: "extrato_bancario.csv"
-    
-  - nome: "Carregamento de Dados de Vendas Anteriores"
-    descricao: "Importa histórico de vendas de período específico do sistema legado. Executado manualmente ou em ciclos mensais para migração gradual de dados. Valida integridade e gera relatório de inconsistências."
-    tipo_servico: importacao
-    frequencia: sob_demanda
-    duracao_estimada: "20 a 60 minutos dependendo do volume"
-    prioridade: media
+- nome: Importação de Catálogo de Produtos
+  descricao: Importa lista de produtos atualizada do ERP externo. Sincroniza nomes,
+    descrições, preços e disponibilidade. Realiza merge com dados existentes, atualizando
+    produtos modificados e marcando descontinuados. Gera relatório de alterações.
+  tipo_servico: importacao
+  frequencia: diaria
+  horario: 08:30
+  duracao_estimada: 10 a 15 minutos
+  prioridade: alta
+  fonte_dados: api.erp.fornecedor.com/produtos
+- nome: Sincronização de Preços com Fornecedores
+  descricao: Atualiza tabela de preços consultando APIs de múltiplos fornecedores.
+    Identifica mudanças significativas e gera alertas. Recalcula margem de lucro e
+    recomenda ajustes de preço de venda se necessário.
+  tipo_servico: importacao
+  frequencia: a_cada_6_horas
+  horario: 06:00,12:00,18:00
+  duracao_estimada: 5 a 8 minutos
+  prioridade: media
+- nome: Importação de Tabela Bancária
+  descricao: Importa extrato bancário em formato OFX/CSV. Processa transações, concilia
+    com movimento de caixa registrado no sistema e identifica discrepâncias. Executa
+    diariamente ao amanhecer para reconciliação noturna.
+  tipo_servico: importacao
+  frequencia: diaria
+  horario: 07:00
+  duracao_estimada: 8 a 12 minutos
+  prioridade: alta
+  arquivo_entrada: extrato_bancario.csv
+- nome: Carregamento de Dados de Vendas Anteriores
+  descricao: Importa histórico de vendas de período específico do sistema legado.
+    Executado manualmente ou em ciclos mensais para migração gradual de dados. Valida
+    integridade e gera relatório de inconsistências.
+  tipo_servico: importacao
+  frequencia: sob_demanda
+  duracao_estimada: 20 a 60 minutos dependendo do volume
+  prioridade: media

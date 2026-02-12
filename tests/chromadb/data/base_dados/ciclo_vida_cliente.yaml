@@ -1,0 +1,25 @@
+regras_negocio:
+- nome: Cliente Ativo Para Transações
+  explicacao: Apenas clientes com status ativo podem realizar e receber transações
+    no sistema. Clientes inativos são aqueles que cancelaram o relacionamento, foram
+    removidos ou estão temporariamente bloqueados.
+  tipo: logica_negocio
+  prioridade: alta
+- nome: Histórico Preservado Para Clientes Inativos
+  explicacao: Quando um cliente é marcado como inativo, seu histórico completo de
+    transações, vendas e pagamentos é preservado no sistema para auditoria e consultas.
+    Nenhuma informação histórica é deletada.
+  tipo: logica_negocio
+  prioridade: media
+- nome: Contato Deve Ter Pelo Menos Uma Via
+  explicacao: 'Todo cliente deve ter pelo menos um meio de contato disponível: email
+    válido ou telefone com DDD. Isso garante que a empresa possa se comunicar com
+    o cliente quando necessário.'
+  tipo: validacao
+  prioridade: media
+- nome: Dados de Endereço Completo
+  explicacao: Para calcular frete e gerar nota fiscal, o cliente deve fornecer endereço
+    completo com rua, número, cidade, estado e CEP. Endereço sem estas informações
+    é considerado incompleto.
+  tipo: validacao
+  prioridade: media

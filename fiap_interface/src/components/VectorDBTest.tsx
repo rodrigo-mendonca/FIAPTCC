@@ -33,6 +33,8 @@ import React, { useState, useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useNotification } from '../contexts/NotificationContext';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 const VectorDBTest: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ const VectorDBTest: React.FC = () => {
   useEffect(() => {
     const loadFileTypes = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/file-types`);
+        const response = await fetch(`${API_URL}/api/vectordb/file-types`);
         if (response.ok) {
           const data = await response.json();
           setFileTypes(data);
@@ -88,7 +90,7 @@ const VectorDBTest: React.FC = () => {
     console.log('🔍 Fazendo query:', { question, collection: selectedCollection });
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/query`, {
+      const response = await fetch(`${API_URL}/vectordb/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +155,7 @@ const VectorDBTest: React.FC = () => {
       setClearError(null);
       setClearMessage(null);
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/vectordb/clear`, {
+        const response = await fetch(`${API_URL}/vectordb/clear`, {
           method: 'POST'
         });
 
@@ -227,12 +229,12 @@ const VectorDBTest: React.FC = () => {
     try {
       // Verificar conexão com ChromaDB antes de tentar upload
       try {
-        const healthResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/health`);
+        const healthResponse = await fetch(`${API_URL}/api/vectordb/health`);
         const health = await healthResponse.json();
         
         if (!health.connected) {
           console.log('ChromaDB desconectado, tentando reconectar...');
-          const reconnectResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/reconnect`, {
+          const reconnectResponse = await fetch(`${API_URL}/api/vectordb/reconnect`, {
             method: 'POST'
           });
           const reconnectResult = await reconnectResponse.json();
@@ -259,12 +261,12 @@ const VectorDBTest: React.FC = () => {
       formData.append('collection_name', selectedCollection);
       formData.append('include_metadata', String(includeMetadata));
 
-      console.log('📤 Enviando para:', `${process.env.REACT_APP_API_URL}/api/vectordb/upload-batch`);
+      console.log('📤 Enviando para:', `${API_URL}/api/vectordb/upload-batch`);
       console.log('📦 Arquivos:', selectedFiles.length);
       console.log('📍 Coleção:', selectedCollection);
 
       // Usar novo endpoint de batch upload
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vectordb/upload-batch`, {
+      const response = await fetch(`${API_URL}/api/vectordb/upload-batch`, {
         method: 'POST',
         body: formData,
       });

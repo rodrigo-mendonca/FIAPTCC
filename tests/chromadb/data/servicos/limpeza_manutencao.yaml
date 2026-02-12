@@ -1,46 +1,49 @@
-# Rotinas de Sistema - Limpeza e Manutenção
-# Foco: Operações de higiene de dados e otimização de sistema
-
 rotinas:
-  - nome: "Limpeza de Logs Antigos"
-    descricao: "Remove logs de sistema com mais de 90 dias. Mantém últimos 90 dias em banco de dados e arquiva logs mais antigos em storage de longo prazo. Libera espaço de disco e melhora performance de consulta."
-    tipo_servico: manutencao
-    frequencia: mensal
-    dia_mes: "1"
-    horario: "03:00"
-    duracao_estimada: "5 a 10 minutos"
-    prioridade: media
-    retencao_dias: 90
-    
-  - nome: "Otimização de Índices do Banco de Dados"
-    descricao: "Reorganiza índices das tabelas para manter performance de consultas. Analisa fragmentação e reconstrói índices com fragmentação acima de 30%. Executado em período de baixa utilização para não impactar usuários."
-    tipo_servico: manutencao
-    frequencia: semanal
-    dia_semana: "domingo"
-    horario: "01:00"
-    duracao_estimada: "20 a 30 minutos"
-    prioridade: media
-    
-  - nome: "Purga de Sessões Expiradas"
-    descricao: "Remove sessões de usuário expiradas da tabela de sessões. Limpa cache de sessão em servidor. Executa a cada 6 horas para manter tabela limpa mas não interferir com sessões ativas."
-    tipo_servico: limpeza
-    frequencia: a_cada_6_horas
-    duracao_estimada: "1 a 2 minutos"
-    prioridade: baixa
-    
-  - nome: "Recalcular Agregações"
-    descricao: "Recalcula tabelas agregadas e materialized views usadas para relatórios. Atualiza totalizadores de vendas, receita por cliente, produtos mais vendidos. Executado fora de horário comercial."
-    tipo_servico: manutencao
-    frequencia: diaria
-    horario: "23:00"
-    duracao_estimada: "15 a 25 minutos"
-    prioridade: media
-    
-  - nome: "Verificação de Integridade Referencial"
-    descricao: "Valida integridade referencial do banco de dados verificando chaves estrangeiras. Identifica orfanatos ou inconsistências. Se encontrado, gera relatório para análise de dados corrompidos."
-    tipo_servico: validacao
-    frequencia: semanal
-    dia_semana: "quarta"
-    horario: "04:00"
-    duracao_estimada: "10 a 15 minutos"
-    prioridade: media
+- nome: Limpeza de Logs Antigos
+  descricao: Remove logs de sistema com mais de 90 dias. Mantém últimos 90 dias em
+    banco de dados e arquiva logs mais antigos em storage de longo prazo. Libera espaço
+    de disco e melhora performance de consulta.
+  tipo_servico: manutencao
+  frequencia: mensal
+  dia_mes: '1'
+  horario: 03:00
+  duracao_estimada: 5 a 10 minutos
+  prioridade: media
+  retencao_dias: 90
+- nome: Otimização de Índices do Banco de Dados
+  descricao: Reorganiza índices das tabelas para manter performance de consultas.
+    Analisa fragmentação e reconstrói índices com fragmentação acima de 30%. Executado
+    em período de baixa utilização para não impactar usuários.
+  tipo_servico: manutencao
+  frequencia: semanal
+  dia_semana: domingo
+  horario: 01:00
+  duracao_estimada: 20 a 30 minutos
+  prioridade: media
+- nome: Purga de Sessões Expiradas
+  descricao: Remove sessões de usuário expiradas da tabela de sessões. Limpa cache
+    de sessão em servidor. Executa a cada 6 horas para manter tabela limpa mas não
+    interferir com sessões ativas.
+  tipo_servico: limpeza
+  frequencia: a_cada_6_horas
+  duracao_estimada: 1 a 2 minutos
+  prioridade: baixa
+- nome: Recalcular Agregações
+  descricao: Recalcula tabelas agregadas e materialized views usadas para relatórios.
+    Atualiza totalizadores de vendas, receita por cliente, produtos mais vendidos.
+    Executado fora de horário comercial.
+  tipo_servico: manutencao
+  frequencia: diaria
+  horario: '23:00'
+  duracao_estimada: 15 a 25 minutos
+  prioridade: media
+- nome: Verificação de Integridade Referencial
+  descricao: Valida integridade referencial do banco de dados verificando chaves estrangeiras.
+    Identifica orfanatos ou inconsistências. Se encontrado, gera relatório para análise
+    de dados corrompidos.
+  tipo_servico: validacao
+  frequencia: semanal
+  dia_semana: quarta
+  horario: 04:00
+  duracao_estimada: 10 a 15 minutos
+  prioridade: media

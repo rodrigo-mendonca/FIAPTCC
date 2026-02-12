@@ -1,125 +1,120 @@
 tabela: produtos
-descricao_curta: "Catálogo de produtos comercializados incluindo preço, estoque, categoria e fornecedor para controle de inventário."
-database: "SistemaComercial"
+descricao_curta: Catálogo de produtos comercializados incluindo preço, estoque, categoria
+  e fornecedor para controle de inventário.
+database: SistemaComercial
 total_registros: 8500
-ultima_atualizacao: "2025-12-28"
+ultima_atualizacao: '2025-12-28'
+contexto_negocio: 'Esta tabela mantém o catálogo completo de todos os produtos vendidos
+  pela empresa.
 
-contexto_negocio: |
-  Esta tabela mantém o catálogo completo de todos os produtos vendidos pela empresa.
-  Armazena informações de preço, estoque, categoria e fornecedor para controle de inventário.
+  Armazena informações de preço, estoque, categoria e fornecedor para controle de
+  inventário.
+
   Permite associação de múltiplos produtos em diferentes vendas.
-  O campo 'ativo' controla quais produtos estão disponíveis para comercialização.
 
+  O campo ''ativo'' controla quais produtos estão disponíveis para comercialização.
+
+  '
 chaves:
-  pk: [id_produto]
+  pk:
+  - id_produto
   principais_fks:
-    - id_fornecedor
-
+  - id_fornecedor
 colunas_importantes:
-  - nome: id_produto
-    tipo: integer
-    nulo: false
-    descricao: "Identificador único do produto, chave primária auto-incrementada"
-    exemplo_significativo: "4521"
-
-  - nome: codigo_produto
-    tipo: varchar
-    nulo: false
-    descricao: "Código interno único para controle de estoque"
-    exemplo_significativo: "'PROD-001'"
-
-  - nome: nome_produto
-    tipo: varchar
-    nulo: false
-    descricao: "Nome comercial do produto conforme apresentado ao cliente"
-    exemplo_significativo: "'Mouse Óptico USB'"
-
-  - nome: descricao
-    tipo: text
-    nulo: true
-    descricao: "Descrição detalhada com características e especificações"
-    exemplo_significativo: "'Mouse com sensor óptico, 800-3200 DPI ajustável...'"
-
-  - nome: categoria
-    tipo: varchar
-    nulo: false
-    descricao: "Categoria principal para organização do catálogo"
-    exemplo_significativo: "'Periféricos'"
-
-  - nome: subcategoria
-    tipo: varchar
-    nulo: true
-    descricao: "Subcategoria mais específica"
-    exemplo_significativo: "'Mouses'"
-
-  - nome: preco_venda
-    tipo: decimal
-    nulo: false
-    descricao: "Preço unitário de venda ao cliente final"
-    exemplo_significativo: "89.90"
-
-  - nome: preco_custo
-    tipo: decimal
-    nulo: true
-    descricao: "Preço de custo pago ao fornecedor"
-    exemplo_significativo: "45.00"
-
-  - nome: estoque_atual
-    tipo: integer
-    nulo: false
-    descricao: "Quantidade disponível em estoque"
-    exemplo_significativo: "1250"
-
-  - nome: estoque_minimo
-    tipo: integer
-    nulo: true
-    descricao: "Quantidade mínima para disparar reposição"
-    exemplo_significativo: "100"
-
-  - nome: unidade_medida
-    tipo: varchar
-    nulo: false
-    descricao: "Unidade de venda (UN, KG, LT, M, M2, M3, etc.)"
-    exemplo_significativo: "'UN'"
-
-  - nome: id_fornecedor
-    tipo: integer
-    nulo: true
-    descricao: "Referência ao fornecedor principal"
-    exemplo_significativo: "78"
-
-  - nome: ativo
-    tipo: boolean
-    nulo: false
-    descricao: "Indica disponibilidade para venda no catálogo"
-    exemplo_significativo: "true"
-
-  - nome: data_cadastro
-    tipo: datetime
-    nulo: false
-    descricao: "Data e hora do cadastro do produto"
-    exemplo_significativo: "2025-03-20T14:30:00"
-
+- nome: id_produto
+  tipo: integer
+  nulo: false
+  descricao: Identificador único do produto, chave primária auto-incrementada
+  exemplo_significativo: '4521'
+- nome: codigo_produto
+  tipo: varchar
+  nulo: false
+  descricao: Código interno único para controle de estoque
+  exemplo_significativo: '''PROD-001'''
+- nome: nome_produto
+  tipo: varchar
+  nulo: false
+  descricao: Nome comercial do produto conforme apresentado ao cliente
+  exemplo_significativo: '''Mouse Óptico USB'''
+- nome: descricao
+  tipo: text
+  nulo: true
+  descricao: Descrição detalhada com características e especificações
+  exemplo_significativo: '''Mouse com sensor óptico, 800-3200 DPI ajustável...'''
+- nome: categoria
+  tipo: varchar
+  nulo: false
+  descricao: Categoria principal para organização do catálogo
+  exemplo_significativo: '''Periféricos'''
+- nome: subcategoria
+  tipo: varchar
+  nulo: true
+  descricao: Subcategoria mais específica
+  exemplo_significativo: '''Mouses'''
+- nome: preco_venda
+  tipo: decimal
+  nulo: false
+  descricao: Preço unitário de venda ao cliente final
+  exemplo_significativo: '89.90'
+- nome: preco_custo
+  tipo: decimal
+  nulo: true
+  descricao: Preço de custo pago ao fornecedor
+  exemplo_significativo: '45.00'
+- nome: estoque_atual
+  tipo: integer
+  nulo: false
+  descricao: Quantidade disponível em estoque
+  exemplo_significativo: '1250'
+- nome: estoque_minimo
+  tipo: integer
+  nulo: true
+  descricao: Quantidade mínima para disparar reposição
+  exemplo_significativo: '100'
+- nome: unidade_medida
+  tipo: varchar
+  nulo: false
+  descricao: Unidade de venda (UN, KG, LT, M, M2, M3, etc.)
+  exemplo_significativo: '''UN'''
+- nome: id_fornecedor
+  tipo: integer
+  nulo: true
+  descricao: Referência ao fornecedor principal
+  exemplo_significativo: '78'
+- nome: ativo
+  tipo: boolean
+  nulo: false
+  descricao: Indica disponibilidade para venda no catálogo
+  exemplo_significativo: 'true'
+- nome: data_cadastro
+  tipo: datetime
+  nulo: false
+  descricao: Data e hora do cadastro do produto
+  exemplo_significativo: '2025-03-20T14:30:00'
 relacionamentos:
-  - tabela_referencia: fornecedores
-    descricao: "Cada produto tem um fornecedor principal"
-  - tabela_referencia: itens_venda
-    descricao: "Um produto pode aparecer em múltiplos itens de venda"
-
+- tabela_referencia: fornecedores
+  descricao: Cada produto tem um fornecedor principal
+- tabela_referencia: itens_venda
+  descricao: Um produto pode aparecer em múltiplos itens de venda
 indices:
-  - nome: idx_codigo_produto
-    colunas: [codigo_produto]
-    unico: true
-    descricao: "Índice único para código do produto"
-  - nome: idx_nome_produto
-    colunas: [nome_produto]
-    unico: false
-    descricao: "Busca rápida por nome"
-  - nome: idx_categoria
-    colunas: [categoria, subcategoria]
-    unico: false
-    descricao: "Filtros por categoria"
-  - nome: idx_ativo
-    colunas: [ativo]
-    unico: false
-    descricao: "Filtro de produtos ativos"
+- nome: idx_codigo_produto
+  colunas:
+  - codigo_produto
+  unico: true
+  descricao: Índice único para código do produto
+- nome: idx_nome_produto
+  colunas:
+  - nome_produto
+  unico: false
+  descricao: Busca rápida por nome
+- nome: idx_categoria
+  colunas:
+  - categoria
+  - subcategoria
+  unico: false
+  descricao: Filtros por categoria
+- nome: idx_ativo
+  colunas:
+  - ativo
+  unico: false
+  descricao: Filtro de produtos ativos

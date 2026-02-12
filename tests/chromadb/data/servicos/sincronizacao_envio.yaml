@@ -1,48 +1,51 @@
-# Rotinas de Sistema - Sincronização e Envio de Dados
-# Foco: Transferência de dados entre sistemas
-
 rotinas:
-  - nome: "Sincronização com Marketplace"
-    descricao: "Envia dados de produtos disponíveis para plataforma de e-commerce integrada. Atualiza preços, estoque e descrições em tempo real. Recebe novos pedidos do marketplace e os importa como vendas normais no sistema."
-    tipo_servico: sincronizacao
-    frequencia: a_cada_15_minutos
-    duracao_estimada: "3 a 5 minutos"
-    prioridade: alta
-    direcao: bidirecional
-    sistema_destino: "API Marketplace/Shopify"
-    
-  - nome: "Envio de Email Marketing"
-    descricao: "Coleta clientes segmentados por regras predefinidas (inativos há X dias, compradores de categoria específica) e envia campanhas de email. Rastreia abertura e cliques. Respeita preferências de contato de cada cliente."
-    tipo_servico: envio_dados
-    frequencia: semanal
-    dia_semana: "segunda"
-    horario: "08:00"
-    duracao_estimada: "10 a 20 minutos"
-    prioridade: media
-    volume_estimado: "até 10.000 emails"
-    
-  - nome: "Envio de NF-e para SEFAZ"
-    descricao: "Transmite notas fiscais eletrônicas de vendas para servidor da Secretaria de Fazenda. Aguarda resposta e processa confirmação. Se rejeitado, notifica usuário para correção. Mantém histórico de transmissões."
-    tipo_servico: envio_dados
-    frequencia: em_demanda
-    duracao_estimada: "5 a 15 minutos por nota"
-    prioridade: alta
-    sistema_destino: "SEFAZ (protocolo NF-e)"
-    
-  - nome: "Sincronização com ERP Corporativo"
-    descricao: "Envia dados de movimentação diária (vendas, devoluções, ajustes de estoque) para sistema ERP central da corporação. Utiliza fila de mensagens para garantir entrega confiável. Sincroniza bidirecionalmente."
-    tipo_servico: sincronizacao
-    frequencia: a_cada_hora
-    horario: "08:00-18:00"
-    duracao_estimada: "5 a 10 minutos"
-    prioridade: alta
-    direcao: bidirecional
-    sistema_destino: "ERP SAP/Oracle"
-    
-  - nome: "Envio de Confirmação de Pedido por WhatsApp"
-    descricao: "Envia mensagem de confirmação de pedido via WhatsApp para clientes que têm número cadastrado. Inclui número do pedido, items, valor total e data de entrega estimada. Melhora comunicação e reduz contatos duplicados."
-    tipo_servico: envio_dados
-    frequencia: tempo_real
-    duracao_estimada: "1 a 2 minutos por mensagem"
-    prioridade: media
-    sistema_destino: "API Twilio/WhatsApp"
+- nome: Sincronização com Marketplace
+  descricao: Envia dados de produtos disponíveis para plataforma de e-commerce integrada.
+    Atualiza preços, estoque e descrições em tempo real. Recebe novos pedidos do marketplace
+    e os importa como vendas normais no sistema.
+  tipo_servico: sincronizacao
+  frequencia: a_cada_15_minutos
+  duracao_estimada: 3 a 5 minutos
+  prioridade: alta
+  direcao: bidirecional
+  sistema_destino: API Marketplace/Shopify
+- nome: Envio de Email Marketing
+  descricao: Coleta clientes segmentados por regras predefinidas (inativos há X dias,
+    compradores de categoria específica) e envia campanhas de email. Rastreia abertura
+    e cliques. Respeita preferências de contato de cada cliente.
+  tipo_servico: envio_dados
+  frequencia: semanal
+  dia_semana: segunda
+  horario: 08:00
+  duracao_estimada: 10 a 20 minutos
+  prioridade: media
+  volume_estimado: até 10.000 emails
+- nome: Envio de NF-e para SEFAZ
+  descricao: Transmite notas fiscais eletrônicas de vendas para servidor da Secretaria
+    de Fazenda. Aguarda resposta e processa confirmação. Se rejeitado, notifica usuário
+    para correção. Mantém histórico de transmissões.
+  tipo_servico: envio_dados
+  frequencia: em_demanda
+  duracao_estimada: 5 a 15 minutos por nota
+  prioridade: alta
+  sistema_destino: SEFAZ (protocolo NF-e)
+- nome: Sincronização com ERP Corporativo
+  descricao: Envia dados de movimentação diária (vendas, devoluções, ajustes de estoque)
+    para sistema ERP central da corporação. Utiliza fila de mensagens para garantir
+    entrega confiável. Sincroniza bidirecionalmente.
+  tipo_servico: sincronizacao
+  frequencia: a_cada_hora
+  horario: 08:00-18:00
+  duracao_estimada: 5 a 10 minutos
+  prioridade: alta
+  direcao: bidirecional
+  sistema_destino: ERP SAP/Oracle
+- nome: Envio de Confirmação de Pedido por WhatsApp
+  descricao: Envia mensagem de confirmação de pedido via WhatsApp para clientes que
+    têm número cadastrado. Inclui número do pedido, items, valor total e data de entrega
+    estimada. Melhora comunicação e reduz contatos duplicados.
+  tipo_servico: envio_dados
+  frequencia: tempo_real
+  duracao_estimada: 1 a 2 minutos por mensagem
+  prioridade: media
+  sistema_destino: API Twilio/WhatsApp
