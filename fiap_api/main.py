@@ -12,7 +12,7 @@ import requests
 import uuid
 from datetime import datetime
 import sys
-from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory
+from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory, FileValidator
 from factories.genai_factory import ChatResponseGenerator
 
 # Carrega variáveis de ambiente
@@ -167,214 +167,24 @@ async def generate_specialized_response_stream(
     use_chromadb: bool = True,
     collection_name: Optional[str] = None
 ) -> AsyncGenerator[str, None]:
-    """Gera resposta especializada com streaming usando GenAI (LMStudio/OpenAI/Azure) com contexto do ChromaDB"""
+    """
+    Gera resposta especializada com streaming usando GenAI com contexto do ChromaDB
     
-    # Obter parâmetros de GenAI
-    try:
-        genai_params = EnvFactory.get_genai_params()
-    except Exception as e:
-        yield f"data: {json.dumps({'error': f'Erro ao carregar configuração GenAI: {e}'})}\n\n"
-        return
-
-    chromadb_context = ""
-    chromadb_error = None
-    
-    # Buscar contexto no ChromaDB se solicitado
-    if use_chromadb:
-        if not chromadb_client:
-            error_msg = "Banco de dados (ChromaDB) não inicializado"
-            yield f"data: {json.dumps({'error': error_msg})}\n\n"
-            return
-        
-        try:
-            # Define a coleção a ser usada (padrão ou especificada)
-            target_collection = collection_name if collection_name else ""
-            
-            if not target_collection or not target_collection.strip():
-                error_msg = "Nenhuma coleção especificada. Por favor, selecione uma coleção."
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-            
-            # Tenta definir a coleção
-            collection_set = chromadb_client.set_collection(target_collection)
-            if not collection_set:
-                error_msg = f"Coleção '{target_collection}' não encontrada no banco de dados"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-            
-            try:
-                # Buscar contexto relevante
-                results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS)
-                
-                if results and len(results) > 0:
-                    # Construir contexto com todos os resultados
-                    context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
-                    chromadb_context = "\n".join(context_parts)
-                else:
-                    error_msg = f"Nenhum dado encontrado na coleção '{target_collection}'. A base de dados pode estar vazia ou danificada."
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                    return
-                    
-            except AttributeError as ae:
-                error_msg = f"Base de dados está com problema ao tentar acessar a coleção '{target_collection}'"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-                
-            except Exception as qe:
-                error_msg = f"Erro ao consultar o banco de dados: {str(qe)}"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-                
-        except Exception as e:
-            error_msg = f"Erro ao acessar o banco de dados: {str(e)}"
-            yield f"data: {json.dumps({'error': error_msg})}\n\n"
-            return
-    
-    # Construir mensagens para LMStudio
-    messages = []
-    
-    # Adicionar prompt do sistema com contexto
-    full_system_prompt = system_prompt
-    if chromadb_context:
-        full_system_prompt += f"\n\nCONTEXTO DA BASE DE CONHECIMENTO:\n{chromadb_context}"
-    
-    messages.append({
-        "role": "system",
-        "content": full_system_prompt
-    })
-    
-    # Adicionar contexto da conversa
-    if context:
-        for msg in context[-10:]:  # Limitar histórico
-            messages.append({
-                "role": msg.role,
-                "content": msg.content
-            })
-    
-    # Adicionar mensagem atual
-    messages.append({
-        "role": "user",
-        "content": message
-    })
-    
-    # Fazer requisição ao GenAI com streaming
-    # Calcular max_tokens dinâmicamente para deixar espaço no contexto
-    # LMStudio tem n_ctx=4096, precisa espaço para: sistema + contexto + prompt + response
-    max_tokens_for_response = min(genai_params.max_tokens, 1024)  # Limitar a 1024 tokens para resposta
-    
-    payload = {
-        "model": genai_params.model,
-        "messages": messages,
-        "stream": True,
-        "temperature": genai_params.temperature,
-        "max_tokens": max_tokens_for_response
-    }
-    
-    headers = {
-        "Content-Type": "application/json",
-    }
-    
-    # Adicionar autorização se houver API key
-    if genai_params.api_key:
-        headers["Authorization"] = f"Bearer {genai_params.api_key}"
-    
-    # Construir URL da API baseado no provider
-    api_url = f"{genai_params.endpoint}/chat/completions"
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        async with client.stream(
-            "POST",
-            api_url,
-            json=payload,
-            headers=headers
-        ) as response:
-            
-            if response.status_code != 200:
-                error_detail = f"Erro HTTP {response.status_code}"
-                yield f"data: {json.dumps({'error': error_detail})}\n\n"
-                return
-            
-            buffer = ""
-            chunk_count = 0
-            total_content = ""
-            bytes_received = 0
-            
-            async for chunk in response.aiter_bytes():
-                try:
-                    chunk_count += 1
-                    bytes_received += len(chunk) if chunk else 0
-                    
-                    # Decodifica o chunk
-                    chunk_str = chunk.decode('utf-8')
-                    buffer += chunk_str
-                    
-                    # Processa linhas completas
-                    lines = buffer.split('\n')
-                    buffer = lines[-1]  # Mantém linha incompleta no buffer
-                    
-                    for line in lines[:-1]:
-                        line = line.strip()
-                        
-                        if not line:
-                            continue
-                        
-                        # Verificar se é um erro (event: error)
-                        if line.startswith("event:"):
-                            event_type = line[6:].strip()
-                            # Não fazer nada, esperar pelo data
-                            continue
-                        
-                        if line.startswith("data: "):
-                            data_str = line[6:]  # Remove "data: "
-                            if data_str.strip() == "[DONE]":
-                                return
-                            
-                            try:
-                                data = json.loads(data_str)
-                                
-                                # Verificar se é um erro
-                                if "error" in data:
-                                    error_msg = data["error"]
-                                    if isinstance(error_msg, dict):
-                                        error_msg = error_msg.get("message", str(error_msg))
-                                    yield f"data: {json.dumps({'error': f'Erro do servidor IA: {error_msg}'})}\n\n"
-                                    return
-                                
-                                if "choices" in data and len(data["choices"]) > 0:
-                                    delta = data["choices"][0].get("delta", {})
-                                    if "content" in delta:
-                                        content = delta["content"]
-                                        total_content += content
-                                        yield f"data: {json.dumps({'content': content})}\n\n"
-                                    
-                            except json.JSONDecodeError:
-                                continue
-                            
-                except UnicodeDecodeError as ue:
-                    continue
-                except Exception as e:
-                    import traceback
-                    traceback.print_exc()
-                    yield f"data: {json.dumps({'error': f'Erro ao processar streaming: {str(e)}'})}\n\n"
-                    return
-            
-            # Processa buffer final se houver
-            if buffer.strip():
-                if buffer.startswith("data: "):
-                    data_str = buffer[6:].strip()
-                    if data_str and data_str != "[DONE]":
-                        try:
-                            data = json.loads(data_str)
-                            if "choices" in data and len(data["choices"]) > 0:
-                                delta = data["choices"][0].get("delta", {})
-                                if "content" in delta:
-                                    content = delta["content"]
-                                    total_content += content
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                        except json.JSONDecodeError:
-                            pass
-            
-            if total_content == "":
-                yield f"data: {json.dumps({'error': 'Nenhuma resposta foi recebida da IA. Verifique se o servidor GenAI está respondendo corretamente.'})}\n\n"
+    Wrapper que chama a função do genai_factory
+    """
+    async for chunk in ChatResponseGenerator.generate_streaming_response(
+        message=message,
+        system_prompt=system_prompt,
+        context=[{
+            "role": msg.role,
+            "content": msg.content
+        } for msg in (context or [])] if context else None,
+        use_chromadb=use_chromadb,
+        chromadb_client=chromadb_client,
+        chromadb_default_results=CHROMADB_DEFAULT_RESULTS,
+        collection_name=collection_name
+    ):
+        yield chunk
 
 def detect_file_type(content: str, filename: str) -> Optional[str]:
     """
@@ -578,94 +388,15 @@ async def validate_file_with_llm(content: str, filename: str, detected_type: Opt
     """
     Valida arquivo usando LLM se o tipo não foi detectado ou se há dúvida
     Retorna análise da LLM sobre o arquivo
+    
+    Usa FileValidator do genai_factory
     """
-    try:
-        if not genai_client:
-            return {
-                "valid": detected_type is not None,
-                "detected_type": detected_type,
-                "llm_analysis": None,
-                "confidence": "low" if detected_type is None else "high"
-            }
-        
-        # Preparar prompt para análise
-        preview = content[:1000]  # Pega os primeiros 1000 caracteres
-        
-        validation_prompt = f"""
-Analise este arquivo e determine sua categoria:
-
-Nome do arquivo: {filename}
-Tipo detectado automaticamente: {detected_type or "Não detectado"}
-
-Conteúdo (primeiros 1000 caracteres):
-{preview}
-...
-
-Categorias possíveis:
-1. **base_dados** - Estrutura de banco de dados (tabelas, colunas, chaves)
-2. **regras_negocio** - Regras e validações de negócio (políticas, limites, descontos)
-3. **servicos** - Serviços e rotinas do sistema (backup, sincronização, automações)
-4. **rotinas_usuario** - Procedimentos do usuário (passo a passo, workflows)
-5. **outro** - Se não se encaixa em nenhuma categoria
-
-Por favor, responda em JSON com o seguinte formato:
-{{
-    "categoria": "<um das categorias acima>",
-    "confianca": "<alta|media|baixa>",
-    "motivo": "<breve explicação>",
-    "pode_processar": true|false,
-    "sugestoes": "<sugestões se necessário>"
-}}
-"""
-        
-        response = await genai_client.generate_response(validation_prompt, max_tokens=500)
-        
-        # Tentar extrair JSON da resposta
-        try:
-            import json
-            # Procura por JSON na resposta
-            import re
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                llm_result = json.loads(json_match.group())
-                
-                # Mapear categoria da LLM para nossa estrutura
-                categoria_map = {
-                    'base_dados': 'base_dados',
-                    'regras_negocio': 'regras_negocio',
-                    'regras negócio': 'regras_negocio',
-                    'servicos': 'servicos',
-                    'rotinas_usuario': 'rotinas_usuario',
-                    'rotinas do usuario': 'rotinas_usuario'
-                }
-                
-                categoria_llm = llm_result.get('categoria', '').lower()
-                final_type = categoria_map.get(categoria_llm, detected_type)
-                
-                return {
-                    "valid": llm_result.get('pode_processar', True),
-                    "detected_type": final_type,
-                    "llm_analysis": llm_result,
-                    "confidence": llm_result.get('confianca', 'media')
-                }
-        except:
-            pass
-        
-        # Se não conseguir extrair JSON, usar resultado simples
-        return {
-            "valid": True,
-            "detected_type": detected_type,
-            "llm_analysis": {"resposta_bruta": response},
-            "confidence": "media"
-        }
-        
-    except Exception as e:
-        return {
-            "valid": detected_type is not None,
-            "detected_type": detected_type,
-            "llm_analysis": None,
-            "confidence": "low" if detected_type is None else "high"
-        }
+    return await FileValidator.validate_with_llm(
+        genai_client=genai,
+        content=content,
+        filename=filename,
+        detected_type=detected_type
+    )
 
 
 @app.post("/api/vectordb/upload-batch")

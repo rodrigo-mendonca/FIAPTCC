@@ -1,11 +1,17 @@
 """
 Fábrica de GenAI - Configuração e inicialização de modelos de geração de texto
 Suporta: LMStudio, OpenAI, Azure OpenAI
+
+Integra:
+- Cliente GenAI (ChatOpenAI, AzureChatOpenAI)
+- Streaming de respostas com contexto ChromaDB
+- Construção de prompts com contexto
 """
 
-from typing import Optional
+from typing import Optional, List, Dict, Any, AsyncGenerator
 from enum import Enum
 import json
+import httpx
 from .env_factory import EnvFactory
 
 
@@ -231,3 +237,226 @@ class ChatResponseGenerator:
             full_prompt += f"\n\nCONTEXTO DA BASE DE CONHECIMENTO:\n{chromadb_context}"
         
         return full_prompt
+    
+    @staticmethod
+    async def generate_streaming_response(
+        message: str,
+        system_prompt: str,
+        context: Optional[List[Dict[str, str]]] = None,
+        use_chromadb: bool = True,
+        chromadb_client = None,
+        chromadb_context: str = "",
+        chromadb_default_results: int = 50,
+        collection_name: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Gera resposta especializada com streaming usando GenAI com contexto do ChromaDB
+        
+        Args:
+            message: Mensagem do usuário
+            system_prompt: Prompt do sistema
+            context: Histórico de mensagens anteriores
+            use_chromadb: Se deve usar ChromaDB para contexto
+            chromadb_client: Cliente ChromaDB (se use_chromadb=True)
+            chromadb_context: Contexto pré-gerado do ChromaDB
+            chromadb_default_results: Número de resultados do ChromaDB
+            collection_name: Nome da coleção ChromaDB
+            
+        Yields:
+            Chunks da resposta em formato SSE
+        """
+        # Obter parâmetros de GenAI
+        try:
+            genai_params = EnvFactory.get_genai_params()
+        except Exception as e:
+            yield f"data: {json.dumps({'error': f'Erro ao carregar configuração GenAI: {e}'})}\n\n"
+            return
+
+        context_from_db = chromadb_context
+        
+        # Buscar contexto no ChromaDB se solicitado e não fornecido
+        if use_chromadb and not chromadb_context:
+            if not chromadb_client:
+                error_msg = "Banco de dados (ChromaDB) não inicializado"
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+            
+            try:
+                # Define a coleção a ser usada
+                target_collection = collection_name if collection_name else ""
+                
+                if not target_collection or not target_collection.strip():
+                    error_msg = "Nenhuma coleção especificada. Por favor, selecione uma coleção."
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
+                
+                # Tenta definir a coleção
+                collection_set = chromadb_client.set_collection(target_collection)
+                if not collection_set:
+                    error_msg = f"Coleção '{target_collection}' não encontrada no banco de dados"
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
+                
+                try:
+                    # Buscar contexto relevante
+                    results = chromadb_client.query(message, n_results=chromadb_default_results)
+                    
+                    if results and len(results) > 0:
+                        # Construir contexto com todos os resultados
+                        context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
+                        context_from_db = "\n".join(context_parts)
+                    else:
+                        error_msg = f"Nenhum dado encontrado na coleção '{target_collection}'. A base de dados pode estar vazia ou danificada."
+                        yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                        return
+                        
+                except AttributeError as ae:
+                    error_msg = f"Base de dados está com problema ao tentar acessar a coleção '{target_collection}'"
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
+                    
+                except Exception as qe:
+                    error_msg = f"Erro ao consultar o banco de dados: {str(qe)}"
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
+                    
+            except Exception as e:
+                error_msg = f"Erro ao acessar o banco de dados: {str(e)}"
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+        
+        # Construir mensagens
+        messages = []
+        
+        # Adicionar prompt do sistema com contexto
+        full_system_prompt = ChatResponseGenerator.prepare_system_prompt_with_context(
+            system_prompt, 
+            context_from_db
+        )
+        
+        messages.append({
+            "role": "system",
+            "content": full_system_prompt
+        })
+        
+        # Adicionar contexto da conversa
+        if context:
+            for msg in context[-10:]:  # Limitar histórico
+                messages.append({
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", "")
+                })
+        
+        # Adicionar mensagem atual
+        messages.append({
+            "role": "user",
+            "content": message
+        })
+        
+        # Fazer requisição ao GenAI com streaming
+        max_tokens_for_response = min(genai_params.max_tokens, 1024)
+        
+        payload = {
+            "model": genai_params.model,
+            "messages": messages,
+            "stream": True,
+            "temperature": genai_params.temperature,
+            "max_tokens": max_tokens_for_response
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+        }
+        
+        # Adicionar autorização se houver API key
+        if genai_params.api_key:
+            headers["Authorization"] = f"Bearer {genai_params.api_key}"
+        
+        # Construir URL da API
+        api_url = f"{genai_params.endpoint}/chat/completions"
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream(
+                "POST",
+                api_url,
+                json=payload,
+                headers=headers
+            ) as response:
+                
+                if response.status_code != 200:
+                    error_detail = f"Erro HTTP {response.status_code}"
+                    yield f"data: {json.dumps({'error': error_detail})}\n\n"
+                    return
+                
+                buffer = ""
+                total_content = ""
+                
+                async for chunk in response.aiter_bytes():
+                    try:
+                        # Decodifica o chunk
+                        chunk_str = chunk.decode('utf-8')
+                        buffer += chunk_str
+                        
+                        # Processa linhas completas
+                        lines = buffer.split('\n')
+                        buffer = lines[-1]
+                        
+                        for line in lines[:-1]:
+                            line = line.strip()
+                            
+                            if not line:
+                                continue
+                            
+                            if line.startswith("event:"):
+                                continue
+                            
+                            if line.startswith("data: "):
+                                data_str = line[6:]
+                                if data_str.strip() == "[DONE]":
+                                    return
+                                
+                                try:
+                                    data = json.loads(data_str)
+                                    
+                                    if "error" in data:
+                                        error_msg = data["error"]
+                                        if isinstance(error_msg, dict):
+                                            error_msg = error_msg.get("message", str(error_msg))
+                                        yield f"data: {json.dumps({'error': f'Erro do servidor IA: {error_msg}'})}\n\n"
+                                        return
+                                    
+                                    if "choices" in data and len(data["choices"]) > 0:
+                                        delta = data["choices"][0].get("delta", {})
+                                        if "content" in delta:
+                                            content = delta["content"]
+                                            total_content += content
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                        
+                                except json.JSONDecodeError:
+                                    continue
+                                
+                    except UnicodeDecodeError:
+                        continue
+                    except Exception as e:
+                        yield f"data: {json.dumps({'error': f'Erro ao processar streaming: {str(e)}'})}\n\n"
+                        return
+                
+                # Processa buffer final
+                if buffer.strip():
+                    if buffer.startswith("data: "):
+                        data_str = buffer[6:].strip()
+                        if data_str and data_str != "[DONE]":
+                            try:
+                                data = json.loads(data_str)
+                                if "choices" in data and len(data["choices"]) > 0:
+                                    delta = data["choices"][0].get("delta", {})
+                                    if "content" in delta:
+                                        content = delta["content"]
+                                        total_content += content
+                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                            except json.JSONDecodeError:
+                                pass
+                
+                if total_content == "":
+                    yield f"data: {json.dumps({'error': 'Nenhuma resposta foi recebida da IA. Verifique se o servidor GenAI está respondendo corretamente.'})}\n\n"
+
