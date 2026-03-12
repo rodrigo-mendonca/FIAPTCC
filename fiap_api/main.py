@@ -24,14 +24,12 @@ def load_system_prompts():
         with open('system_prompts.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print("[WARNING] system_prompts.json não encontrado, usando prompts padrão")
         return {
             "help": "Responda SOMENTE baseado no contexto fornecido abaixo.",
             "sql": "Você é um especialista em SQL.",
             "aluno": "Você é um assistente de aprendizado."
         }
     except Exception as e:
-        print(f"[ERROR] Erro ao carregar system_prompts.json: {e}")
         return {
             "help": "Responda SOMENTE baseado no contexto fornecido abaixo.",
             "sql": "Você é um especialista em SQL.",
@@ -309,8 +307,6 @@ async def generate_specialized_response_stream(
                     chunk_str = chunk.decode('utf-8')
                     buffer += chunk_str
                     
-                    print(f"📦 API: Chunk {chunk_count} recebido ({len(chunk)} bytes): {repr(chunk_str[:100])}")
-                    
                     # Processa linhas completas
                     lines = buffer.split('\n')
                     buffer = lines[-1]  # Mantém linha incompleta no buffer
@@ -320,13 +316,10 @@ async def generate_specialized_response_stream(
                         
                         if not line:
                             continue
-                            
-                        print(f"📄 API: Processando linha: {repr(line[:150])}")
                         
                         # Verificar se é um erro (event: error)
                         if line.startswith("event:"):
                             event_type = line[6:].strip()
-                            print(f"📋 API: Evento recebido: {event_type}")
                             # Não fazer nada, esperar pelo data
                             continue
                         
@@ -337,14 +330,12 @@ async def generate_specialized_response_stream(
                             
                             try:
                                 data = json.loads(data_str)
-                                print(f"✓ API: JSON parseado: {json.dumps(data)[:200]}")
                                 
                                 # Verificar se é um erro
                                 if "error" in data:
                                     error_msg = data["error"]
                                     if isinstance(error_msg, dict):
                                         error_msg = error_msg.get("message", str(error_msg))
-                                    print(f"🚨 API: ERRO DO GENAI: {error_msg}")
                                     yield f"data: {json.dumps({'error': f'Erro do servidor IA: {error_msg}'})}\n\n"
                                     return
                                 
@@ -359,21 +350,15 @@ async def generate_specialized_response_stream(
                                 continue
                             
                 except UnicodeDecodeError as ue:
-                    print(f"⚠️ API: Erro de decodificação UTF-8: {ue}")
                     continue
                 except Exception as e:
-                    print(f"🚨 API: Erro ao processar chunk {chunk_count}: {e}")
                     import traceback
                     traceback.print_exc()
                     yield f"data: {json.dumps({'error': f'Erro ao processar streaming: {str(e)}'})}\n\n"
                     return
             
-            print(f"🎯 API: Loop de chunks finalizado. Total: {chunk_count} chunks, {bytes_received} bytes")
-            print(f"📊 Buffer final: {repr(buffer[:200])}")
-            
             # Processa buffer final se houver
             if buffer.strip():
-                print(f"🎯 API: Processando buffer final: {repr(buffer[:100])}")
                 if buffer.startswith("data: "):
                     data_str = buffer[6:].strip()
                     if data_str and data_str != "[DONE]":
@@ -384,13 +369,11 @@ async def generate_specialized_response_stream(
                                 if "content" in delta:
                                     content = delta["content"]
                                     total_content += content
-                                    print(f"📤 API: Enviando conteúdo final do buffer: {repr(content[:50])}")
                                     yield f"data: {json.dumps({'content': content})}\n\n"
                         except json.JSONDecodeError:
                             pass
             
             if total_content == "":
-                print(f"🚨 ERRO CRÍTICO: Nenhum conteúdo foi enviado no streaming após {chunk_count} chunks e {bytes_received} bytes recebidos!")
                 yield f"data: {json.dumps({'error': 'Nenhuma resposta foi recebida da IA. Verifique se o servidor GenAI está respondendo corretamente.'})}\n\n"
 
 def detect_file_type(content: str, filename: str) -> Optional[str]:
@@ -518,7 +501,6 @@ async def save_yaml_file(content: str, file_type: str, filename: str) -> bool:
         
         return True
     except Exception as e:
-        print(f"Erro ao salvar arquivo: {e}")
         return False
 
 
@@ -587,7 +569,6 @@ async def upload_file_unified(file: UploadFile = File(...), collection_name: str
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[UPLOAD] ✗✗✗ ERRO: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
@@ -679,7 +660,6 @@ Por favor, responda em JSON com o seguinte formato:
         }
         
     except Exception as e:
-        print(f"[VALIDATE] Erro ao validar com LLM: {e}")
         return {
             "valid": detected_type is not None,
             "detected_type": detected_type,
@@ -704,31 +684,20 @@ async def upload_files_batch(
     - Opcionalmente importa metadata (estrutura de documentação)
     - Processa sequencialmente mantendo estado
     """
-    print(f"\n\n{'='*60}")
-    print(f"[BATCH-UPLOAD] ===== BATCH UPLOAD INICIADO =====")
-    print(f"[BATCH-UPLOAD] Total de arquivos: {len(files)}")
-    print(f"[BATCH-UPLOAD] Collection: '{collection_name}'")
-    print(f"[BATCH-UPLOAD] Include Metadata: {include_metadata}")
-    print(f"{'='*60}\n")
-    
     try:
         # Validações básicas
         if not collection_name or not collection_name.strip():
-            print("[BATCH-UPLOAD] ✗ Nenhuma coleção especificada")
             raise HTTPException(status_code=400, detail="collection_name é obrigatório")
         
         if not files or len(files) == 0:
-            print("[BATCH-UPLOAD] ✗ Nenhum arquivo fornecido")
             raise HTTPException(status_code=400, detail="Forneça pelo menos um arquivo")
         
         if not chromadb_client or not chromadb_client.client:
-            print("[BATCH-UPLOAD] ✗ ChromaDB não inicializado")
             raise HTTPException(status_code=503, detail="ChromaDB não está disponível")
         
         # Garantir que a coleção existe
         target_collection = collection_name
         if not chromadb_client.set_collection(target_collection):
-            print(f"[BATCH-UPLOAD] ⚠️ Coleção não existe, criando '{target_collection}'...")
             if not chromadb_client.create_collection(target_collection):
                 raise HTTPException(status_code=500, detail=f"Não foi possível criar coleção '{target_collection}'")
         
@@ -737,12 +706,9 @@ async def upload_files_batch(
         
         # Processar cada arquivo
         for idx, file in enumerate(files, 1):
-            print(f"\n[BATCH-UPLOAD] [{idx}/{len(files)}] Processando: {file.filename}")
-            
             try:
                 # Validar arquivo
                 if not file or file.size == 0:
-                    print(f"[BATCH-UPLOAD]    ✗ Arquivo vazio")
                     results.append({
                         "filename": file.filename,
                         "status": "error",
@@ -752,27 +718,19 @@ async def upload_files_batch(
                     continue
                 
                 # Ler conteúdo
-                print(f"[BATCH-UPLOAD]    📖 Lendo conteúdo ({file.size} bytes)...")
                 content = await file.read()
                 content_str = content.decode('utf-8')
-                print(f"[BATCH-UPLOAD]    ✓ {len(content_str)} caracteres lidos")
                 
                 # Detectar tipo
-                print(f"[BATCH-UPLOAD]    🔍 Detectando tipo...")
                 detected_type = detect_file_type(content_str, file.filename or "unknown")
-                print(f"[BATCH-UPLOAD]    Tipo detectado: {detected_type}")
                 
                 # Se não detectou ou confiança baixa, usar LLM para validar
                 if not detected_type:
-                    print(f"[BATCH-UPLOAD]    🤖 Tipo não detectado, consultando LLM...")
                     validation = await validate_file_with_llm(content_str, file.filename or "unknown", detected_type)
                     detected_type = validation.get("detected_type")
                     llm_info = validation.get("llm_analysis", {})
                     
-                    if detected_type:
-                        print(f"[BATCH-UPLOAD]    ✓ LLM sugeriu: {detected_type}")
-                    else:
-                        print(f"[BATCH-UPLOAD]    ✗ LLM não conseguiu classificar")
+                    if not detected_type:
                         results.append({
                             "filename": file.filename,
                             "status": "error",
@@ -783,11 +741,9 @@ async def upload_files_batch(
                         continue
                 
                 # Salvar arquivo
-                print(f"[BATCH-UPLOAD]    💾 Salvando arquivo como '{detected_type}'...")
                 save_success = await save_yaml_file(content_str, detected_type, file.filename or "documento.yaml")
                 
                 if not save_success:
-                    print(f"[BATCH-UPLOAD]    ✗ Erro ao salvar arquivo")
                     results.append({
                         "filename": file.filename,
                         "status": "error",
@@ -796,12 +752,8 @@ async def upload_files_batch(
                     })
                     continue
                 
-                print(f"[BATCH-UPLOAD]    ✓ Arquivo salvo")
-                
                 # Indexar arquivo imediatamente após salvar
                 try:
-                    print(f"[BATCH-UPLOAD]    🔄 Indexando arquivo no ChromaDB...")
-                    
                     # Preparar documento para indexação
                     file_base_name = os.path.splitext(file.filename or "documento")[0]
                     
@@ -838,10 +790,6 @@ async def upload_files_batch(
                                 )
                                 
                                 doc_count = 1 if success else 0
-                                if success:
-                                    print(f"[BATCH-UPLOAD]    ✓ Documento de tabela adicionado")
-                                else:
-                                    print(f"[BATCH-UPLOAD]    ⚠️ Falha ao adicionar documento de tabela")
                                 
                                 # 2. Indexar colunas importantes (estrutura nova dos docs_cg)
                                 colunas_importantes = data.get("colunas_importantes", [])
@@ -893,16 +841,13 @@ async def upload_files_batch(
                                                 )
                                                 if field_success:
                                                     doc_count += 1
-                                
-                                print(f"[BATCH-UPLOAD]    ✓ Arquivo indexado: {doc_count} documentos")
                         except Exception as index_error:
-                            print(f"[BATCH-UPLOAD]    ⚠️ Erro ao indexar base_dados (arquivo salvo): {index_error}")
                             import traceback
                             traceback.print_exc()
                     else:
                         # Para outros tipos, fazer indexação genérica
                         doc_id = f"{detected_type}_{file_base_name}"
-                        success = chromadb_client.add_document(
+                        chromadb_client.add_document(
                             text=content_str[:1000],
                             metadata={
                                 "type": detected_type,
@@ -913,20 +858,13 @@ async def upload_files_batch(
                             collection_name=target_collection
                         )
                         
-                        if success:
-                            print(f"[BATCH-UPLOAD]    ✓ Arquivo indexado com sucesso!")
-                        else:
-                            print(f"[BATCH-UPLOAD]    ⚠️ Falha ao indexar arquivo")
-                        
                 except Exception as index_error:
-                    print(f"[BATCH-UPLOAD]    ⚠️ ERRO CRÍTICO ao indexar: {index_error}")
                     import traceback
                     traceback.print_exc()
                 
                 # Se include_metadata, adicionar documento de metadata
                 metadata_docs = 0
                 if include_meta:
-                    print(f"[BATCH-UPLOAD]    📋 Processando metadata...")
                     # Criar documento de metadata
                     try:
                         metadata_doc = {
@@ -943,9 +881,8 @@ async def upload_files_batch(
                         }
                         # Aqui seria adicionado ao ChromaDB
                         metadata_docs = 1
-                        print(f"[BATCH-UPLOAD]    ✓ Metadata processada")
                     except Exception as e:
-                        print(f"[BATCH-UPLOAD]    ⚠️ Erro ao processar metadata: {e}")
+                        pass
                 
                 results.append({
                     "filename": file.filename,
@@ -955,10 +892,8 @@ async def upload_files_batch(
                     "size": file.size,
                     "metadata_docs": metadata_docs
                 })
-                print(f"[BATCH-UPLOAD]    ✓✓ Sucesso!")
                 
             except Exception as e:
-                print(f"[BATCH-UPLOAD]    ✗ Erro ao processar {file.filename}: {e}")
                 import traceback
                 traceback.print_exc()
                 results.append({
@@ -971,12 +906,6 @@ async def upload_files_batch(
         # Resumo
         success_count = len([r for r in results if r['status'] == 'success'])
         error_count = len([r for r in results if r['status'] == 'error'])
-        
-        print(f"\n{'='*60}")
-        print(f"[BATCH-UPLOAD] ===== RESUMO =====")
-        print(f"[BATCH-UPLOAD] Sucesso: {success_count}/{len(files)}")
-        print(f"[BATCH-UPLOAD] Erros: {error_count}/{len(files)}")
-        print(f"{'='*60}\n")
         
         return {
             "status": "success" if success_count > 0 else "error",
@@ -991,7 +920,6 @@ async def upload_files_batch(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[BATCH-UPLOAD] ✗✗✗ ERRO CRÍTICO: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar batch: {str(e)}")
@@ -1003,7 +931,6 @@ async def reconnect_chromadb():
     Força reconexão ao ChromaDB
     """
     try:
-        print("[INFO] Reconectando ao ChromaDB...")
         if chromadb_client.connect():
             return {
                 "status": "ok",
@@ -1015,7 +942,6 @@ async def reconnect_chromadb():
                 "message": "Falha ao reconectar ao ChromaDB"
             }
     except Exception as e:
-        print(f"[ERRO] Erro ao reconectar: {e}")
         return {
             "status": "error",
             "message": str(e)
@@ -1046,10 +972,9 @@ async def health_check():
                     "heartbeat": heartbeat
                 }
             except Exception as e:
-                print(f"[ERRO] ChromaDB heartbeat falhou: {e}")
+                pass
         
         # Tentar reconectar
-        print("[INFO] Tentando reconectar ao ChromaDB...")
         if chromadb_client.connect():
             return {
                 "status": "ok",
@@ -1064,7 +989,6 @@ async def health_check():
                 "connected": False
             }
     except Exception as e:
-        print(f"[ERRO] Erro ao verificar saúde do ChromaDB: {e}")
         return {
             "status": "error",
             "message": str(e),
@@ -1122,7 +1046,6 @@ async def debug_chromadb_status():
             except Exception as e:
                 debug_info["error"] = str(e)
                 debug_info["success"] = False
-                print(f"[DEBUG] Erro ao obter stats: {e}")
                 import traceback
                 traceback.print_exc()
         else:
@@ -1157,11 +1080,6 @@ async def chat_help_stream_endpoint(request: SpecializedChatRequest, collection_
         # Usar collection_name do query param ou session_id do request body como fallback
         effective_collection_name = collection_name or request.session_id or ""
         
-        print(f"🟦 Endpoint /api/chat/help/stream chamado")
-        print(f"  - collection_name param: '{collection_name}'")
-        print(f"  - session_id: '{request.session_id}'")
-        print(f"  - effective_collection_name: '{effective_collection_name}'")
-        
         # Definir prompt para help
         system_prompt = SYSTEM_PROMPTS.get("help", "Responda baseado no contexto fornecido.")
         
@@ -1180,7 +1098,6 @@ async def chat_help_stream_endpoint(request: SpecializedChatRequest, collection_
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/help/stream: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar chat help stream: {str(e)}")
@@ -1198,11 +1115,6 @@ async def chat_aluno_stream_endpoint(request: SpecializedChatRequest, collection
     try:
         # Usar collection_name do query param ou session_id do request body como fallback
         effective_collection_name = collection_name or request.session_id or ""
-        
-        print(f"🟩 Endpoint /api/chat/aluno/stream chamado")
-        print(f"  - collection_name param: '{collection_name}'")
-        print(f"  - session_id: '{request.session_id}'")
-        print(f"  - effective_collection_name: '{effective_collection_name}'")
         
         # Definir prompt para aluno
         system_prompt = SYSTEM_PROMPTS.get("aluno", "Você é um assistente de aprendizado.")
@@ -1222,7 +1134,6 @@ async def chat_aluno_stream_endpoint(request: SpecializedChatRequest, collection
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/aluno/stream: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar chat aluno stream: {str(e)}")
@@ -1243,11 +1154,6 @@ async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_n
         # Usar collection_name do query param ou session_id do request body como fallback
         effective_collection_name = collection_name or request.session_id or ""
         
-        print(f"🟦 Endpoint /api/chat/sql/stream chamado")
-        print(f"  - collection_name param: '{collection_name}'")
-        print(f"  - session_id: '{request.session_id}'")
-        print(f"  - effective_collection_name: '{effective_collection_name}'")
-        
         # Definir prompt para SQL
         system_prompt = SYSTEM_PROMPTS.get("sql", "Você é um especialista em SQL.")
         
@@ -1266,7 +1172,6 @@ async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_n
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/sql/stream: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
@@ -1302,7 +1207,6 @@ async def chat_general_stream_endpoint(request: SpecializedChatRequest, collecti
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/general/stream: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar chat geral stream: {str(e)}")
@@ -1323,7 +1227,6 @@ async def get_vectordb_stats(collection_name: str = ""):
         
         # Verifica se client está conectado, se não tenta reconectar
         if not chromadb_client.client:
-            print("[STATS] Client desconectado, tentando reconectar...")
             chromadb_client.connect()
         
         # Se collection_name está vazio, retorna estatísticas gerais (todas as coleções)
@@ -1331,11 +1234,9 @@ async def get_vectordb_stats(collection_name: str = ""):
             stats = chromadb_client.get_collection_stats()
             if not isinstance(stats, dict):
                 stats = {"error": "Resposta inválida do ChromaDB"}
-            print(f"[STATS] Retornando {len(stats.get('collections', []))} coleções")
             return stats
         
         # Caso contrário, tenta obter stats de uma coleção específica
-        print(f"🔍 Buscando stats da coleção: '{collection_name}'")
         if not chromadb_client.set_collection(collection_name):
             # Lista coleções disponíveis para debug
             try:
@@ -1346,7 +1247,6 @@ async def get_vectordb_stats(collection_name: str = ""):
             except:
                 error_msg = f"Coleção '{collection_name}' não existe."
             
-            print(f"⚠️ {error_msg}")
             raise HTTPException(status_code=404, detail=error_msg)
         
         stats = chromadb_client.get_collection_stats()
@@ -1359,7 +1259,6 @@ async def get_vectordb_stats(collection_name: str = ""):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERRO] Exceção em get_vectordb_stats: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1383,7 +1282,6 @@ async def list_collections():
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERRO] Erro ao listar coleções: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1407,7 +1305,6 @@ async def debug_chromadb(collection_name: str):
         debug_info["tests"]["client_exists"] = hasattr(chromadb_client, 'client') and chromadb_client.client is not None
         
         # Teste 2: Tentar definir a coleção
-        print(f"🔧 DEBUG: Tentando definir coleção '{collection_name}'")
         try:
             collection_set = chromadb_client.set_collection(collection_name)
             debug_info["tests"]["set_collection_success"] = collection_set
@@ -1430,20 +1327,16 @@ async def debug_chromadb(collection_name: str):
         # Teste 4: Tentar fazer uma query simples
         if hasattr(chromadb_client, 'query') and debug_info["tests"]["set_collection_success"]:
             try:
-                print(f"🔧 DEBUG: Tentando query na coleção '{collection_name}' com busca simples 'test'")
                 results = chromadb_client.query("test", n_results=1)
                 debug_info["tests"]["query_success"] = True
                 debug_info["tests"]["query_result_count"] = len(results) if results else 0
-                print(f"🔧 DEBUG: Query bem-sucedida. Resultados: {len(results) if results else 0}")
             except Exception as q_e:
                 debug_info["tests"]["query_error"] = str(q_e)
                 debug_info["tests"]["query_success"] = False
-                print(f"🔧 DEBUG: Query falhou: {q_e}")
         
         return debug_info
         
     except Exception as e:
-        print(f"[ERRO] Exceção em debug_chromadb: {e}")
         import traceback
         traceback.print_exc()
         return {"error": str(e), "collection_name": collection_name}
@@ -1492,7 +1385,6 @@ async def delete_collection_post(collection_name: str):
         if not chromadb_client:
             raise HTTPException(status_code=503, detail="ChromaDB não disponível")
         
-        print(f"[DELETE] Deletando coleção: {collection_name}")
         if chromadb_client.delete_collection(collection_name):
             return {"message": f"Coleção '{collection_name}' deletada com sucesso", "status": "success"}
         else:
@@ -1500,7 +1392,6 @@ async def delete_collection_post(collection_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERRO] Erro ao deletar coleção: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1513,7 +1404,6 @@ async def delete_collection_endpoint(collection_name: str):
         if not chromadb_client:
             raise HTTPException(status_code=503, detail="ChromaDB não disponível")
         
-        print(f"[DELETE] Deletando coleção: {collection_name}")
         if chromadb_client.delete_collection(collection_name):
             return {"message": f"Coleção '{collection_name}' deletada com sucesso", "status": "success"}
         else:
@@ -1521,7 +1411,6 @@ async def delete_collection_endpoint(collection_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERRO] Erro ao deletar coleção: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1575,7 +1464,6 @@ async def query_vectordb(request: dict):
             "total_results": len(formatted_results)
         }
     except Exception as e:
-        print(f"[ERROR] Erro em /vectordb/query: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
