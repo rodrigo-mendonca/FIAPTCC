@@ -13,7 +13,6 @@ import uuid
 from datetime import datetime
 import sys
 from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory
-from factories.embeddings_factory import EmbeddingsUtility
 from factories.genai_factory import ChatResponseGenerator
 
 # Carrega variáveis de ambiente
@@ -172,13 +171,6 @@ async def generate_specialized_response_stream(
 ) -> AsyncGenerator[str, None]:
     """Gera resposta especializada com streaming usando GenAI (LMStudio/OpenAI/Azure) com contexto do ChromaDB"""
     
-    # Log dos parâmetros
-    print(f"📨 Iniciando streaming com parâmetros:")
-    print(f"  - Mensagem: {message[:100]}...")
-    print(f"  - Usar ChromaDB: {use_chromadb}")
-    print(f"  - Coleção: {collection_name or 'nenhuma'}")
-    print(f"  - Contexto anterior: {len(context) if context else 0} mensagens")
-    
     # Obter parâmetros de GenAI
     try:
         genai_params = EnvFactory.get_genai_params()
@@ -191,29 +183,17 @@ async def generate_specialized_response_stream(
     
     # Buscar contexto no ChromaDB se solicitado
     if use_chromadb:
-        print(f"🔴 ChromaDB OBRIGATÓRIO para este endpoint")
-        
         if not chromadb_client:
             error_msg = "Banco de dados (ChromaDB) não inicializado"
-            print(f"🚨 ERRO CRÍTICO: {error_msg}")
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
             return
         
         try:
             # Define a coleção a ser usada (padrão ou especificada)
             target_collection = collection_name if collection_name else ""
-            print(f"🎯 API: Tentando conectar à coleção '{target_collection}'")
             
             if not target_collection or not target_collection.strip():
                 error_msg = "Nenhuma coleção especificada. Por favor, selecione uma coleção."
-                print(f"⚠️ ERRO: {error_msg}")
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-            
-            # Verifica se chromadb_client tem os métodos necessários
-            if not hasattr(chromadb_client, 'set_collection'):
-                error_msg = "Banco de dados não possui método para definir coleção"
-                print(f"🚨 ERRO: {error_msg}")
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
                 return
             
@@ -221,56 +201,34 @@ async def generate_specialized_response_stream(
             collection_set = chromadb_client.set_collection(target_collection)
             if not collection_set:
                 error_msg = f"Coleção '{target_collection}' não encontrada no banco de dados"
-                print(f"🚨 ERRO: {error_msg}")
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
-            
-            print(f"✓ Coleção '{target_collection}' conectada com sucesso")
-            
-            # Verifica se chromadb_client tem o método query
-            if not hasattr(chromadb_client, 'query'):
-                error_msg = "Banco de dados não possui método para consultar"
-                print(f"🚨 ERRO: {error_msg}")
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
                 return
             
             try:
                 # Buscar contexto relevante
-                print(f"🔍 API: Consultando banco de dados para '{message[:100]}...'")
                 results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS)
                 
                 if results and len(results) > 0:
-                    print(f"✓ API: Obtidos {len(results)} resultados do banco de dados")
-                    
                     # Construir contexto com todos os resultados
                     context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
                     chromadb_context = "\n".join(context_parts)
-                    print(f"✓ Contexto de banco de dados obtido com sucesso ({len(chromadb_context)} caracteres, {len(context_parts)} resultados)")
                 else:
                     error_msg = f"Nenhum dado encontrado na coleção '{target_collection}'. A base de dados pode estar vazia ou danificada."
-                    print(f"🚨 ERRO: {error_msg}")
                     yield f"data: {json.dumps({'error': error_msg})}\n\n"
                     return
                     
             except AttributeError as ae:
                 error_msg = f"Base de dados está com problema ao tentar acessar a coleção '{target_collection}'"
-                print(f"🚨 ERRO DE ACESSO: {error_msg} - {ae}")
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
                 return
                 
             except Exception as qe:
                 error_msg = f"Erro ao consultar o banco de dados: {str(qe)}"
-                print(f"🚨 ERRO DE CONSULTA: {error_msg}")
-                import traceback
-                traceback.print_exc()
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
                 return
                 
         except Exception as e:
             error_msg = f"Erro ao acessar o banco de dados: {str(e)}"
-            print(f"🚨 ERRO CRÍTICO: {error_msg}")
-            import traceback
-            traceback.print_exc()
             yield f"data: {json.dumps({'error': error_msg})}\n\n"
             return
     
@@ -314,13 +272,6 @@ async def generate_specialized_response_stream(
         "max_tokens": max_tokens_for_response
     }
     
-    print(f"📣 API: Payload preparado:")
-    print(f"  - Model: {genai_params.model}")
-    print(f"  - Número de mensagens: {len(messages)}")
-    print(f"  - Stream: {payload['stream']}")
-    print(f"  - Temperature: {genai_params.temperature}")
-    print(f"  - Max tokens para resposta: {max_tokens_for_response} (configurado: {genai_params.max_tokens})")
-    
     headers = {
         "Content-Type": "application/json",
     }
@@ -331,7 +282,6 @@ async def generate_specialized_response_stream(
     
     # Construir URL da API baseado no provider
     api_url = f"{genai_params.endpoint}/chat/completions"
-    print(f"🎯 API: Enviando requisição para GenAI em {api_url}")
     async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream(
             "POST",
@@ -342,12 +292,10 @@ async def generate_specialized_response_stream(
             
             if response.status_code != 200:
                 error_detail = f"Erro HTTP {response.status_code}"
-                print(f"🚨 API: Erro na requisição ao GenAI: {error_detail}")
                 yield f"data: {json.dumps({'error': error_detail})}\n\n"
                 return
             
             buffer = ""
-            print(f"🎯 API: Recebendo resposta em streaming do GenAI")
             chunk_count = 0
             total_content = ""
             bytes_received = 0
@@ -385,8 +333,6 @@ async def generate_specialized_response_stream(
                         if line.startswith("data: "):
                             data_str = line[6:]  # Remove "data: "
                             if data_str.strip() == "[DONE]":
-                                print(f"✅ API: Streaming finalizado após {chunk_count} chunks e {bytes_received} bytes")
-                                print(f"📊 Total de conteúdo enviado: {len(total_content)} caracteres")
                                 return
                             
                             try:
@@ -407,18 +353,10 @@ async def generate_specialized_response_stream(
                                     if "content" in delta:
                                         content = delta["content"]
                                         total_content += content
-                                        print(f"📤 API: Enviando chunk {chunk_count}: {repr(content[:50])} (total: {len(total_content)})")
                                         yield f"data: {json.dumps({'content': content})}\n\n"
-                                    else:
-                                        print(f"⚠️ API: 'content' não encontrado em delta: {delta}")
-                                else:
-                                    print(f"⚠️ API: 'choices' vazio ou não existe em: {data}")
                                     
-                            except json.JSONDecodeError as je:
-                                print(f"⚠️ API: Erro ao parsear JSON em linha '{data_str[:100]}...': {je}")
+                            except json.JSONDecodeError:
                                 continue
-                        elif line:  # Se não começa com "data: " mas não é vazio
-                            print(f"📄 API: Linha ignorada: {repr(line[:100])}")
                             
                 except UnicodeDecodeError as ue:
                     print(f"⚠️ API: Erro de decodificação UTF-8: {ue}")
@@ -589,77 +527,49 @@ async def upload_file_unified(file: UploadFile = File(...), collection_name: str
     """
     Endpoint unificado para upload de arquivo
     """
-    print(f"\n\n{'='*60}")
-    print(f"[UPLOAD] ===== UPLOAD INICIADO =====")
-    print(f"[UPLOAD] Arquivo: {file.filename}")
-    print(f"[UPLOAD] Content-Type: {file.content_type}")
-    print(f"[UPLOAD] Size: {file.size}")
-    print(f"[UPLOAD] Collection: '{collection_name}'")
-    print(f"{'='*60}\n")
-    
     try:
         # Validar que uma coleção foi fornecida
         if not collection_name or not collection_name.strip():
-            print("[UPLOAD] ✗ Nenhuma coleção especificada")
-            raise HTTPException(status_code=400, detail="collection_name é obrigatório")
+                raise HTTPException(status_code=400, detail="collection_name é obrigatório")
         
         target_collection = collection_name
-        print(f"[UPLOAD] Coleção alvo: {target_collection}")
-        
         # Validar que temos um arquivo
         if not file or file.size == 0:
-            print("[UPLOAD] ✗ Arquivo vazio")
-            raise HTTPException(status_code=400, detail="Arquivo vazio ou inválido")
+                raise HTTPException(status_code=400, detail="Arquivo vazio ou inválido")
         
         # Verificar se ChromaDB está disponível
         if not chromadb_client or not chromadb_client.client:
-            print("[UPLOAD] ✗ ChromaDB não inicializado")
             raise HTTPException(status_code=503, detail="ChromaDB não está disponível. Tente reconectar.")
         
         # Ler conteúdo do arquivo
-        print("[UPLOAD] 📖 Lendo conteúdo do arquivo...")
         content = await file.read()
         content_str = content.decode('utf-8')
-        print(f"[UPLOAD]    ✓ {len(content_str)} caracteres lidos")
-        print(f"[UPLOAD]    Preview: {content_str[:200]}...")
         
         # Detectar tipo de arquivo
-        print("[UPLOAD] 🔍 Detectando tipo de arquivo...")
         detected_type = detect_file_type(content_str, file.filename or "unknown")
-        print(f"[UPLOAD]    Tipo detectado: {detected_type}")
-        
         if not detected_type:
-            print("[UPLOAD] ✗ Tipo não foi detectado")
             raise HTTPException(
                 status_code=400, 
                 detail=f"Não foi possível detectar o tipo de arquivo. Verifique o conteúdo do arquivo.\nArquivo: {file.filename}"
             )
         
         # Salvar arquivo na pasta correta
-        print(f"[UPLOAD] 💾 Salvando arquivo como {detected_type}...")
         save_success = await save_yaml_file(content_str, detected_type, file.filename or "documento.yaml")
         
         if not save_success:
-            print("[UPLOAD] ✗ Erro ao salvar arquivo")
             raise HTTPException(status_code=400, detail="Erro ao salvar arquivo")
-        print("[UPLOAD]    ✓ Arquivo salvo")
         
         # Reindexar ChromaDB
         try:
             # Primeiro, garantir que a coleção está selecionada
-            print(f"[UPLOAD] 🎯 Selecionando coleção '{target_collection}'...")
             if not chromadb_client.set_collection(target_collection):
-                print(f"[UPLOAD] ⚠️ Coleção não existe, criando...")
                 if not chromadb_client.create_collection(target_collection):
-                    print(f"[UPLOAD] ✗ Não foi possível criar coleção")
                     return UnifiedFileUploadResponse(
                         message=f"Arquivo salvo mas não foi possível criar a coleção '{target_collection}'",
                         file_type=detected_type,
                         file_name=file.filename or "documento",
                         status="error"
                     )
-            print(f"[UPLOAD]    ✓ Coleção selecionada")
-            print("[UPLOAD] ✓✓✓ SUCESSO!")
             return UnifiedFileUploadResponse(
                 message=f"Arquivo '{file.filename}' carregado com sucesso como {detected_type}",
                 file_type=detected_type,
@@ -667,9 +577,6 @@ async def upload_file_unified(file: UploadFile = File(...), collection_name: str
                 status="success"
             )
         except Exception as e:
-            print(f"[UPLOAD] ✗ Erro ao reindexar: {e}")
-            import traceback
-            traceback.print_exc()
             return UnifiedFileUploadResponse(
                 message=f"Arquivo '{file.filename}' salvo mas houve erro ao reindexar: {str(e)}",
                 file_type=detected_type,
@@ -904,8 +811,6 @@ async def upload_files_batch(
                             import yaml
                             data = yaml.safe_load(content_str)
                             if data and 'tabela' in data:
-                                from factories.embeddings_factory import EmbeddingsUtility
-                                
                                 # Obter o nome da tabela (pode ser string ou dict)
                                 table_name_value = data['tabela']
                                 if isinstance(table_name_value, dict):
@@ -916,7 +821,8 @@ async def upload_files_batch(
                                     table_metadata = data  # Usar data completo como metadata
                                 
                                 # 1. Criar documento principal da tabela
-                                table_text = EmbeddingsUtility.create_searchable_text(table_metadata, file_base_name)
+                                table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
+                                table_text = f"Tabela {table_name}: {table_desc}"
                                 doc_id = f"table_{file_base_name}"
                                 
                                 success = chromadb_client.add_document(
@@ -968,7 +874,9 @@ async def upload_files_batch(
                                     if isinstance(fields, dict):
                                         for field_name, field_data in fields.items():
                                             if isinstance(field_data, dict) and field_data.get("pesquisavel", True):
-                                                field_text = EmbeddingsUtility.create_field_searchable_text(field_name, field_data, file_base_name)
+                                                field_desc = field_data.get("descricao", "")
+                                                field_type = field_data.get("tipo", "unknown")
+                                                field_text = f"Campo {field_name} da tabela {table_name} ({field_type}): {field_desc}"
                                                 field_doc_id = f"field_{file_base_name}_{field_name}"
                                                 
                                                 field_success = chromadb_client.add_document(
@@ -1194,6 +1102,40 @@ async def health_lmstudio():
     except Exception as e:
         return {"status": "offline", "connected": False, "error": str(e)}
 
+@app.get("/api/debug/chromadb-status")
+async def debug_chromadb_status():
+    """Endpoint de debug para verificar status do ChromaDB"""
+    try:
+        debug_info = {
+            "chromadb_client_initialized": chromadb_client is not None,
+            "chromadb_client_has_connection": chromadb_client is not None and chromadb_client.client is not None if chromadb_client else False,
+            "chromadb_host": chromadb_client.host if chromadb_client else None,
+            "chromadb_port": chromadb_client.port if chromadb_client else None,
+        }
+        
+        if chromadb_client and chromadb_client.client:
+            try:
+                stats = chromadb_client.get_collection_stats()
+                debug_info["stats"] = stats
+                debug_info["collections_count"] = len(stats.get("collections", []))
+                debug_info["success"] = True
+            except Exception as e:
+                debug_info["error"] = str(e)
+                debug_info["success"] = False
+                print(f"[DEBUG] Erro ao obter stats: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            debug_info["error"] = "ChromaDB client not initialized or not connected"
+            debug_info["success"] = False
+        
+        return debug_info
+    except Exception as e:
+        return {
+            "error": str(e),
+            "success": False
+        }
+
 @app.get("/health")
 async def health_general():
     """Verifica saúde geral da API"""
@@ -1328,45 +1270,6 @@ async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_n
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
-async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat SQL com streaming de resposta
-    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
-    
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto
-    """
-    try:
-        # Usar collection_name do query param ou session_id do request body como fallback
-        effective_collection_name = collection_name or request.session_id or ""
-        
-        print(f"🔵 Endpoint /api/chat/sql/stream chamado")
-        print(f"  - collection_name param: {collection_name}")
-        print(f"  - session_id: {request.session_id}")
-        print(f"  - effective_collection_name: {effective_collection_name}")
-        
-        # Definir prompt para SQL
-        system_prompt = SYSTEM_PROMPTS["sql"]
-        
-        # Gerar resposta com streaming
-        async def generate():
-            async for chunk in generate_specialized_response_stream(
-                message=request.message,
-                system_prompt=system_prompt,
-                context=request.context,
-                use_chromadb=True,
-                collection_name=effective_collection_name if effective_collection_name else None
-            ):
-                yield chunk
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Erro no endpoint /api/chat/sql/stream: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
 
 
 @app.post("/api/chat/general/stream")
@@ -1409,32 +1312,6 @@ async def chat_general_stream_endpoint(request: SpecializedChatRequest, collecti
 # FUNÇÕES AUXILIARES E MODELOS
 # ===========================
 
-def get_file_types_info():
-    """Retorna informações sobre tipos de arquivos aceitos"""
-    return {
-        "types": {
-            "regras_negocio": {
-                "description": "Regras de negócio e validações",
-                "keywords": ["regra", "validação", "política", "limite", "desconto"]
-            },
-            "base_dados": {
-                "description": "Estrutura do banco de dados",
-                "keywords": ["tabela", "coluna", "relacionamento", "índice", "chave"]
-            },
-            "servicos": {
-                "description": "Serviços e rotinas do sistema",
-                "keywords": ["serviço", "automação", "backup", "sincronização"]
-            },
-            "rotinas_usuario": {
-                "description": "Rotinas e procedimentos do usuário",
-                "keywords": ["rotina", "passo a passo", "procedimento", "frequência"]
-            }
-        },
-        "supported_formats": ["YAML", "JSON"],
-        "auto_detect": True
-    }
-
-
 # ============ ROTAS DE VECTORDB (compatibilidade com interface) ============
 
 @app.get("/vectordb/stats")
@@ -1444,11 +1321,17 @@ async def get_vectordb_stats(collection_name: str = ""):
         if not chromadb_client:
             raise HTTPException(status_code=503, detail="ChromaDB não disponível")
         
+        # Verifica se client está conectado, se não tenta reconectar
+        if not chromadb_client.client:
+            print("[STATS] Client desconectado, tentando reconectar...")
+            chromadb_client.connect()
+        
         # Se collection_name está vazio, retorna estatísticas gerais (todas as coleções)
         if not collection_name or collection_name.strip() == "":
             stats = chromadb_client.get_collection_stats()
             if not isinstance(stats, dict):
                 stats = {"error": "Resposta inválida do ChromaDB"}
+            print(f"[STATS] Retornando {len(stats.get('collections', []))} coleções")
             return stats
         
         # Caso contrário, tenta obter stats de uma coleção específica
@@ -1477,6 +1360,30 @@ async def get_vectordb_stats(collection_name: str = ""):
         raise
     except Exception as e:
         print(f"[ERRO] Exceção em get_vectordb_stats: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/vectordb/collections")
+async def list_collections():
+    """Retorna lista de todas as coleções disponíveis"""
+    try:
+        if not chromadb_client:
+            raise HTTPException(status_code=503, detail="ChromaDB não disponível")
+        
+        stats = chromadb_client.get_collection_stats()
+        collections = stats.get("collections", [])
+        
+        return {
+            "status": "success",
+            "total": len(collections),
+            "collections": collections
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERRO] Erro ao listar coleções: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1671,24 +1578,6 @@ async def query_vectordb(request: dict):
         print(f"[ERROR] Erro em /vectordb/query: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/vectordb/clear")
-async def clear_vectordb(request: dict):
-    """Limpa a coleção"""
-    try:
-        if not chromadb_client:
-            raise HTTPException(status_code=503, detail="ChromaDB não disponível")
-        
-        collection_name = request.get("collection_name")
-        if not collection_name:
-            return {"status": "error", "message": "collection_name é obrigatório"}
-        
-        chromadb_client.set_collection(collection_name)
-        chromadb_client.clear_collection()
-        return {"message": f"Coleção '{collection_name}' limpa com sucesso"}
-    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
