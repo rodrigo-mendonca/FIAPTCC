@@ -137,6 +137,339 @@ class DatabaseDocumentProcessor:
         except Exception as e:
             print(f"[OK] Erro ao carregar pasta YAML {folder_path}: {e}")
             return []
+    
+    @staticmethod
+    def extract_database_structure_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
+        """
+        Extrai documentos da estrutura do banco de dados de múltiplos arquivos YAML
+        
+        Args:
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de base_dados
+            
+        Returns:
+            Lista de documentos formatados para ChromaDB
+        """
+        documents = []
+        
+        # Processa cada arquivo YAML
+        for file_data in yaml_files_data:
+            if not isinstance(file_data, dict) or 'tabela' not in file_data:
+                continue
+            
+            table_name = file_data.get('tabela', '')
+            if not isinstance(table_name, str):
+                continue
+            
+            # Documento principal da tabela
+            table_doc = {
+                'id': f"table_{table_name.lower().replace(' ', '_')}",
+                'text': f"Tabela {table_name}: {file_data.get('descricao_curta', '')}. "
+                       f"Database: {file_data.get('database', 'não definido')}. "
+                       f"Total de registros: {file_data.get('total_registros', '0')}. "
+                       f"Última atualização: {file_data.get('ultima_atualizacao', 'não informada')}.",
+                'metadata': {
+                    'type': 'table',
+                    'table_name': table_name,
+                    'database': file_data.get('database', ''),
+                    'source': 'database_structure'
+                }
+            }
+            documents.append(table_doc)
+            
+            # Documentos das colunas importantes
+            colunas = file_data.get('colunas_importantes', [])
+            if isinstance(colunas, list):
+                for col_idx, coluna in enumerate(colunas):
+                    if not isinstance(coluna, dict):
+                        continue
+                    
+                    col_name = coluna.get('nome', f'col_{col_idx}')
+                    col_doc = {
+                        'id': f"column_{table_name.lower()}_{col_name}",
+                        'text': f"Coluna {col_name} da tabela {table_name}: {coluna.get('descricao', '')}. "
+                               f"Tipo: {coluna.get('tipo', 'indefinido')}. "
+                               f"Exemplo: {coluna.get('exemplo_significativo', 'não informado')}.",
+                        'metadata': {
+                            'type': 'column',
+                            'table_name': table_name,
+                            'column_name': col_name,
+                            'column_type': coluna.get('tipo', ''),
+                            'source': 'database_structure'
+                        }
+                    }
+                    documents.append(col_doc)
+        
+        return documents
+    
+    @staticmethod
+    def extract_business_rules_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
+        """
+        Extrai documentos das regras de negócio de múltiplos arquivos YAML
+        
+        Args:
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de regras_negocio
+            
+        Returns:
+            Lista de documentos de regras
+        """
+        documents = []
+        
+        # Processa cada arquivo YAML
+        for file_data in yaml_files_data:
+            if not isinstance(file_data, dict) or 'regras_negocio' not in file_data:
+                continue
+            
+            regras = file_data.get('regras_negocio', [])
+            if not isinstance(regras, list):
+                continue
+            
+            # Documentos das regras individuais
+            for idx, regra in enumerate(regras):
+                if not isinstance(regra, dict):
+                    continue
+                
+                nome = regra.get('nome', f'regra_{idx}')
+                regra_doc = {
+                    'id': f"regra_{nome.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Regra de Negócio: {nome}. "
+                           f"Explicação: {regra.get('explicacao', '')}. "
+                           f"Tipo: {regra.get('tipo', 'indefinido')}. "
+                           f"Prioridade: {regra.get('prioridade', 'indefinida')}.",
+                    'metadata': {
+                        'type': 'business_rule',
+                        'nome_regra': nome,
+                        'tipo_regra': regra.get('tipo', ''),
+                        'prioridade': regra.get('prioridade', ''),
+                        'source': 'business_rules'
+                    }
+                }
+                documents.append(regra_doc)
+        
+        return documents
+    
+    @staticmethod
+    def extract_services_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
+        """
+        Extrai documentos das rotinas de sistema de múltiplos arquivos YAML
+        
+        Args:
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de servicos
+            
+        Returns:
+            Lista de documentos de rotinas
+        """
+        documents = []
+        
+        # Processa cada arquivo YAML
+        for file_data in yaml_files_data:
+            if not isinstance(file_data, dict) or 'rotinas' not in file_data:
+                continue
+                
+            rotinas = file_data.get('rotinas', [])
+            if not isinstance(rotinas, list):
+                continue
+            
+            # Documentos das rotinas individuais
+            for idx, rotina in enumerate(rotinas):
+                if not isinstance(rotina, dict):
+                    continue
+                
+                nome_rotina = rotina.get('nome', f'rotina_{idx}')
+                rotina_doc = {
+                    'id': f"rotina_{nome_rotina.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Rotina: {nome_rotina}. "
+                           f"Descrição: {rotina.get('descricao', '')}. "
+                           f"Tipo: {rotina.get('tipo_servico', 'indefinido')}. "
+                           f"Frequência: {rotina.get('frequencia', 'indefinida')}. "
+                           f"Prioridade: {rotina.get('prioridade', 'indefinida')}.",
+                    'metadata': {
+                        'type': 'rotina_sistema',
+                        'nome_rotina': nome_rotina,
+                        'tipo_servico': rotina.get('tipo_servico', ''),
+                        'frequencia': rotina.get('frequencia', ''),
+                        'prioridade': rotina.get('prioridade', ''),
+                        'source': 'system_services'
+                    }
+                }
+                documents.append(rotina_doc)
+        
+        return documents
+
+    @staticmethod
+    def extract_user_routines_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
+        """
+        Extrai documentos das rotinas de usuário de múltiplos arquivos YAML
+        
+        Args:
+            yaml_files_data: Lista de dicionários carregados dos arquivos YAML de rotinas_usuario
+            
+        Returns:
+            Lista de documentos de rotinas de usuário
+        """
+        documents = []
+        
+        # Processa cada arquivo YAML
+        for file_data in yaml_files_data:
+            if not isinstance(file_data, dict) or 'rotinas_usuario' not in file_data:
+                continue
+                
+            rotinas = file_data.get('rotinas_usuario', [])
+            if not isinstance(rotinas, list):
+                continue
+            
+            # Documentos das rotinas individuais
+            for idx, rotina in enumerate(rotinas):
+                if not isinstance(rotina, dict):
+                    continue
+                
+                # Monta textos auxiliares
+                papeis_raw = rotina.get('papeis_necessarios', [])
+                papeis_texto = ", ".join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw)
+                
+                modulos_raw = rotina.get('modulos_envolvidos', [])
+                modulos_texto = ", ".join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw)
+                
+                nome_rotina = rotina.get('nome', f'rotina_usuario_{idx}')
+                rotina_doc = {
+                    'id': f"rotina_usuario_{nome_rotina.lower().replace(' ', '_')}_{idx}",
+                    'text': f"Rotina de Usuário: {nome_rotina}. "
+                           f"Descrição: {rotina.get('descricao', '')}. "
+                           f"Frequência: {rotina.get('frequencia', 'indefinida')}. "
+                           f"Tempo Estimado: {rotina.get('tempo_estimado', 'não informado')}. "
+                           f"Papéis: {papeis_texto}. "
+                           f"Módulos: {modulos_texto}.",
+                    'metadata': {
+                        'type': 'rotina_usuario',
+                        'nome_rotina': nome_rotina,
+                        'frequencia': rotina.get('frequencia', ''),
+                        'tempo_estimado': rotina.get('tempo_estimado', ''),
+                        'papeis_necessarios': ','.join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw),
+                        'modulos_envolvidos': ','.join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw),
+                        'source': 'rotinas_usuario'
+                    }
+                }
+                documents.append(rotina_doc)
+        
+        return documents
+    
+    def load_and_index_documents(self, base_path: str, chroma_client: Any) -> Dict[str, Any]:
+        """
+        Carrega todos os documentos do banco de dados local e os indexa no ChromaDB
+        
+        Args:
+            base_path: Caminho base onde estão os arquivos YAML
+            chroma_client: Cliente ChromaDB para inserção
+            
+        Returns:
+            Dicionário com resumo de execução
+        """
+        summary = {
+            'total_documents': 0,
+            'collections_created': [],
+            'errors': []
+        }
+        
+        # Tipos de documento e seus caminhos
+        document_types = {
+            'base_dados': 'base_dados',
+            'regras_negocio': 'regras_negocio',
+            'servicos': 'servicos',
+            'rotinas_usuario': 'rotinas_usuario'
+        }
+        
+        # Processa cada tipo de documento
+        for doc_type, folder_name in document_types.items():
+            try:
+                folder_path = f"{base_path}/{folder_name}"
+                print(f"Processando documentos {doc_type} de {folder_path}")
+                
+                # Carrega arquivos YAML
+                yaml_files = self.load_yaml_files_from_folder(folder_path)
+                
+                if not yaml_files:
+                    print(f"  Nenhum arquivo YAML encontrado em {folder_path}")
+                    continue
+                
+                # Extrai documentos específicos por tipo
+                if doc_type == 'base_dados':
+                    documents = self.extract_database_structure_documents(yaml_files)
+                elif doc_type == 'regras_negocio':
+                    documents = self.extract_business_rules_documents(yaml_files)
+                elif doc_type == 'servicos':
+                    documents = self.extract_services_documents(yaml_files)
+                elif doc_type == 'rotinas_usuario':
+                    documents = self.extract_user_routines_documents(yaml_files)
+                else:
+                    continue
+                
+                # Cria coleção no ChromaDB se não existir
+                collection_name = f"{doc_type}_documents"
+                collection = chroma_client.get_or_create_collection(collection_name)
+                
+                # Adiciona documentos em lotes
+                batch_size = 15
+                for i in range(0, len(documents), batch_size):
+                    batch = documents[i:i+batch_size]
+                    
+                    # Extrai campos para adição
+                    ids = [doc['id'] for doc in batch]
+                    texts = [doc['text'] for doc in batch]
+                    
+                    # Adiciona à coleção
+                    collection.add(
+                        ids=ids,
+                        documents=texts,
+                        metadatas=[doc.get('metadata', {}) for doc in batch]
+                    )
+                
+                summary['total_documents'] += len(documents)
+                summary['collections_created'].append(collection_name)
+                print(f"  ✓ {len(documents)} documentos indexados em {collection_name}")
+                
+            except Exception as e:
+                error_msg = f"Erro ao processar {doc_type}: {str(e)}"
+                summary['errors'].append(error_msg)
+                print(f"  ✗ {error_msg}")
+        
+        return summary
+    
+    def ingest_database_to_collection(self, client: Any, collection_name: str, database_path: str) -> int:
+        """
+        Ingesta arquivos da base de dados para uma coleção no ChromaDB
+        
+        Args:
+            client: Cliente ChromaDB
+            collection_name: Nome da coleção alvo
+            database_path: Caminho para os dados da base
+            
+        Returns:
+            Número de documentos adicionados
+        """
+        documents = self.load_yaml_files_from_folder(database_path)
+        
+        if not documents:
+            return 0
+        
+        # Extrai documentos desta pasta específica
+        extracted = self.extract_database_structure_documents(documents)
+        
+        # Obtém ou cria coleção
+        collection = client.get_or_create_collection(collection_name)
+        
+        # Adiciona documentos
+        batch_size = 15
+        total_added = 0
+        
+        for i in range(0, len(extracted), batch_size):
+            batch = extracted[i:i+batch_size]
+            ids = [doc['id'] for doc in batch]
+            texts = [doc['text'] for doc in batch]
+            metadatas = [doc.get('metadata', {}) for doc in batch]
+            
+            collection.add(ids=ids, documents=texts, metadatas=metadatas)
+            total_added += len(batch)
+        
+        return total_added
 
 
 class ChromaDBClient:
@@ -543,3 +876,124 @@ class ChromaDBClient:
         except Exception as e:
             print(f"[OK] Erro ao adicionar documento: {e}")
             return False
+    
+    def search_database_schema(self, query: str, n_results: int = 10) -> List[Dict]:
+        """
+        Busca na estrutura do banco de dados
+        
+        Args:
+            query: Texto da busca
+            n_results: Número de resultados a retornar
+            
+        Returns:
+            Lista de documentos encontrados
+        """
+        # Seleciona a coleção de base_dados se disponível
+        original_collection = self.collection
+        try:
+            # Tenta usar coleção de base_dados
+            if self.client:
+                try:
+                    db_collection = self.client.get_collection(
+                        name="base_dados_documents",
+                        embedding_function=self.embedding_function
+                    )
+                    self.collection = db_collection
+                except:
+                    # Se não existir, usa a coleção atual
+                    pass
+            
+            # Executa a busca
+            results = self.query(query, n_results=n_results, context="database_struct")
+            return results
+            
+        finally:
+            # Restaura coleção original
+            self.collection = original_collection
+    
+    def create_langchain_vectorstore(self):
+        """
+        Cria um Chroma Vectorstore compatível com LangChain
+        Nota: Este é um stub - implementação completa dependeria de langchain estar instalado
+        
+        Returns:
+            Vectorstore ou None se não disponível
+        """
+        try:
+            # Tenta importar LangChain se disponível
+            from langchain.vectorstores import Chroma
+            
+            vectorstore = Chroma(
+                collection_name=self.collection.name if self.collection else "documents",
+                embedding_function=self.embedding_function,
+                client=self.client,
+                collection_metadata={"hnsw:space": "cosine"}
+            )
+            
+            print("[OK] LangChain Vectorstore criado com sucesso")
+            return vectorstore
+            
+        except ImportError:
+            print("[WARN] LangChain não está instalado, avançando sem integração")
+            return None
+        except Exception as e:
+            print(f"[WARN] Erro ao criar LangChain Vectorstore: {e}")
+            return None
+    
+    def get_retriever(self):
+        """
+        Obtém um retriever do LangChain para a coleção
+        Nota: Este é um stub - implementação completa dependeria de langchain estar instalado
+        
+        Returns:
+            Retriever ou None se não disponível
+        """
+        try:
+            from langchain.vectorstores import Chroma
+            
+            vectorstore = self.create_langchain_vectorstore()
+            if not vectorstore:
+                return None
+            
+            retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+            return retriever
+            
+        except ImportError:
+            return None
+        except Exception as e:
+            print(f"[WARN] Erro ao obter retriever: {e}")
+            return None
+    
+    def query_with_retriever(self, query: str, retriever=None) -> List[Dict]:
+        """
+        Executa uma consulta usando LangChain retriever se disponível, senão usa query direto
+        
+        Args:
+            query: Texto da consulta
+            retriever: Retriever opcional do LangChain
+            
+        Returns:
+            Lista de documentos encontrados
+        """
+        try:
+            if retriever:
+                # Usa o retriever do LangChain
+                docs = retriever.get_relevant_documents(query)
+                results = []
+                for i, doc in enumerate(docs):
+                    results.append({
+                        'id': f"langchain_{i}",
+                        'content': doc.page_content,
+                        'metadata': doc.metadata if hasattr(doc, 'metadata') else {},
+                        'similarity': 0.0,  # LangChain retriever não retorna scores
+                        'source': 'langchain'
+                    })
+                return results
+            else:
+                # Fallback para query direto
+                return self.query(query)
+                
+        except Exception as e:
+            print(f"[WARN] Erro ao usar retriever: {e}")
+            # Fallback para query direto em caso de erro
+            return self.query(query)
