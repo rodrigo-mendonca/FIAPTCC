@@ -9,30 +9,38 @@ Sistema para demonstração e testes de busca semântica usando **ChromaDB** e *
 - Frontend React para testes e demonstração (porta 3000)
 
 **Observação importante sobre o LMStudio:**
-- O LMStudio pode ser executado de duas formas: diretamente pelo aplicativo (AppImage) ou como um container Docker. A seção abaixo mostra os passos para ambas as opções e como carregar os dois modelos usados pelo projeto.
+- O LMStudio pode ser executado de duas formas: diretamente pelo aplicativo Windows ou como um container Docker. A seção abaixo mostra os passos para ambas as opções e como carregar os dois modelos usados pelo projeto.
 
 ## LMStudio — execução e modelos
 
-1) Executando o LMStudio localmente (AppImage — Linux/WSL)
+### 1) Instalando e executando o LMStudio no Windows
 
-- Se você já tem a AppImage incluída no repositório, copie-a ou use a que está em `fiap_lmstudio/AppImage/LM-Studio-0.3.23-3-x64.AppImage`.
-- Torne executável e rode:
+1. **Baixar o instalador:**
+   - Acesse [LM Studio — Official Website](https://lmstudio.ai)
+   - Faça download do instalador para **Windows** (.exe)
+   - Alternativamente, baixe direto do [GitHub Releases](https://github.com/lmstudio-ai/lmstudio-docs/releases)
 
-```bash
-chmod +x LM-Studio-0.3.23-3-x64.AppImage
-./LM-Studio-0.3.23-3-x64.AppImage
-```
+2. **Instalar:**
+   - Execute o arquivo `.exe` e siga o assistente de instalação padrão do Windows
+   - Escolha o diretório de instalação (padrão: `C:\Users\<seu-usuario>\AppData\Local\LM Studio`)
+   - Aguarde a conclusão da instalação
 
-- Recomendação: execute em Linux nativo ou WSL2 se estiver no Windows. O AppImage abre a interface gráfica (porta 8080 para o chat). Para disponibilizar a API interna (embeddings/chat HTTP) verifique o serviço `lms server` (porta 1234 no container/configuração usada aqui).
+3. **Executar:**
+   - Abra o **LM Studio** a partir do menu Iniciar ou do atalho da área de trabalho
+   - Interface gráfica abre na porta `8080` (http://localhost:8080)
 
-2) Executando o LMStudio via Docker
+4. **Configurar servidor HTTP:**
+   - Na interface gráfica do LM Studio, vá para **Developer > Start Server**
+   - Configure a porta `1234` para a API HTTP (embeddings e chat)
+   - O servidor ficará disponível em `http://localhost:1234`
+
+### 2) Executando o LMStudio via Docker
 
 - O repositório inclui scripts e um `docker-compose` para orquestrar todos os serviços. Para iniciar via Docker (Windows PowerShell):
 
 ```powershell
 # Inicia todos os serviços (inclui LMStudio quando configurado no compose)
-.
-start-docker.bat
+.\start-docker.bat
 # Ou diretamente:
 # docker-compose up -d
 ```
@@ -46,40 +54,43 @@ docker run -d --name lmstudio \
     ghcr.io/nomic-ai/lm-studio:latest
 ```
 
-3) Onde colocar / como carregar modelos
+### 3) Onde colocar / como carregar modelos
 
-- Diretório de modelos do LMStudio (mapeado no container): `~/.lmstudio/models` (no Windows, use `%USERPROFILE%\.lmstudio\models` para mapear). Copie os arquivos dos modelos para esse diretório antes de iniciar o LMStudio ou use a UI/CLI do LMStudio para instalar.
+### 3) Onde colocar / como carregar modelos
+
+- Diretório de modelos do LMStudio:
+  - **Windows (instalação nativa):** `%USERPROFILE%\.lmstudio\models` (ex: `C:\Users\seu-usuario\.lmstudio\models`)
+  - **Docker:** `~/.lmstudio/models` dentro do container é mapeado para `%USERPROFILE%\.lmstudio\models` no host
+  
+- Copie os arquivos dos modelos para esse diretório antes de iniciar o LMStudio ou use a UI do LM Studio para instalar automaticamente.
 
 - Dois modelos necessários para este projeto:
     - Modelo de embeddings: `text-embedding-nomic-embed-text-v1.5` (usado para gerar embeddings dos documentos indexados no ChromaDB)
-    - Modelo de chat/LLM: `gpt-oss-20b` (ex.: usado pelo container/`start_services.sh` para prover respostas no chat)
+    - Modelo de chat/LLM: `gpt-oss-20b` (usado para prover respostas no chat)
 
-- Para carregar manualmente via CLI do LMStudio (dentro do container ou no host que fornece o `lms`):
+- Para carregar manualmente via server HTTP do LMStudio (Windows):
 
-```bash
+```powershell
+# A partir do PowerShell (com LM Studio em execução):
+
 # Carregar modelo de embeddings
-lms load text-embedding-nomic-embed-text-v1.5 --yes
+curl -X POST "http://localhost:1234/v1/models/load" `
+  -H "Content-Type: application/json" `
+  -d '{"model": "text-embedding-nomic-embed-text-v1.5"}'
 
-# Carregar modelo de chat (exemplo forçando uso de GPU e contexto grande)
-lms load gpt-oss-20b --gpu 0.9 --context-length 32768 --yes
+# Carregar modelo de chat
+curl -X POST "http://localhost:1234/v1/models/load" `
+  -H "Content-Type: application/json" `
+  -d '{"model": "gpt-oss-20b"}'
 
-# Ver modelos carregados
-lms ps
-
-# Iniciar servidor HTTP do LMStudio (se necessário)
-lms server start --port 1234 --cors &
+# Listar modelos carregados
+curl "http://localhost:1234/v1/models"
 ```
 
-4) Portas principais
+### 4) Portas principais
 
 - `8080`: UI web do LMStudio (chat)
-- `1234`: API interna/HTTP do LMStudio (endpoints de embeddings e controle via `lms`)
-
-## Pré-requisitos
-
-- Baixe o **LM-Studio-0.3.23-3-x64.AppImage** em [GitHub Releases](https://github.com/lmstudio-ai/lmstudio-docs/releases) ou use a versão fornecida
-- Coloque o arquivo na pasta `fiap_lmstudio/AppImage/` do repositório
-- O arquivo já está configurado no `.gitignore` (não será versionado)
+- `1234`: API interna/HTTP do LMStudio (endpoints de embeddings e chat)
 
 ## Configuração de Providers (GenAI e Embeddings)
 
