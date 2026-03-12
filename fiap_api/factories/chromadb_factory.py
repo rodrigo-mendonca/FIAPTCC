@@ -14,6 +14,7 @@ import yaml
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from .document_optimizer import DocumentOptimizer, TextOptimizer, TokenCounter
 
 # Imports adicionais para suporte a LangChain Chroma
 try:
@@ -142,6 +143,7 @@ class DatabaseDocumentProcessor:
     def extract_database_structure_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
         """
         Extrai documentos da estrutura do banco de dados de múltiplos arquivos YAML
+        Documentos otimizados para reduzir tokens mantendo relevância
         
         Args:
             yaml_files_data: Lista de dicionários carregados dos arquivos YAML de base_dados
@@ -160,44 +162,24 @@ class DatabaseDocumentProcessor:
             if not isinstance(table_name, str):
                 continue
             
-            # Documento principal da tabela
-            table_doc = {
-                'id': f"table_{table_name.lower().replace(' ', '_')}",
-                'text': f"Tabela {table_name}: {file_data.get('descricao_curta', '')}. "
-                       f"Database: {file_data.get('database', 'não definido')}. "
-                       f"Total de registros: {file_data.get('total_registros', '0')}. "
-                       f"Última atualização: {file_data.get('ultima_atualizacao', 'não informada')}.",
-                'metadata': {
-                    'type': 'table',
-                    'table_name': table_name,
-                    'database': file_data.get('database', ''),
-                    'source': 'database_structure'
-                }
-            }
-            documents.append(table_doc)
+            # Otimiza documento da tabela
+            table_doc = DocumentOptimizer.optimize_table_document(
+                table_name, 
+                file_data,
+                max_text_length=200
+            )
             
-            # Documentos das colunas importantes
+            if table_doc:
+                documents.append(table_doc)
+            
+            # Otimiza documentos das colunas importantes
             colunas = file_data.get('colunas_importantes', [])
-            if isinstance(colunas, list):
-                for col_idx, coluna in enumerate(colunas):
-                    if not isinstance(coluna, dict):
-                        continue
-                    
-                    col_name = coluna.get('nome', f'col_{col_idx}')
-                    col_doc = {
-                        'id': f"column_{table_name.lower()}_{col_name}",
-                        'text': f"Coluna {col_name} da tabela {table_name}: {coluna.get('descricao', '')}. "
-                               f"Tipo: {coluna.get('tipo', 'indefinido')}. "
-                               f"Exemplo: {coluna.get('exemplo_significativo', 'não informado')}.",
-                        'metadata': {
-                            'type': 'column',
-                            'table_name': table_name,
-                            'column_name': col_name,
-                            'column_type': coluna.get('tipo', ''),
-                            'source': 'database_structure'
-                        }
-                    }
-                    documents.append(col_doc)
+            col_docs = DocumentOptimizer.optimize_column_documents(
+                table_name,
+                colunas,
+                max_text_length=150
+            )
+            documents.extend(col_docs)
         
         return documents
     
@@ -205,6 +187,7 @@ class DatabaseDocumentProcessor:
     def extract_business_rules_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
         """
         Extrai documentos das regras de negócio de múltiplos arquivos YAML
+        Documentos otimizados para reduzir tokens
         
         Args:
             yaml_files_data: Lista de dicionários carregados dos arquivos YAML de regras_negocio
@@ -229,21 +212,17 @@ class DatabaseDocumentProcessor:
                     continue
                 
                 nome = regra.get('nome', f'regra_{idx}')
-                regra_doc = {
-                    'id': f"regra_{nome.lower().replace(' ', '_')}_{idx}",
-                    'text': f"Regra de Negócio: {nome}. "
-                           f"Explicação: {regra.get('explicacao', '')}. "
-                           f"Tipo: {regra.get('tipo', 'indefinido')}. "
-                           f"Prioridade: {regra.get('prioridade', 'indefinida')}.",
-                    'metadata': {
-                        'type': 'business_rule',
-                        'nome_regra': nome,
-                        'tipo_regra': regra.get('tipo', ''),
-                        'prioridade': regra.get('prioridade', ''),
-                        'source': 'business_rules'
-                    }
-                }
-                documents.append(regra_doc)
+                
+                # Otimiza documento da regra
+                regra_doc = DocumentOptimizer.optimize_business_rule_document(
+                    nome,
+                    regra,
+                    idx,
+                    max_text_length=200
+                )
+                
+                if regra_doc:
+                    documents.append(regra_doc)
         
         return documents
     
@@ -251,6 +230,7 @@ class DatabaseDocumentProcessor:
     def extract_services_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
         """
         Extrai documentos das rotinas de sistema de múltiplos arquivos YAML
+        Documentos otimizados para reduzir tokens
         
         Args:
             yaml_files_data: Lista de dicionários carregados dos arquivos YAML de servicos
@@ -275,23 +255,17 @@ class DatabaseDocumentProcessor:
                     continue
                 
                 nome_rotina = rotina.get('nome', f'rotina_{idx}')
-                rotina_doc = {
-                    'id': f"rotina_{nome_rotina.lower().replace(' ', '_')}_{idx}",
-                    'text': f"Rotina: {nome_rotina}. "
-                           f"Descrição: {rotina.get('descricao', '')}. "
-                           f"Tipo: {rotina.get('tipo_servico', 'indefinido')}. "
-                           f"Frequência: {rotina.get('frequencia', 'indefinida')}. "
-                           f"Prioridade: {rotina.get('prioridade', 'indefinida')}.",
-                    'metadata': {
-                        'type': 'rotina_sistema',
-                        'nome_rotina': nome_rotina,
-                        'tipo_servico': rotina.get('tipo_servico', ''),
-                        'frequencia': rotina.get('frequencia', ''),
-                        'prioridade': rotina.get('prioridade', ''),
-                        'source': 'system_services'
-                    }
-                }
-                documents.append(rotina_doc)
+                
+                # Otimiza documento da rotina
+                rotina_doc = DocumentOptimizer.optimize_service_document(
+                    nome_rotina,
+                    rotina,
+                    idx,
+                    max_text_length=200
+                )
+                
+                if rotina_doc:
+                    documents.append(rotina_doc)
         
         return documents
 
@@ -299,6 +273,7 @@ class DatabaseDocumentProcessor:
     def extract_user_routines_documents(yaml_files_data: List[Dict]) -> List[Dict[str, Any]]:
         """
         Extrai documentos das rotinas de usuário de múltiplos arquivos YAML
+        Documentos otimizados para reduzir tokens
         
         Args:
             yaml_files_data: Lista de dicionários carregados dos arquivos YAML de rotinas_usuario
@@ -322,33 +297,18 @@ class DatabaseDocumentProcessor:
                 if not isinstance(rotina, dict):
                     continue
                 
-                # Monta textos auxiliares
-                papeis_raw = rotina.get('papeis_necessarios', [])
-                papeis_texto = ", ".join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw)
-                
-                modulos_raw = rotina.get('modulos_envolvidos', [])
-                modulos_texto = ", ".join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw)
-                
                 nome_rotina = rotina.get('nome', f'rotina_usuario_{idx}')
-                rotina_doc = {
-                    'id': f"rotina_usuario_{nome_rotina.lower().replace(' ', '_')}_{idx}",
-                    'text': f"Rotina de Usuário: {nome_rotina}. "
-                           f"Descrição: {rotina.get('descricao', '')}. "
-                           f"Frequência: {rotina.get('frequencia', 'indefinida')}. "
-                           f"Tempo Estimado: {rotina.get('tempo_estimado', 'não informado')}. "
-                           f"Papéis: {papeis_texto}. "
-                           f"Módulos: {modulos_texto}.",
-                    'metadata': {
-                        'type': 'rotina_usuario',
-                        'nome_rotina': nome_rotina,
-                        'frequencia': rotina.get('frequencia', ''),
-                        'tempo_estimado': rotina.get('tempo_estimado', ''),
-                        'papeis_necessarios': ','.join(papeis_raw) if isinstance(papeis_raw, list) else str(papeis_raw),
-                        'modulos_envolvidos': ','.join(modulos_raw) if isinstance(modulos_raw, list) else str(modulos_raw),
-                        'source': 'rotinas_usuario'
-                    }
-                }
-                documents.append(rotina_doc)
+                
+                # Otimiza documento da rotina
+                rotina_doc = DocumentOptimizer.optimize_user_routine_document(
+                    nome_rotina,
+                    rotina,
+                    idx,
+                    max_text_length=200
+                )
+                
+                if rotina_doc:
+                    documents.append(rotina_doc)
         
         return documents
     
@@ -579,20 +539,22 @@ class ChromaDBClient:
             print(f"[OK] Erro ao criar/obter coleção: {e}")
             return False
     
-    def query(self, query_text: str, n_results: int = 5, context: str = "all") -> List[Dict]:
+    def query(self, query_text: str, n_results: int = 5, context: str = "all", similarity_threshold: float = 0.2) -> List[Dict]:
         """
-        Busca documentos similares na coleção
+        Busca documentos similares na coleção com filtro de relevância
         
         Args:
             query_text: Texto da consulta
-            n_results: Número máximo de resultados
+            n_results: Número máximo de resultados (None para sem limite)
             context: Contexto para filtrar ('all', 'business_rules', 'database_struct', 'system_services', 'user_routines')
+            similarity_threshold: Limiar mínimo de similaridade (0.0 a 1.0). Padrão: 0.2
             
         Returns:
-            Lista de documentos encontrados
+            Lista de documentos encontrados com similarity >= threshold
         """
         try:
             print(f"[OK] Buscando: '{query_text}' no contexto: {context}")
+            print(f"[OK] Limiar de similaridade: {similarity_threshold}")
             
             # Configura filtros baseado no contexto
             where_filter = None
@@ -632,23 +594,36 @@ class ChromaDBClient:
             
             if where_filter:
                 query_params["where"] = where_filter
-                print(f"📋 Aplicando filtro: {where_filter}")
+                print(f"📋 Aplicando filtro de contexto: {where_filter}")
             
             results = self.collection.query(**query_params)
             
             formatted_results = []
-            if results['documents'] and results['documents'][0]:
-                for i, doc in enumerate(results['documents'][0]):
-                    result = {
-                        'id': results['ids'][0][i],
-                        'content': doc,
-                        'metadata': results['metadatas'][0][i],
-                        'similarity': 1 - results['distances'][0][i],
-                        'type': results['metadatas'][0][i].get('type', 'unknown')
-                    }
-                    formatted_results.append(result)
+            total_returned = 0
             
-            print(f"[OK] Encontrados {len(formatted_results)} resultados")
+            if results['documents'] and results['documents'][0]:
+                total_returned = len(results['documents'][0])
+                
+                for i, doc in enumerate(results['documents'][0]):
+                    similarity = 1 - results['distances'][0][i]
+                    
+                    # Filtra por threshold de similaridade
+                    if similarity >= similarity_threshold:
+                        result = {
+                            'id': results['ids'][0][i],
+                            'content': doc,
+                            'metadata': results['metadatas'][0][i],
+                            'similarity': round(similarity, 3),
+                            'type': results['metadatas'][0][i].get('type', 'unknown')
+                        }
+                        formatted_results.append(result)
+            
+            print(f"[OK] ChromaDB retornou {total_returned} documentos")
+            print(f"[OK] Após filtro (similarity >= {similarity_threshold}): {len(formatted_results)} resultados relevantes")
+            
+            if total_returned > 0 and len(formatted_results) == 0:
+                print(f"⚠️  AVISO: Nenhum documento passou no filtro. Considere reduzir o similarity_threshold.")
+            
             return formatted_results
             
         except Exception as e:

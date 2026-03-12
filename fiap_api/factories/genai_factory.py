@@ -246,7 +246,7 @@ class ChatResponseGenerator:
         use_chromadb: bool = True,
         chromadb_client = None,
         chromadb_context: str = "",
-        chromadb_default_results: int = 50,
+        similarity_threshold: float = 0.2,
         collection_name: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """
@@ -259,7 +259,7 @@ class ChatResponseGenerator:
             use_chromadb: Se deve usar ChromaDB para contexto
             chromadb_client: Cliente ChromaDB (se use_chromadb=True)
             chromadb_context: Contexto pré-gerado do ChromaDB
-            chromadb_default_results: Número de resultados do ChromaDB
+            similarity_threshold: Limiar mínimo de similaridade (0.0 a 1.0). Padrão: 0.2
             collection_name: Nome da coleção ChromaDB
             
         Yields:
@@ -269,7 +269,9 @@ class ChatResponseGenerator:
         try:
             genai_params = EnvFactory.get_genai_params()
         except Exception as e:
-            yield f"data: {json.dumps({'error': f'Erro ao carregar configuração GenAI: {e}'})}\n\n"
+            error_msg = f"Desculpe, houve um erro ao carregar a configuração. Tente novamente."
+            for char in error_msg:
+                yield f"data: {json.dumps({'content': char})}\n\n"
             return
 
         context_from_db = chromadb_context
@@ -277,8 +279,9 @@ class ChatResponseGenerator:
         # Buscar contexto no ChromaDB se solicitado e não fornecido
         if use_chromadb and not chromadb_context:
             if not chromadb_client:
-                error_msg = "Banco de dados (ChromaDB) não inicializado"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                error_msg = "Desculpe, o banco de dados não está disponível. Tente novamente mais tarde."
+                for char in error_msg:
+                    yield f"data: {json.dumps({'content': char})}\n\n"
                 return
             
             try:
@@ -286,43 +289,49 @@ class ChatResponseGenerator:
                 target_collection = collection_name if collection_name else ""
                 
                 if not target_collection or not target_collection.strip():
-                    error_msg = "Nenhuma coleção especificada. Por favor, selecione uma coleção."
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    error_msg = "Desculpe, nenhuma coleção foi selecionada. Por favor, escolha uma fonte de dados."
+                    for char in error_msg:
+                        yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                 
                 # Tenta definir a coleção
                 collection_set = chromadb_client.set_collection(target_collection)
                 if not collection_set:
-                    error_msg = f"Coleção '{target_collection}' não encontrada no banco de dados"
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    error_msg = f"Desculpe, a fonte de dados '{target_collection}' não está disponível."
+                    for char in error_msg:
+                        yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                 
                 try:
-                    # Buscar contexto relevante
-                    results = chromadb_client.query(message, n_results=chromadb_default_results)
+                    # Buscar contexto relevante - apenas documentos com similarity >= threshold
+                    results = chromadb_client.query(message, n_results=None, similarity_threshold=similarity_threshold)
                     
                     if results and len(results) > 0:
                         # Construir contexto com todos os resultados
                         context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
                         context_from_db = "\n".join(context_parts)
                     else:
-                        error_msg = f"Nenhum dado encontrado na coleção '{target_collection}'. A base de dados pode estar vazia ou danificada."
-                        yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                        error_msg = f"Desculpe, não encontrei dados relevantes. Tente reformular sua pergunta."
+                        for char in error_msg:
+                            yield f"data: {json.dumps({'content': char})}\n\n"
                         return
                         
                 except AttributeError as ae:
-                    error_msg = f"Base de dados está com problema ao tentar acessar a coleção '{target_collection}'"
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    error_msg = "Desculpe, houve um erro ao acessar os dados. Tente novamente."
+                    for char in error_msg:
+                        yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                     
                 except Exception as qe:
-                    error_msg = f"Erro ao consultar o banco de dados: {str(qe)}"
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    error_msg = "Desculpe, houve um erro ao consultar o banco de dados. Tente novamente."
+                    for char in error_msg:
+                        yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                     
             except Exception as e:
-                error_msg = f"Erro ao acessar o banco de dados: {str(e)}"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                error_msg = "Desculpe, houve um erro ao acessar o banco de dados. Tente novamente."
+                for char in error_msg:
+                    yield f"data: {json.dumps({'content': char})}\n\n"
                 return
         
         # Construir mensagens
@@ -384,8 +393,16 @@ class ChatResponseGenerator:
             ) as response:
                 
                 if response.status_code != 200:
-                    error_detail = f"Erro HTTP {response.status_code}"
-                    yield f"data: {json.dumps({'error': error_detail})}\n\n"
+                    # Se é erro 400 ou 429, pode ser relacionado a tokens
+                    if response.status_code in [400, 429]:
+                        user_friendly_msg = "Desculpe, o servidor não conseguiu processar sua solicitação neste momento. Isso pode ser devido ao tamanho da resposta ou limite de requisições. Tente novamente mais tarde."
+                        # Envia letra por letra para simular streaming
+                        for char in user_friendly_msg:
+                            yield f"data: {json.dumps({'content': char})}\n\n"
+                    else:
+                        user_friendly_msg = f"Desculpe, houve um erro ao processar sua solicitação. Tente novamente."
+                        for char in user_friendly_msg:
+                            yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                 
                 buffer = ""
@@ -422,8 +439,18 @@ class ChatResponseGenerator:
                                         error_msg = data["error"]
                                         if isinstance(error_msg, dict):
                                             error_msg = error_msg.get("message", str(error_msg))
-                                        yield f"data: {json.dumps({'error': f'Erro do servidor IA: {error_msg}'})}\n\n"
-                                        return
+                                        # Se é erro de tokens, retorna como mensagem do bot
+                                        if "cannot truncate prompt" in str(error_msg).lower():
+                                            user_friendly_msg = "Desculpe, a resposta gerada foi muito longa e excedeu o limite de caracteres do sistema. Você poderia fazer uma pergunta mais específica ou com menos contexto?"
+                                            # Envia letra por letra para simular streaming
+                                            for char in user_friendly_msg:
+                                                yield f"data: {json.dumps({'content': char})}\n\n"
+                                            return
+                                        else:
+                                            user_friendly_msg = "Desculpe, houve um erro ao processar sua resposta. Tente novamente."
+                                            for char in user_friendly_msg:
+                                                yield f"data: {json.dumps({'content': char})}\n\n"
+                                            return
                                     
                                     if "choices" in data and len(data["choices"]) > 0:
                                         delta = data["choices"][0].get("delta", {})
@@ -438,8 +465,19 @@ class ChatResponseGenerator:
                     except UnicodeDecodeError:
                         continue
                     except Exception as e:
-                        yield f"data: {json.dumps({'error': f'Erro ao processar streaming: {str(e)}'})}\n\n"
-                        return
+                        error_str = str(e).lower()
+                        # Se é erro de tokens, retorna como mensagem do bot
+                        if "Cannot truncate prompt" in error_str or "length" in error_str or "exceed" in error_str:
+                            user_friendly_msg = "Desculpe, a resposta foi muito longa e excedeu o limite de caracteres. Tente fazer uma pergunta mais concisa."
+                            # Envia letra por letra para simular streaming
+                            for char in user_friendly_msg:
+                                yield f"data: {json.dumps({'content': char})}\n\n"
+                            return
+                        else:
+                            user_friendly_msg = "Desculpe, houve um erro ao processar sua solicitação. Tente novamente."
+                            for char in user_friendly_msg:
+                                yield f"data: {json.dumps({'content': char})}\n\n"
+                            return
                 
                 # Processa buffer final
                 if buffer.strip():
@@ -458,5 +496,8 @@ class ChatResponseGenerator:
                                 pass
                 
                 if total_content == "":
-                    yield f"data: {json.dumps({'error': 'Nenhuma resposta foi recebida da IA. Verifique se o servidor GenAI está respondendo corretamente.'})}\n\n"
+                    user_friendly_msg = "Desculpe, não consegui gerar uma resposta. Isso pode ser devido a limitações de tamanho ou disponibilidade do servidor. Tente novamente com uma pergunta mais específica."
+                    # Envia letra por letra para simular streaming
+                    for char in user_friendly_msg:
+                        yield f"data: {json.dumps({'content': char})}\n\n"
 

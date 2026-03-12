@@ -10,6 +10,7 @@ from .env_factory import (
     EmbeddingsEnvParams,
     MissingEnvironmentVariable,
 )
+from .document_optimizer import DocumentOptimizer, TextOptimizer, TokenCounter
 
 __all__ = [
     "GenAIFactory",
@@ -22,4 +23,7 @@ __all__ = [
     "GenAIEnvParams",
     "EmbeddingsEnvParams",
     "MissingEnvironmentVariable",
+    "DocumentOptimizer",
+    "TextOptimizer",
+    "TokenCounter",
 ]

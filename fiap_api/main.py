@@ -5,13 +5,8 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 import json
-import asyncio
 from typing import AsyncGenerator, List, Optional, Dict, Any
-import httpx
 import requests
-import uuid
-from datetime import datetime
-import sys
 from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory, FileValidator
 from factories.genai_factory import ChatResponseGenerator
 
@@ -40,7 +35,6 @@ SYSTEM_PROMPTS = load_system_prompts()
 
 # Configuração - Variáveis obrigatórias serão validadas via EnvFactory
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
-CHROMADB_DEFAULT_RESULTS = int(os.getenv("CHROMADB_DEFAULT_RESULTS", "50"))  # Número padrão de resultados para queries
 
 # Inicializar GenAI
 try:
@@ -121,7 +115,6 @@ class DatabaseSearchResponse(BaseModel):
 # Novos modelos para teste ChromaDB
 class VectorDBQueryRequest(BaseModel):
     question: str
-    n_results: Optional[int] = CHROMADB_DEFAULT_RESULTS
     context: Optional[str] = "all"
 
 class VectorDBQueryResponse(BaseModel):
@@ -165,7 +158,8 @@ async def generate_specialized_response_stream(
     system_prompt: str,
     context: Optional[List[ChatMessage]] = None,
     use_chromadb: bool = True,
-    collection_name: Optional[str] = None
+    collection_name: Optional[str] = None,
+    similarity_threshold: float = 0.3
 ) -> AsyncGenerator[str, None]:
     """
     Gera resposta especializada com streaming usando GenAI com contexto do ChromaDB
@@ -181,7 +175,7 @@ async def generate_specialized_response_stream(
         } for msg in (context or [])] if context else None,
         use_chromadb=use_chromadb,
         chromadb_client=chromadb_client,
-        chromadb_default_results=CHROMADB_DEFAULT_RESULTS,
+        similarity_threshold=similarity_threshold,
         collection_name=collection_name
     ):
         yield chunk
