@@ -490,33 +490,25 @@ class ChromaDBClient:
         from .env_factory import EnvFactory
         import os as os_module
         
-        # Valores padrão da aplicação
-        DEFAULT_CHROMADB_HOST = "chromadb"
-        DEFAULT_CHROMADB_PORT = 8000
-        DEFAULT_LMSTUDIO_ENDPOINT = "http://lmstudio:1234/v1"
-        
         # Carregar parâmetros do ChromaDB
         if host is None:
-            host = os_module.getenv("CHROMADB_HOST", DEFAULT_CHROMADB_HOST)
+            host = os_module.getenv("CHROMADB_HOST")
         if port is None:
-            port_str = os_module.getenv("CHROMADB_PORT", str(DEFAULT_CHROMADB_PORT))
-            try:
-                port = int(port_str)
-            except (ValueError, TypeError):
-                port = DEFAULT_CHROMADB_PORT
+            port_str = os_module.getenv("CHROMADB_PORT")
+            port = int(port_str)
         
         # Carregar parâmetros de Embeddings
         if endpoint is None:
-            endpoint = os_module.getenv("LMSTUDIO_ENDPOINT", DEFAULT_LMSTUDIO_ENDPOINT)
+            endpoint = os_module.getenv("LMSTUDIO_ENDPOINT")
         
         if embeddings_model is None:
             embeddings_model = os_module.getenv("LMSTUDIO_MODEL", "nomic-embed-text")
         
         try:
             embeddings_params = EnvFactory.get_embeddings_params()
-            if endpoint is None or endpoint == DEFAULT_LMSTUDIO_ENDPOINT:
+            if endpoint is None:
                 endpoint = embeddings_params.endpoint
-            if embeddings_model is None or embeddings_model == "nomic-embed-text":
+            if embeddings_model is None:
                 embeddings_model = embeddings_params.model
             print(f"[INIT] Embeddings params loaded from EnvFactory: endpoint={endpoint}, model={embeddings_model}")
         except Exception as e:
