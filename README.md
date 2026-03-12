@@ -54,21 +54,26 @@ docker run -d --name lmstudio \
     ghcr.io/nomic-ai/lm-studio:latest
 ```
 
-### 3) Onde colocar / como carregar modelos
+### 3) Como baixar e carregar modelos
 
-### 3) Onde colocar / como carregar modelos
+**Modelos necessários para este projeto:**
+- Modelo de embeddings: `text-embedding-nomic-embed-text-v1.5` (gera embeddings dos documentos no ChromaDB)
+- Modelo de chat/LLM: `gpt-oss-20b` (fornece respostas no chat)
 
-- Diretório de modelos do LMStudio:
-  - **Windows (instalação nativa):** `%USERPROFILE%\.lmstudio\models` (ex: `C:\Users\seu-usuario\.lmstudio\models`)
-  - **Docker:** `~/.lmstudio/models` dentro do container é mapeado para `%USERPROFILE%\.lmstudio\models` no host
-  
-- Copie os arquivos dos modelos para esse diretório antes de iniciar o LMStudio ou use a UI do LM Studio para instalar automaticamente.
+#### Método 1: Via Interface Gráfica do LM Studio (Recomendado para Windows)
 
-- Dois modelos necessários para este projeto:
-    - Modelo de embeddings: `text-embedding-nomic-embed-text-v1.5` (usado para gerar embeddings dos documentos indexados no ChromaDB)
-    - Modelo de chat/LLM: `gpt-oss-20b` (usado para prover respostas no chat)
+1. Abra o **LM Studio** (já deve estar em execução)
+2. Clique na aba **Search** (lupa) no menu lateral
+3. Na barra de busca, digite o nome do primeiro modelo: `nomic-embed-text-v1.5`
+4. Localize o resultado **text-embedding-nomic-embed-text-v1.5** (Nomic Embeddings)
+5. Clique no botão **Download** (seta para baixo)
+6. Aguarde o download completar (tamanho ~274 MB)
+7. Repita os passos 3-6 para o modelo de chat: busque por `gpt-oss-20b`
+8. Clique em **Load** para carregar o modelo na memória (aparecerá em **Open**/**Loaded Models**)
 
-- Para carregar manualmente via server HTTP do LMStudio (Windows):
+#### Método 2: Via Terminal/PowerShell
+
+Se os modelos já estiverem baixados, carregue-os manualmente:
 
 ```powershell
 # A partir do PowerShell (com LM Studio em execução):
@@ -86,6 +91,12 @@ curl -X POST "http://localhost:1234/v1/models/load" `
 # Listar modelos carregados
 curl "http://localhost:1234/v1/models"
 ```
+
+#### Diretório de Armazenamento
+
+Os modelos são armazenados em:
+- **Windows (instalação nativa):** `%USERPROFILE%\.lmstudio\models` (ex: `C:\Users\seu-usuario\.lmstudio\models`)
+- **Docker:** Mapeado para `%USERPROFILE%\.lmstudio\models` no host
 
 ### 4) Portas principais
 
