@@ -54,7 +54,7 @@ services:
       dockerfile: ./fiap_api/Dockerfile
     container_name: lmstudio-fiap-api
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./fiap_api:/app
     env_file:
@@ -81,7 +81,7 @@ services:
       context: ./fiap_interface
       dockerfile: Dockerfile.dev
       args:
-        - API_URL=http://localhost:8000
+        - API_URL=http://localhost:8001
     container_name: lmstudio-fiap-interface
     ports:
       - "3000:3000"
@@ -90,7 +90,7 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - API_URL=http://localhost:8000
+      - API_URL=http://localhost:8001
     command: npm start
     depends_on:
       - fiap-api
