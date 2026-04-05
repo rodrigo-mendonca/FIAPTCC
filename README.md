@@ -5,7 +5,7 @@ Sistema para demonstração e testes de busca semântica usando **ChromaDB** e *
 **O que este repositório contém (resumo):**
 - ChromaDB para armazenamento de embeddings (porta 8200)
 - LMStudio para geração de embeddings e chat (ports 1234 / 8080)
-- API Python (FastAPI) para orquestração (porta 8000)
+- API Python (FastAPI) para orquestração (porta 8001)
 - Frontend React para testes e demonstração (porta 3000)
 
 **Observação importante sobre o LMStudio:**
@@ -231,7 +231,7 @@ start-all.bat
 
 ## Componentes resumidos
 
-- `fiap_api/` — API Python (FastAPI) — `http://localhost:8000`
+- `fiap_api/` — API Python (FastAPI) — `http://localhost:8001`
 - `fiap_interface/` — Frontend React — `http://localhost:3000`
 - `fiap_chromadb/` — integração e cliente ChromaDB — `http://localhost:8200`
 

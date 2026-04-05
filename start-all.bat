@@ -52,7 +52,7 @@ echo.
 
 echo ==============================================
 echo Services started successfully:
-echo  API: http://localhost:8000
+echo  API: http://localhost:8001
 echo  UI: http://localhost:3000
 echo  ChromaDB: http://localhost:8200
 echo ==============================================

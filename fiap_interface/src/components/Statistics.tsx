@@ -166,7 +166,7 @@ const Statistics: React.FC = () => {
               <strong>Erro ao carregar estatísticas:</strong> {error}
             </Typography>
             <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-              Verifique se a API está rodando em {API_URL?.replace('http://', '').replace('https://', '') || 'localhost:8000'}
+              Verifique se a API está rodando em {API_URL?.replace('http://', '').replace('https://', '') || 'localhost:8001'}
             </Typography>
           </Alert>
         )}

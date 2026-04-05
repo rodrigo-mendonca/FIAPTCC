@@ -28,7 +28,7 @@ echo.
 echo ==============================================
 echo  Docker services started successfully!
 echo ==============================================
-echo  API Python: http://localhost:8000  
+echo  API Python: http://localhost:8001  
 echo  Interface React: http://localhost:3000
 echo  ChromaDB: http://localhost:8200
 echo.
