@@ -265,7 +265,6 @@ async def save_yaml_file(content: str, file_type: str, filename: str) -> bool:
     """Salva arquivo YAML na pasta correta"""
     try:
         import yaml
-        
         # Mapear tipo para pasta
         folder_map = {
             'regras_negocio': 'regras_negocio',
@@ -273,38 +272,41 @@ async def save_yaml_file(content: str, file_type: str, filename: str) -> bool:
             'servicos': 'servicos',
             'rotinas_usuario': 'rotinas_usuario'
         }
-        
         if file_type not in folder_map:
             return False
-        
         folder_name = folder_map[file_type]
-        
-        # Caminho da pasta
-        base_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'chromadb', 'data', folder_name)
+
+        # Usar DATA_DIR se existir, senão caminho relativo
+        data_dir = os.getenv('DATA_DIR')
+        if data_dir:
+            base_path = os.path.join(data_dir, folder_name)
+        else:
+            # Usa o diretório de trabalho atual para garantir que nunca vá para a raiz
+            base_path = os.path.join(os.getcwd(), 'tests', 'chromadb', 'data', folder_name)
         os.makedirs(base_path, exist_ok=True)
-        
+
         # Nome do arquivo (remover extensão antiga e adicionar .yaml)
         file_base_name = os.path.splitext(filename)[0]
         filepath = os.path.join(base_path, f"{file_base_name}.yaml")
-        
+
         # Tentar parsear como YAML ou JSON
         try:
             data = yaml.safe_load(content)
-        except:
+        except Exception:
             try:
                 data = json.loads(content)
-            except:
+            except Exception:
                 # Se não for YAML nem JSON válido, salvar como está
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(content)
                 return True
-        
+
         # Salvar como YAML
         with open(filepath, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
-        
         return True
     except Exception as e:
+        print(f"[ERROR] save_yaml_file: {e} | Caminho: {filepath if 'filepath' in locals() else 'N/A'}")
         return False
 
 
@@ -568,6 +570,7 @@ async def upload_files_batch(
                                                     doc_count += 1
                         except Exception as index_error:
                             import traceback
+                            print(f"[ERROR] Erro ao indexar base_dados: {index_error}")
                             traceback.print_exc()
                     else:
                         # Para outros tipos, fazer indexação genérica
@@ -585,6 +588,7 @@ async def upload_files_batch(
                         
                 except Exception as index_error:
                     import traceback
+                    print(f"[ERROR] Erro ao indexar documento genérico: {index_error}")
                     traceback.print_exc()
                 
                 # Se include_metadata, adicionar documento de metadata
@@ -621,6 +625,7 @@ async def upload_files_batch(
             except Exception as e:
                 import traceback
                 traceback.print_exc()
+                print(f"[ERROR] Erro ao processar arquivo '{file.filename}': {str(e)}")
                 results.append({
                     "filename": file.filename,
                     "status": "error",
@@ -647,6 +652,7 @@ async def upload_files_batch(
     except Exception as e:
         import traceback
         traceback.print_exc()
+        print(f"[ERROR] Erro ao processar arquivo: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao processar batch: {str(e)}")
 
 

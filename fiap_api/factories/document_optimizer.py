@@ -130,7 +130,7 @@ class DocumentOptimizer:
             Documento otimizado ou None se não viável
         """
         # Texto principal: apenas nome e descrição curta
-        description = file_data.get('descricao_curta', '').strip()
+        description = file_data.get('descricao', '').strip()
         text = f"Tabela {table_name}"
         
         if description:
@@ -141,8 +141,6 @@ class DocumentOptimizer:
             'type': 'table',
             'table_name': table_name,
             'database': file_data.get('database', ''),
-            'total_registros': str(file_data.get('total_registros', '0')),
-            'ultima_atualizacao': file_data.get('ultima_atualizacao', ''),
             'source': 'database_structure'
         }
         

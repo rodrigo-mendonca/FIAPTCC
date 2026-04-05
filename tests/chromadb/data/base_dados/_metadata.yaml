@@ -3,8 +3,8 @@ categoria: docs_cg
 estrutura_arquivo:
   identificacao:
   - 'tabela: <nome_da_tabela>'
-  - 'descricao_curta: ''<descrição em uma linha>'''
-  - 'database: ''PragmaNext'' ou ''SistemaComercial'''
+  - 'descricao: ''<descrição em uma linha>'''
+  - 'database: SistemaComercial'
   - 'total_registros: <número>'
   - 'ultima_atualizacao: ''<data YYYY-MM-DD>'''
   contexto:

@@ -3,7 +3,7 @@ categoria: rotinas_usuario
 estrutura_arquivo:
   identificacao:
   - 'rotina: <nome_da_rotina>'
-  - 'descricao_curta: ''<descrição em uma linha>'''
+  - 'descricao: ''<descrição em uma linha>'''
   - 'frequencia: ''<diaria|semanal|mensal|conforme_necessario>'''
   - 'tempo_estimado: ''<tempo em minutos ou horas>'''
   - 'ultima_atualizacao: ''<data YYYY-MM-DD>'''

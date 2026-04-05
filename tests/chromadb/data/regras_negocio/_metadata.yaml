@@ -4,9 +4,8 @@ categoria: "regras_negocio"
 estrutura_arquivo:
   identificacao:
     - "regra: <nome_da_regra>"
-    - "descricao_curta: '<descrição em uma linha>'"
+    - "descricao: '<descrição em uma linha>'"
     - "categoria: '<categoria_principal>'"
-    - "prioridade: 'alta|média|baixa'"
     - "ultima_atualizacao: '<data YYYY-MM-DD>'"
   
   contexto:

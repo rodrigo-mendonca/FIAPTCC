@@ -3,8 +3,6 @@ rotinas_usuario:
   descricao: Comparar saldo bancário com registros do sistema financeiro, identificar
     diferenças, registrar juros e tarifas, conciliar pendências. Garantir que todas
     as transações estão refletidas corretamente.
-  frequencia: diaria
-  tempo_estimado: 30 a 60 minutos
   papeis_necessarios:
   - analista_financeiro
   - contador
@@ -44,8 +42,6 @@ rotinas_usuario:
   descricao: Coletar dados de vendas, estoque, financeiro e recursos humanos. Compilar
     em relatório executivo com gráficos e análises. Enviar aos stakeholders (diretoria,
     clientes).
-  frequencia: mensal
-  tempo_estimado: 2 a 4 horas
   papeis_necessarios:
   - analista_negocio
   - gerente_financeiro
@@ -88,8 +84,6 @@ rotinas_usuario:
 - nome: Processar Folha de Pagamento
   descricao: Coletar dados de horas trabalhadas, descontos e adições, calcular salários,
     gerar comprovantes, transferir para contas de funcionários e arquivar documentação.
-  frequencia: mensal
-  tempo_estimado: 1 a 2 horas (dependendo do tamanho da empresa)
   papeis_necessarios:
   - analista_rh
   - analista_financeiro

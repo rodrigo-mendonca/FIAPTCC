@@ -3,8 +3,6 @@ rotinas_usuario:
   descricao: Receber solicitação de pedido, validar dados do cliente, verificar disponibilidade
     de produtos, calcular frete e forma de pagamento. Registrar pedido no sistema
     e gerar confirmação para o cliente.
-  frequencia: diaria
-  tempo_estimado: 15 a 30 minutos por pedido
   papeis_necessarios:
   - gerente_vendas
   - vendedor
@@ -45,8 +43,6 @@ rotinas_usuario:
   descricao: Receber solicitação de devolução, avaliar motivo, verificar se produto
     está dentro do prazo de garantia, autorizar devolução e gerar documento de retorno.
     Coordenar coleta com transportadora.
-  frequencia: diaria
-  tempo_estimado: 20 a 40 minutos por devolução
   papeis_necessarios:
   - gerente_vendas
   - analista_vendas

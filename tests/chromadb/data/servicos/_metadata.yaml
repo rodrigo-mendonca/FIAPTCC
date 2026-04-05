@@ -3,7 +3,7 @@ categoria: servicos
 estrutura_arquivo:
   identificacao:
   - 'servico: <nome_do_servico>'
-  - 'descricao_curta: ''<descrição em uma linha>'''
+  - 'descricao: ''<descrição em uma linha>'''
   - 'tipo_servico: ''<backup|validacao|importacao|exportacao|alerta|sincronizacao|manutencao>'''
   - 'frequencia: ''<tempo_real|continua|minuto|hora|diaria|semanal|mensal|sob_demanda>'''
   - 'ultima_atualizacao: ''<data YYYY-MM-DD>'''

@@ -1,4 +1,14 @@
+
 @echo off
+
+REM Verifica se o Docker Desktop está rodando
+tasklist /FI "IMAGENAME eq Docker Desktop.exe" 2>NUL | find /I /N "Docker Desktop.exe">NUL
+if "%ERRORLEVEL%"=="1" (
+	echo Iniciando Docker Desktop...
+	start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+	REM Aguarda o Docker iniciar (ajuste o tempo se necessário)
+	timeout /t 15 /nobreak >nul
+)
 
 echo 1. Stopping existing containers...
 docker-compose down

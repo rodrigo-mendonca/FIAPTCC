@@ -7,7 +7,6 @@ rotinas:
   frequencia: diaria
   horario: 08:30
   duracao_estimada: 10 a 15 minutos
-  prioridade: alta
   fonte_dados: api.erp.fornecedor.com/produtos
 - nome: Sincronização de Preços com Fornecedores
   descricao: Atualiza tabela de preços consultando APIs de múltiplos fornecedores.
@@ -17,7 +16,6 @@ rotinas:
   frequencia: a_cada_6_horas
   horario: 06:00,12:00,18:00
   duracao_estimada: 5 a 8 minutos
-  prioridade: media
 - nome: Importação de Tabela Bancária
   descricao: Importa extrato bancário em formato OFX/CSV. Processa transações, concilia
     com movimento de caixa registrado no sistema e identifica discrepâncias. Executa
@@ -26,7 +24,6 @@ rotinas:
   frequencia: diaria
   horario: 07:00
   duracao_estimada: 8 a 12 minutos
-  prioridade: alta
   arquivo_entrada: extrato_bancario.csv
 - nome: Carregamento de Dados de Vendas Anteriores
   descricao: Importa histórico de vendas de período específico do sistema legado.
@@ -35,4 +32,3 @@ rotinas:
   tipo_servico: importacao
   frequencia: sob_demanda
   duracao_estimada: 20 a 60 minutos dependendo do volume
-  prioridade: media

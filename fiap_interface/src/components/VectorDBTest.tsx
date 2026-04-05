@@ -328,7 +328,12 @@ const VectorDBTest: React.FC = () => {
           setUploadSuccess(null);
         }, 3000);
       } else if (result.error_count > 0) {
-        setUploadError(`❌ Todos os ${result.error_count} arquivo(s) falharam`);
+        // Juntar mensagens de erro dos arquivos
+        const errorMessages = Array.isArray(result.results)
+          ? result.results.filter((r:any) => r.status === 'error' && r.message)
+              .map((r:any) => `${r.filename ? r.filename + ': ' : ''}${r.message}`)
+          : [];
+        setUploadError(errorMessages.length > 0 ? errorMessages.join('\n') : `❌ Todos os ${result.error_count} arquivo(s) falharam`);
         showNotification(`Erro ao enviar arquivos`, 'error');
       }
 
@@ -487,12 +492,13 @@ const VectorDBTest: React.FC = () => {
                   Envie arquivos YAML ou JSON. O sistema detecta automaticamente o tipo: regras de negócio, estrutura do banco, serviços ou rotinas do usuário.
                 </Typography>
 
+
                 {uploadError && (
                   <Alert severity="error" sx={{ mb: 2 }}>
                     {uploadError}
                   </Alert>
                 )}
-
+                
                 {uploadSuccess && (
                   <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
                     {uploadSuccess}

@@ -7,7 +7,6 @@ rotinas:
   frequencia: diaria
   horario: '23:00'
   duracao_estimada: 5 a 10 minutos
-  prioridade: alta
   formato_saida: XML (padrão NF-e)
 - nome: Relatório de Contas a Receber
   descricao: Gera relatório em PDF com posição de contas a receber separado por cliente,
@@ -17,7 +16,6 @@ rotinas:
   frequencia: diaria
   horario: 09:00
   duracao_estimada: 3 a 5 minutos
-  prioridade: media
   destinatarios: gerencia@empresa.com
 - nome: Exportação de Comissões de Vendedores
   descricao: Calcula comissões do mês anterior baseado em vendas realizadas, aplica
@@ -28,7 +26,6 @@ rotinas:
   dia_mes: '3'
   horario: '10:00'
   duracao_estimada: 10 a 15 minutos
-  prioridade: alta
   formato_saida: CSV com campos de rubrica
 - nome: Relatório Financeiro Mensal
   descricao: Consolida todas as operações financeiras do mês (vendas, pagamentos,
@@ -39,7 +36,6 @@ rotinas:
   dia_mes: ultimo_util
   horario: '17:00'
   duracao_estimada: 15 a 20 minutos
-  prioridade: alta
   destinatarios: financeiro@empresa.com
 - nome: Sincronização com Portal do Cliente
   descricao: Exporta dados públicos (pedidos, rastreamento, faturas) para portal web
@@ -49,5 +45,4 @@ rotinas:
   frequencia: a_cada_30_minutos
   horario: 08:00-18:00
   duracao_estimada: 2 a 3 minutos
-  prioridade: media
   api_destino: portal.clientes.api/sync

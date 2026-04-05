@@ -5,7 +5,6 @@ services:
     description: Remove automaticamente logs antigos do sistema para otimizar espaço
       em disco, mantendo apenas logs dos últimos 90 dias
     category: manutencao
-    status: active
     execution_type: scheduled
     schedule:
       frequency: weekly
@@ -42,7 +41,6 @@ services:
     description: Analisa e otimiza automaticamente índices do banco de dados para
       melhor performance
     category: manutencao
-    status: active
     execution_type: scheduled
     schedule:
       frequency: weekly
@@ -59,7 +57,6 @@ services:
     description: Executa verificações automáticas de integridade referencial e consistência
       de dados
     category: manutencao
-    status: active
     execution_type: scheduled
     schedule:
       frequency: daily
@@ -75,7 +72,6 @@ services:
     description: Monitora performance do banco de dados, tempo de resposta das consultas
       e uso de recursos do sistema
     category: manutencao
-    status: active
     execution_type: scheduled
     schedule:
       frequency: continuous

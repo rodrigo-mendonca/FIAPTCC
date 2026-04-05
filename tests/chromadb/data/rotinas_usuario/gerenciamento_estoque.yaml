@@ -3,8 +3,6 @@ rotinas_usuario:
   descricao: Verificar quantidade física de produtos em determinada área do depósito,
     comparar com registros do sistema, registrar diferenças e fazer ajustes. Parte
     de processo contínuo de validação de inventário.
-  frequencia: semanal
-  tempo_estimado: 2 a 4 horas por área
   papeis_necessarios:
   - gerente_estoque
   - analista_estoque
@@ -45,8 +43,6 @@ rotinas_usuario:
   descricao: Analisar níveis de estoque de produtos críticos, avaliar histórico de
     vendas, determinar quantidade a comprar, selecionar fornecedor e gerar ordem de
     compra no sistema.
-  frequencia: semanal
-  tempo_estimado: 1 a 2 horas
   papeis_necessarios:
   - gerente_estoque
   - analista_compras
@@ -90,8 +86,6 @@ rotinas_usuario:
 - nome: Receber e Conferir Mercadoria
   descricao: Receber nota fiscal de compra, contar produtos, comparar com ordem de
     compra, conferir qualidade e registrar entrada no estoque.
-  frequencia: diaria
-  tempo_estimado: 30 a 60 minutos por entrega
   papeis_necessarios:
   - recebedor_estoque
   - gerente_estoque

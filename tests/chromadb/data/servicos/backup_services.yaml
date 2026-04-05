@@ -5,7 +5,6 @@ services:
     description: Realiza backup completo de todas as tabelas do sistema comercial,
       incluindo dados e estrutura, armazenando em local seguro com compactação
     category: backup
-    status: active
     execution_type: scheduled
     schedule:
       frequency: daily
@@ -37,7 +36,6 @@ services:
     description: Realiza backup incremental dos dados alterados desde o último backup
       completo, otimizando tempo e espaço de armazenamento
     category: backup
-    status: active
     execution_type: scheduled
     schedule:
       frequency: hourly
@@ -66,7 +64,6 @@ services:
     description: Realiza backup diferencial de apenas dados alterados desde o último
       backup completo
     category: backup
-    status: active
     execution_type: scheduled
     schedule:
       frequency: every_4_hours

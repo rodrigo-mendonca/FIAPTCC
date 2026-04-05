@@ -1,6 +1,6 @@
 tabela: clientes
-descricao: Cadastro completo de clientes - pessoa física e jurídica com dados
-  de contato, endereço, limite de crédito e status ativo.
+descricao: Cadastro completo de clientes - pessoa física e jurídica com dados de contato,
+  endereço, limite de crédito e status ativo.
 database: SistemaComercial
 contexto_negocio: 'Esta tabela armazena o cadastro principal de todos os clientes
   da empresa.

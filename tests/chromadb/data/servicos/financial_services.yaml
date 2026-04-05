@@ -5,7 +5,6 @@ services:
     description: Verifica todas as contas a receber em aberto e atualiza automaticamente
       o status para 'vencida' quando a data de vencimento é ultrapassada
     category: financeiro
-    status: active
     execution_type: scheduled
     schedule:
       frequency: daily
@@ -36,7 +35,6 @@ services:
     description: Calcula e aplica juros de mora e multa por atraso nas contas vencidas
       conforme política comercial da empresa
     category: financeiro
-    status: active
     execution_type: scheduled
     schedule:
       frequency: daily
@@ -71,7 +69,6 @@ services:
     description: Recalcula e atualiza o saldo atual de todos os clientes baseado nas
       contas a receber em aberto, garantindo consistência dos dados
     category: financeiro
-    status: active
     execution_type: scheduled
     schedule:
       frequency: daily
