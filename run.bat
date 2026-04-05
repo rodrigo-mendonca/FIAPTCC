@@ -1,12 +1,9 @@
 @echo off
-echo ==============================================
-echo    Starting LMStudio Full Stack with Docker
-echo ==============================================
-echo.
-echo Including ChromaDB Vector Database
-echo.
+
 echo 1. Stopping existing containers...
 docker-compose down
+docker system prune -af
+docker builder prune -af
 
 echo.
 echo 2. Building Docker images...
@@ -35,4 +32,4 @@ echo.
 echo  To view logs: docker-compose logs -f
 echo  To stop: docker-compose down
 echo ==============================================
-pause
+start http://localhost:3000

@@ -63,6 +63,26 @@ services:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8200
       - ENVIRONMENT=docker
+      # ========== CORS ==========
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8001,http://localhost:8080
+      - CHROMADB_DEFAULT_RESULTS=50
+
+      # ========== GENAI ==========
+      - GENAI_PROVIDER=lmstudio
+      - GENAI_ENDPOINT=http://host.docker.internal:1234/v1
+      - GENAI_MODEL=openai/gpt-oss-20b
+      - GENAI_API_KEY=lm-studio
+      - GENAI_API_VERSION=
+      - GENAI_TEMPERATURE=0.7
+      - GENAI_MAX_TOKENS=8192
+      - GENAI_TOP_P=0.95
+
+      # ========== EMBEDDINGS ==========
+      - EMBEDDINGS_PROVIDER=lmstudio
+      - EMBEDDINGS_ENDPOINT=http://host.docker.internal:1234/v1
+      - EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
+      - EMBEDDINGS_API_KEY=lm-studio
+      - EMBEDDINGS_API_VERSION=
     restart: unless-stopped
     networks:
       - lmstudio-network
@@ -79,7 +99,7 @@ services:
   fiap-interface:
     build:
       context: ./fiap_interface
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       args:
         - API_URL=http://localhost:8001
     container_name: lmstudio-fiap-interface

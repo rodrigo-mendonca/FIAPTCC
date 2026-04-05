@@ -34,7 +34,7 @@ if __name__ == "__main__":
     os.environ["GENAI_MODEL"] = "gpt-3.5-turbo"
     os.environ["GENAI_ENDPOINT"] = "http://localhost:1234"
     os.environ["GENAI_TEMPERATURE"] = "0.7"
-    os.environ["GENAI_MAX_TOKENS"] = "2048"
+    os.environ["GENAI_MAX_TOKENS"] = "8192"
     os.environ["GENAI_TOP_P"] = "0.95"
     
     try:

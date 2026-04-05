@@ -40,18 +40,7 @@ Sistema para demonstração e testes de busca semântica usando **ChromaDB** e *
 
 ```powershell
 # Inicia todos os serviços (inclui LMStudio quando configurado no compose)
-.\start-docker.bat
-# Ou diretamente:
-# docker-compose up -d
-```
-
-- Exemplo genérico de execução do LMStudio em container (substitua a imagem pelo upstream/versão que desejar):
-
-```powershell
-docker run -d --name lmstudio \
-    -p 8080:8080 -p 1234:1234 \
-    -v $env:USERPROFILE\.lmstudio\models:/root/.cache/lm-studio/models \
-    ghcr.io/nomic-ai/lm-studio:latest
+.\run.bat
 ```
 
 ### 3) Como baixar e carregar modelos
@@ -70,27 +59,6 @@ docker run -d --name lmstudio \
 6. Aguarde o download completar (tamanho ~274 MB)
 7. Repita os passos 3-6 para o modelo de chat: busque por `gpt-oss-20b`
 8. Clique em **Load** para carregar o modelo na memória (aparecerá em **Open**/**Loaded Models**)
-
-#### Método 2: Via Terminal/PowerShell
-
-Se os modelos já estiverem baixados, carregue-os manualmente:
-
-```powershell
-# A partir do PowerShell (com LM Studio em execução):
-
-# Carregar modelo de embeddings
-curl -X POST "http://localhost:1234/v1/models/load" `
-  -H "Content-Type: application/json" `
-  -d '{"model": "text-embedding-nomic-embed-text-v1.5"}'
-
-# Carregar modelo de chat
-curl -X POST "http://localhost:1234/v1/models/load" `
-  -H "Content-Type: application/json" `
-  -d '{"model": "gpt-oss-20b"}'
-
-# Listar modelos carregados
-curl "http://localhost:1234/v1/models"
-```
 
 #### Diretório de Armazenamento
 
