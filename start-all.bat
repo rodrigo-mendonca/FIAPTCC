@@ -19,7 +19,7 @@ echo.
 echo Starting services...
 echo.
 echo [1] Starting ChromaDB locally...
-start "ChromaDB" cmd /k "cd /d C:\Source\FIAPTCC\fiap_chromadb && python run_server.py"
+start "ChromaDB" cmd /k "cd /d fiap_chromadb && python run_server.py"
 if errorlevel 1 (
     echo [ERROR] Failed to start ChromaDB
     pause
@@ -30,7 +30,7 @@ echo [OK] ChromaDB started
 echo.
 
 echo [2] Starting Python API...
-start "API" cmd /k "cd /d C:\Source\FIAPTCC\fiap_api && python main.py"
+start "API" cmd /k "cd /d fiap_api && python main.py"
 if errorlevel 1 (
     echo [ERROR] Failed to start Python API
     pause
@@ -41,7 +41,7 @@ echo [OK] Python API started
 echo.
 
 echo [3] Starting React Interface...
-start "UI" cmd /k "cd /d C:\Source\FIAPTCC\fiap_interface && npm start"
+start "UI" cmd /k "cd /d fiap_interface && npm start"
 if errorlevel 1 (
     echo [ERROR] Failed to start React Interface
     pause
