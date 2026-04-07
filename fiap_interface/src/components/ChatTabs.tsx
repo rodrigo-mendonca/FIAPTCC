@@ -673,8 +673,8 @@ const chatConfigs = {
     description: 'Assistente de Dúvidas',
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
     suggestions: [
+      "Liste todas as tabelas disponíveis",
       "O que você sabe?",
-      "Como funciona o processo de vendas?",
       "Quais são as regras de desconto?",
       "Como calcular comissões?",
       "O que fazer com clientes inadimplentes?",

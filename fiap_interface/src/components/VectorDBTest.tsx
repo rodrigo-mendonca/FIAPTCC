@@ -447,25 +447,25 @@ const VectorDBTest: React.FC = () => {
                         <Chip 
                           label={`${(result.relevance || 0).toFixed(1)}% relevante`}
                           size="small"
-                          color={(result.relevance || 0) >= 80 ? "success" : (result.relevance || 0) >= 60 ? "warning" : "default"}
+                          color={(result.relevance || 0) >= 50 ? "success" : (result.relevance || 0) >= 20 ? "warning" : "default"}
                           variant="outlined"
                         />
                       </Box>
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        <strong>Tipo:</strong> <Chip label={result.type} size="small" variant="outlined" sx={{ ml: 1 }} />
+                      <Typography variant="body2" color="primary" sx={{ mb: 1 }}>
+                        <strong>Tipo:</strong> <Chip color='success' label={result.type} size="small" variant="outlined" sx={{ ml: 1 }} />
                       </Typography>
-                      <Typography variant="body2">
+                      <Typography variant="body2" color="primary">
                         {result.content}
                       </Typography>
                       {result.metadata && (
                         <Box sx={{ mt: 1 }}>
                           {result.metadata.source && (
-                            <Typography variant="caption" display="block">
+                            <Typography variant="caption" display="block" color="primary">
                               <strong>Fonte:</strong> {result.metadata.source}
                             </Typography>
                           )}
                           {result.metadata.field_name && (
-                            <Typography variant="caption" display="block">
+                            <Typography variant="caption" display="block" color="primary">
                               <strong>Campo:</strong> {result.metadata.field_name}
                             </Typography>
                           )}

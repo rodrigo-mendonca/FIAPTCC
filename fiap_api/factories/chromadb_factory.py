@@ -539,7 +539,7 @@ class ChromaDBClient:
             print(f"[OK] Erro ao criar/obter coleção: {e}")
             return False
     
-    def query(self, query_text: str, n_results: int = 5, context: str = "all", similarity_threshold: float = 0.2) -> List[Dict]:
+    def query(self, query_text: str, n_results: int, context: str = "all", similarity_threshold: float = 0.3) -> List[Dict]:
         """
         Busca documentos similares na coleção com filtro de relevância
         
@@ -547,7 +547,7 @@ class ChromaDBClient:
             query_text: Texto da consulta
             n_results: Número máximo de resultados (None para sem limite)
             context: Contexto para filtrar ('all', 'business_rules', 'database_struct', 'system_services', 'user_routines')
-            similarity_threshold: Limiar mínimo de similaridade (0.0 a 1.0). Padrão: 0.2
+            similarity_threshold: Limiar mínimo de similaridade (0.0 a 1.0). Padrão: 0.3
             
         Returns:
             Lista de documentos encontrados com similarity >= threshold
@@ -584,7 +584,7 @@ class ChromaDBClient:
                     n_results = total_docs if total_docs and total_docs > 0 else 10000
                 except Exception:
                     n_results = 10000
-
+            print(f"[DEBUG] Número de resultados solicitado: {n_results}")
             # Executa a query com ou sem filtro
             query_params = {
                 "query_texts": [query_text],
@@ -607,6 +607,8 @@ class ChromaDBClient:
                 for i, doc in enumerate(results['documents'][0]):
                     similarity = 1 - results['distances'][0][i]
                     
+                    print(f"[OK] Documento {results['ids'][0][i]} distances: {results['distances'][0][i]}, similaridade: {similarity}")
+
                     # Filtra por threshold de similaridade
                     if similarity >= similarity_threshold:
                         result = {
@@ -844,7 +846,7 @@ class ChromaDBClient:
             print(f"[OK] Erro ao adicionar documento: {e}")
             return False
     
-    def search_database_schema(self, query: str, n_results: int = 10) -> List[Dict]:
+    def search_database_schema(self, query: str, n_results: int) -> List[Dict]:
         """
         Busca na estrutura do banco de dados
         

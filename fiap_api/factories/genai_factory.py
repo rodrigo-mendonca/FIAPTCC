@@ -13,7 +13,13 @@ from enum import Enum
 import json
 import httpx
 from .env_factory import EnvFactory
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+# Corrige uso de CHROMADB_DEFAULT_RESULTS vindo do .env
+CHROMADB_DEFAULT_RESULTS = int(os.getenv("CHROMADB_DEFAULT_RESULTS", 100))
 
 class GenAIProvider(str, Enum):
     """Provedores suportados de GenIA"""
@@ -246,7 +252,7 @@ class ChatResponseGenerator:
         use_chromadb: bool = True,
         chromadb_client = None,
         chromadb_context: str = "",
-        similarity_threshold: float = 0.2,
+        similarity_threshold: float = 0.5,  
         collection_name: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """
@@ -302,41 +308,60 @@ class ChatResponseGenerator:
                         yield f"data: {json.dumps({'content': char})}\n\n"
                     return
                 
-                try:
-                    # Buscar contexto relevante - apenas documentos com similarity >= threshold
-                    results = chromadb_client.query(message, n_results=None, similarity_threshold=similarity_threshold)
-                    
-                    if results and len(results) > 0:
-                        # Construir contexto com todos os resultados
-                        context_parts = [f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})" for i, result in enumerate(results, 1)]
-                        context_from_db = "\n".join(context_parts)
+                # Buscar contexto relevante - apenas documentos com similarity >= threshold
+                print(f"[DEBUG] Consultando ChromaDB com mensagem: '{message}' e collection: '{target_collection}' n_results: '{CHROMADB_DEFAULT_RESULTS}'")
+                results = chromadb_client.query(message, n_results=CHROMADB_DEFAULT_RESULTS, similarity_threshold=0)
+                print(f"ChromaDB Len: {len(results)}")
+                
+                filtered_results = []
+
+                for item in results:
+                    similarity = item.get('similarity', 0)
+
+                    print(f"[OK] Documento {item['id']} similaridade: {similarity}")
+                    if similarity >= similarity_threshold:
+                        metadata = item.get('metadata', {})
+
+                        result = {
+                            'id': item['id'],
+                            'content': item['content'],
+                            'metadata': metadata,
+                            'similarity': round(similarity, 3),
+                            'type': metadata.get('type', 'unknown')
+                        }
+                        filtered_results.append(result)
                     else:
-                        error_msg = f"Desculpe, não encontrei dados relevantes. Tente reformular sua pergunta."
-                        for char in error_msg:
-                            yield f"data: {json.dumps({'content': char})}\n\n"
-                        return
-                        
-                except AttributeError as ae:
-                    error_msg = "Desculpe, houve um erro ao acessar os dados. Tente novamente."
+                        print(f"[SKIP] Documento {item['id']} ignorado por baixa similaridade: {similarity}")
+
+                context_parts = [
+                    f"[{i}] {result['type'].upper()}: {result['content']} ({result['similarity']:.3f})"
+                    for i, result in enumerate(filtered_results, 1)
+                ]
+
+                context_from_db = "\n".join(context_parts)
+                if len(filtered_results) == 0:
+                    error_msg = f"Desculpe, não encontrei dados relevantes. Tente reformular sua pergunta."
                     for char in error_msg:
                         yield f"data: {json.dumps({'content': char})}\n\n"
                     return
-                    
-                except Exception as qe:
-                    error_msg = "Desculpe, houve um erro ao consultar o banco de dados. Tente novamente."
-                    for char in error_msg:
-                        yield f"data: {json.dumps({'content': char})}\n\n"
-                    return
-                    
-            except Exception as e:
-                error_msg = "Desculpe, houve um erro ao acessar o banco de dados. Tente novamente."
+                
+            except AttributeError as ae:
+                print(f"[ERROR] Acessar os dados: {ae}")
+                error_msg = "Desculpe, houve um erro ao acessar os dados. Tente novamente."
+                for char in error_msg:
+                    yield f"data: {json.dumps({'content': char})}\n\n"
+                return
+                
+            except Exception as qe:
+                print(f"[ERROR] Consultar o banco de dados: {qe}")
+                error_msg = "Desculpe, houve um erro ao consultar o banco de dados. Tente novamente."
                 for char in error_msg:
                     yield f"data: {json.dumps({'content': char})}\n\n"
                 return
         
         # Construir mensagens
         messages = []
-        
+        print(f"[DEBUG] Contexto do banco de dados: {context_from_db}")
         # Adicionar prompt do sistema com contexto
         full_system_prompt = ChatResponseGenerator.prepare_system_prompt_with_context(
             system_prompt, 

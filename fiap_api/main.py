@@ -11,7 +11,11 @@ from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactor
 from factories.genai_factory import ChatResponseGenerator
 
 # Carrega variáveis de ambiente
+
 load_dotenv()
+
+# Corrige uso de CHROMADB_DEFAULT_RESULTS vindo do .env
+CHROMADB_DEFAULT_RESULTS = int(os.getenv("CHROMADB_DEFAULT_RESULTS", 100))
 
 # Carrega system prompts do arquivo JSON
 def load_system_prompts():
@@ -277,12 +281,14 @@ async def save_yaml_file(content: str, file_type: str, filename: str) -> bool:
         folder_name = folder_map[file_type]
 
         # Usar DATA_DIR se existir, senão caminho relativo
+        import tempfile
         data_dir = os.getenv('DATA_DIR')
         if data_dir:
             base_path = os.path.join(data_dir, folder_name)
         else:
-            # Usa o diretório de trabalho atual para garantir que nunca vá para a raiz
-            base_path = os.path.join(os.getcwd(), 'tests', 'chromadb', 'data', folder_name)
+            # Usa a pasta temporária do sistema operacional
+            temp_dir = tempfile.gettempdir()
+            base_path = os.path.join(temp_dir, 'fiap_uploads', folder_name)
         os.makedirs(base_path, exist_ok=True)
 
         # Nome do arquivo (remover extensão antiga e adicionar .yaml)
@@ -1163,10 +1169,13 @@ async def query_vectordb(request: dict):
         
         n_results = request.get("n_results", CHROMADB_DEFAULT_RESULTS)
         
+        print(f"[DEBUG] Querying ChromaDB collection '{collection_name}' with question: {question} and n_results: {n_results}")
+
         # Definir a coleção
         chromadb_client.set_collection(collection_name)
         
         # Executar a query
+        print(f"[DEBUG] Numero resultados {n_results}")
         results = chromadb_client.query(question, n_results=n_results)
         
         # Formatar resultados de forma clara
