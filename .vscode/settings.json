@@ -2,5 +2,11 @@
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true
-  }
+  },
+  "sqltools.useNodeRuntime": true,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

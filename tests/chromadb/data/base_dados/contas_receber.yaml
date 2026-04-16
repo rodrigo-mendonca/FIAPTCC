@@ -1,0 +1,96 @@
+tabela: contas_receber
+descricao: Controle de contas a receber dos clientes, incluindo valores, datas e status.
+database: SistemaComercial
+contexto_negocio: 'Esta tabela armazena todas as contas a receber geradas a partir das
+  vendas realizadas aos clientes. Cada conta representa uma dívida que o cliente deve
+  ao sistema, com informações sobre o valor, vencimento e status de pagamento.
+
+  Relaciona-se diretamente com a tabela de clientes e vendas para manter o controle
+  completo dos recebíveis.'
+chaves:
+  pk:
+  - id_conta
+  principais_fks: 
+  - cliente_id
+colunas_importantes:
+- nome: id_conta
+  tipo: integer
+  nulo: false
+  descricao: Identificador único da conta a receber, chave primária auto-incrementada
+  exemplo_significativo: '56789'
+- nome: cliente_id
+  tipo: integer
+  nulo: false
+  descricao: Referência ao cliente que possui a dívida (chave estrangeira)
+  exemplo_significativo: '12543'
+- nome: venda_id
+  tipo: integer
+  nulo: true
+  descricao: Identificador da venda relacionada (pode ser nulo para contas não vinculadas a vendas diretas)
+  exemplo_significativo: '98765'
+- nome: valor_original
+  tipo: decimal
+  nulo: false
+  descricao: Valor original da conta a receber
+  exemplo_significativo: '1500.00'
+- nome: valor_atual
+  tipo: decimal
+  nulo: false
+  descricao: Valor atual da conta (pode ser diferente do original por ajustes)
+  exemplo_significativo: '1450.00'
+- nome: data_emissao
+  tipo: datetime
+  nulo: false
+  descricao: Data de emissão da conta a receber
+  exemplo_significativo: '2025-06-15T10:30:00'
+- nome: data_vencimento
+  tipo: datetime
+  nulo: false
+  descricao: Data limite para pagamento da conta
+  exemplo_significativo: '2025-07-15T10:30:00'
+- nome: parcelas
+  tipo: integer
+  nulo: true
+  descricao: Número total de parcelas (se a conta for em parcelas)
+  exemplo_significativo: '3'
+- nome: parcela_atual
+  tipo: integer
+  nulo: true
+  descricao: Número da parcela atual (se a conta for em parcelas)
+  exemplo_significativo: '1'
+- nome: status
+  tipo: char
+  nulo: false
+  descricao: Status da conta - ''A'' = Aberta, ''P'' = Paga, ''V'' = Vencida, ''C'' = Cancelada
+  exemplo_significativo: '''A'''
+- nome: forma_pagamento
+  tipo: varchar
+  nulo: true
+  descricao: Forma de pagamento utilizada (à vista, parcelado, etc.)
+  exemplo_significativo: '''À Vista'''
+- nome: observacoes
+  tipo: text
+  nulo: true
+  descricao: Observações adicionais sobre a conta
+  exemplo_significativo: '''Conta referente à compra do produto X'''
+relacionamentos:
+- tabela_referencia: clientes
+  descricao: Uma conta pertence a um cliente específico
+- tabela_referencia: vendas
+  descricao: Uma conta pode estar relacionada a uma venda específica
+indices:
+- nome: idx_cliente_conta
+  colunas:
+  - cliente_id
+  unico: false
+  descricao: Índice para busca rápida por cliente
+- nome: idx_data_vencimento
+  colunas:
+  - data_vencimento
+  unico: false
+  descricao: Índice para consulta de contas vencidas
+- nome: idx_status
+  colunas:
+  - status
+  unico: false
+  descricao: Índice para filtrar por status das contas

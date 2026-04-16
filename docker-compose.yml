@@ -16,7 +16,7 @@ services:
   #          - driver: nvidia
   #            count: all
   #            capabilities: [gpu]
-  #  container_name: lmchat
+  #  container_name: fiap-lmchat
   #  ports:
   #    - "8080:1234"
   #    - "5900:5900"
@@ -45,14 +45,14 @@ services:
   #      soft: 67108864
   #      hard: 67108864
   #  networks:
-  #    - lmstudio-network
+  #    - fiap-network
 
   # API
   fiap-api:
     build:
       context: .
       dockerfile: ./fiap_api/Dockerfile
-    container_name: lmstudio-fiap-api
+    container_name: fiap-api
     ports:
       - "8001:8001"
     volumes:
@@ -63,7 +63,7 @@ services:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8200
       - ENVIRONMENT=docker
-      # ========== CORS ==========
+      # ========== CORS ========== 
       - CORS_ORIGINS=http://localhost:3000,http://host.docker.internal:8001,http://host.docker.internal:8080
       - CHROMADB_DEFAULT_RESULTS=150
 
@@ -83,11 +83,15 @@ services:
       - EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
       - EMBEDDINGS_API_KEY=lm-studio
       - EMBEDDINGS_API_VERSION=
+
+      # ========== DATABASE CONNECTION ==========
+      - DATABASE_URL=postgresql://fiap_user:admin@fiap-sqldb:5432/fiap_db
     restart: unless-stopped
     networks:
-      - lmstudio-network
+      - fiap-network
     depends_on:
-      - chromadb
+      - fiap-chromadb
+      - fiap-sqldb  # Add dependency on sqldb
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -102,7 +106,7 @@ services:
       dockerfile: Dockerfile
       args:
         - API_URL=http://host.docker.internal:8001
-    container_name: lmstudio-fiap-interface
+    container_name: fiap-interface
     ports:
       - "3000:3000"
     volumes:
@@ -115,7 +119,7 @@ services:
       - fiap-api
     restart: unless-stopped
     networks:
-      - lmstudio-network
+      - fiap-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
@@ -124,11 +128,11 @@ services:
       start_period: 40s
 
   # Vector Database
-  chromadb:
+  fiap-chromadb:
     build:
       context: ./fiap_chromadb
       dockerfile: Dockerfile
-    container_name: lmstudio-chromadb
+    container_name: fiap-chromadb
     ports:
       - "8200:8200"
     volumes:
@@ -139,7 +143,7 @@ services:
       - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:3000","http://host.docker.internal:8001"]
     restart: unless-stopped
     networks:
-      - lmstudio-network
+      - fiap-network
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "8200"]
       interval: 30s
@@ -147,6 +151,30 @@ services:
       retries: 3
       start_period: 30s
 
+  # SQL Database
+  fiap-sqldb:
+    build:
+      context: ./fiap_sqldb
+      dockerfile: Dockerfile
+    container_name: fiap-sqldb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/sqldb:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=fiap_db
+      - POSTGRES_USER=fiap_user
+      - POSTGRES_PASSWORD=admin
+    restart: unless-stopped
+    networks:
+      - fiap-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiap_user -d fiap_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
-  lmstudio-network:
+  fiap-network:
     driver: bridge
