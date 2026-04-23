@@ -91,7 +91,7 @@ services:
       - fiap-network
     depends_on:
       - fiap-chromadb
-      - fiap-sqldb  # Add dependency on sqldb
+      - postgres  # Add dependency on sqldb
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -152,28 +152,49 @@ services:
       start_period: 30s
 
   # SQL Database
-  fiap-sqldb:
-    build:
-      context: ./fiap_sqldb
-      dockerfile: Dockerfile
-    container_name: fiap-sqldb
+  postgres:
+    container_name: postgresql
+    image: postgres:15
+    command: ["postgres", "-c", "max_connections=1000"]
+    restart: always
     ports:
-      - "5432:5432"
-    volumes:
-      - ./data/sqldb:/var/lib/postgresql/data
+      - "0.0.0.0:5432:5432"
     environment:
-      - POSTGRES_DB=fiap_db
-      - POSTGRES_USER=fiap_user
-      - POSTGRES_PASSWORD=admin
-    restart: unless-stopped
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mcpdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - fiap-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fiap_user -d fiap_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "4000:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=mcp@mail.com
+      - PGADMIN_DEFAULT_PASSWORD=postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - fiap-network
+
+  mcp-postgres:
+    image: acuvity/mcp-server-postgres:latest
+    container_name: mcp-postgres
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mcpdb
+    depends_on:
+      - postgres
+    networks:
+      - fiap-network
+
+volumes:
+  postgres_data:
+  pgadmin_data:
 
 networks:
   fiap-network:
