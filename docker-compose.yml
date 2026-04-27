@@ -84,13 +84,11 @@ services:
       - EMBEDDINGS_API_KEY=lm-studio
       - EMBEDDINGS_API_VERSION=
 
-      # ========== DATABASE CONNECTION ==========
-      - DATABASE_URL=postgresql://fiap_user:admin@fiap-sqldb:5432/fiap_db
     restart: unless-stopped
     networks:
       - fiap-network
     depends_on:
-      - fiap-chromadb
+      - chromadb
       - postgres  # Add dependency on sqldb
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -128,11 +126,11 @@ services:
       start_period: 40s
 
   # Vector Database
-  fiap-chromadb:
+  chromadb:
     build:
       context: ./fiap_chromadb
       dockerfile: Dockerfile
-    container_name: fiap-chromadb
+    container_name: chromadb
     ports:
       - "8200:8200"
     volumes:
@@ -184,7 +182,7 @@ services:
     image: acuvity/mcp-server-postgres:latest
     container_name: mcp-postgres
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mcpdb
     depends_on:
