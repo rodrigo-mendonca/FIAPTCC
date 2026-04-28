@@ -69,9 +69,9 @@ services:
 
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio
-      - GENAI_ENDPOINT=http://host.docker.internal:1234/v1
-      - GENAI_MODEL=openai/gpt-oss-20b
-      - GENAI_API_KEY=lm-studio
+      - GENAI_ENDPOINT=http://192.168.50.30:1234/v1
+      - GENAI_MODEL=qwen3-coder-30b-a3b-instruct
+      - GENAI_API_KEY=sk-lm-dTRG1KqN:IqVqzXZWQjtcVqlSZzMS
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7
       - GENAI_MAX_TOKENS=8192
@@ -79,9 +79,9 @@ services:
 
       # ========== EMBEDDINGS ==========
       - EMBEDDINGS_PROVIDER=lmstudio
-      - EMBEDDINGS_ENDPOINT=http://host.docker.internal:1234/v1
+      - EMBEDDINGS_ENDPOINT=http://192.168.50.30:1234/v1
       - EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
-      - EMBEDDINGS_API_KEY=lm-studio
+      - EMBEDDINGS_API_KEY=sk-lm-dTRG1KqN:IqVqzXZWQjtcVqlSZzMS
       - EMBEDDINGS_API_VERSION=
 
     restart: unless-stopped

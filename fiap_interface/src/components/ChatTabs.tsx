@@ -410,6 +410,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
                       alignItems: 'flex-start',
                       gap: 1,
                       maxWidth: '95%',
+                      width: '100%',
                     }}
                   >
                     <Avatar
@@ -429,6 +430,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
                       elevation={1}
                       sx={{
                         p: 2,
+                        width: '100%',
                         borderRadius: 2,
                         background: message.sender === 'user'
                           ? '#ED145B'
