@@ -1,3 +1,6 @@
+Vou alterar o `debug.bat` para executar o `docker-compose-local.yml` em vez de iniciar os serviços manualmente, e remover a parte do ChromaDB que agora está no compose.
+
+```batch file
 @echo off
 cls
 echo ==============================================
@@ -18,15 +21,15 @@ if errorlevel 1 (
 echo.
 echo Starting services...
 echo.
-echo [1] Starting ChromaDB locally...
-start "ChromaDB" cmd /k "cd /d fiap_chromadb && python run_server.py"
+echo [1] Starting Docker Compose...
+docker-compose -f docker-compose-local.yml up -d
 if errorlevel 1 (
-    echo [ERROR] Failed to start ChromaDB
+    echo [ERROR] Failed to start Docker Compose
     pause
     exit /b 1
 )
-timeout /t 5 /nobreak
-echo [OK] ChromaDB started
+timeout /t 10 /nobreak
+echo [OK] Docker Compose started
 echo.
 
 echo [2] Starting Python API...
@@ -60,3 +63,4 @@ timeout /t 3 /nobreak
 echo.
 echo Done!
 pause
+```

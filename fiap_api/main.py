@@ -324,7 +324,7 @@ async def generate_response_with_tools_stream(
     collection_name: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
-    Versão com suporte a MCP Tools (DuckDuckGo, etc.)
+    Versão com suporte a MCP Tools
     Usa LangGraph Agent + streaming de tokens
     """
     if not genai or not hasattr(genai, 'is_lmstudio_with_mcp'):
@@ -399,17 +399,15 @@ async def stream_agent_response(genai_wrapper, messages: list):
                     yield f"data: {json.dumps({'content': chunk})}\n\n"
 
             elif event_type == "on_tool_start":
-                tool_name = event["data"].get("name", "tool")
-
                 payload = {
-                    "content": f"\n[Executando ferramenta: {tool_name}]\n"
+                    "content": f"\n**[Executando consulta]**\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
 
             elif event_type == "on_tool_end":
                 payload = {
-                    "content": "\n[Ferramenta concluída]\n"
+                    "content": f"\n**[Consulta concluída]**\n\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
