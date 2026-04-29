@@ -1,186 +1,173 @@
 """
-Fábrica de GenAI - Configuração e inicialização de modelos de geração de texto
-Suporta: LMStudio, OpenAI, Azure OpenAI
-
-Integra:
-- Cliente GenAI (ChatOpenAI, AzureChatOpenAI)
-- Streaming de respostas com contexto ChromaDB
-- Construção de prompts com contexto
+Fábrica de GenAI - Configuração e inicialização de modelos + MCP
+Suporta: LMStudio + MCP (ferramentas) simultaneamente
 """
 
 from typing import Optional, List, Dict, Any, AsyncGenerator
 from enum import Enum
 import json
-import httpx
-from .env_factory import EnvFactory
 import os
+import httpx
 from dotenv import load_dotenv
+
+from .env_factory import EnvFactory
 
 load_dotenv()
 
-# Corrige uso de CHROMADB_DEFAULT_RESULTS vindo do .env
 CHROMADB_DEFAULT_RESULTS = int(os.getenv("CHROMADB_DEFAULT_RESULTS", 100))
 
+
 class GenAIProvider(str, Enum):
-    """Provedores suportados de GenIA"""
     LMSTUDIO = "lmstudio"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     OLLAMA = "ollama"
-    GOOGLE = "google"
     AZURE = "azure"
-    HUGGINGFACE = "huggingface"
-    CUSTOM = "custom"
+    MCP = "mcp"                     # Mantido para uso exclusivo de MCP
+    LMSTUDIO_MCP = "lmstudio_mcp"   # Novo: LMStudio + MCP juntos
 
 
 class GenAIConfig:
-    """Configuração centralizada de modelos de GenIA"""
-    
+    """Configuração centralizada"""
+
     def __init__(self):
         params = EnvFactory.get_genai_params()
-        
-        # Provider padrão
+
         self.provider = params.provider
-        
-        # Configurações gerais
         self.model_name = params.model
         self.api_key = params.api_key
         self.base_url = params.endpoint
-        self.api_version = params.api_version
-        
-        # Configurações de LMStudio (padrão)
-        self.lmstudio_url = params.endpoint if params.provider == "lmstudio" else ""
-        self.lmstudio_api_key = params.api_key if params.provider == "lmstudio" else ""
-        
-        # Configurações de temperatura e outros parâmetros
         self.temperature = params.temperature
         self.max_tokens = params.max_tokens
         self.top_p = params.top_p
-    
+
+        # ====================== CONFIGURAÇÃO MCP ======================
+        self.mcp_servers: Dict[str, Dict] = {
+            "duckduckgo": {
+                "transport": "stdio",           # ← ESSA LINHA ESTAVA FALTANDO
+                "command": "uvx",
+                "args": ["duckduckgo-mcp-server"]
+            }
+        }
+
     @property
     def is_lmstudio(self) -> bool:
-        """Verifica se está usando LMStudio"""
-        return self.provider == GenAIProvider.LMSTUDIO.value or self.provider == "lmstudio"
-    
+        return self.provider in ["lmstudio", "lmstudio_mcp"]
+
     @property
-    def is_openai(self) -> bool:
-        """Verifica se está usando OpenAI"""
-        return self.provider == GenAIProvider.OPENAI.value or self.provider == "openai"
-    
+    def is_lmstudio_with_mcp(self) -> bool:
+        return self.provider == "lmstudio_mcp"
+
     @property
-    def is_anthropic(self) -> bool:
-        """Verifica se está usando Anthropic"""
-        return self.provider == GenAIProvider.ANTHROPIC.value or self.provider == "anthropic"
-    
-    @property
-    def is_ollama(self) -> bool:
-        """Verifica se está usando Ollama"""
-        return self.provider == GenAIProvider.OLLAMA.value or self.provider == "ollama"
-    
-    @property
-    def is_azure(self) -> bool:
-        """Verifica se está usando Azure"""
-        return self.provider == GenAIProvider.AZURE.value or self.provider == "azure"
-    
-    def get_api_url(self) -> str:
-        """Retorna a URL da API baseada no provider"""
-        if self.is_lmstudio:
-            return f"{self.lmstudio_url}/v1"
-        elif self.base_url:
-            return self.base_url
-        else:
-            raise ValueError(f"Base URL não configurada para o provider {self.provider}")
-    
-    def get_headers(self) -> dict:
-        """Retorna headers padrão para requisições da API"""
-        headers = {
-            "Content-Type": "application/json",
-        }
-        
-        if self.is_lmstudio:
-            headers["Authorization"] = f"Bearer {self.lmstudio_api_key}"
-        elif self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        
-        return headers
-    
+    def is_mcp_only(self) -> bool:
+        return self.provider == "mcp"
+
     def validate(self):
-        """Valida a configuração"""
-        if self.is_openai and not self.api_key:
-            raise ValueError("GENAI_API_KEY é obrigatório para provider 'openai'")
-        
-        if self.is_azure and (not self.api_key or not self.base_url):
-            raise ValueError("GENAI_API_KEY e base_url são obrigatórios para provider 'azure'")
-        
-        if self.provider not in ["lmstudio", "openai", "azure", "anthropic", "ollama", "google", "huggingface", "custom"]:
-            raise ValueError(f"Provider '{self.provider}' não suportado.")
-    
-    def __repr__(self) -> str:
-        return (
-            f"GenAIConfig(provider={self.provider}, "
-            f"model={self.model_name})"
-        )
+        if self.is_lmstudio and not self.base_url:
+            raise ValueError("base_url (endpoint do LMStudio) é obrigatório para LMStudio")
+        if self.provider not in [p.value for p in GenAIProvider]:
+            raise ValueError(f"Provider '{self.provider}' não suportado")
 
 
 class GenAIFactory:
-    """Factory para criar instância de GenAI"""
-    
+    """Factory principal"""
+
     @staticmethod
     def create():
-        """Cria instância de GenAI baseado na configuração"""
         config = GenAIConfig()
         config.validate()
-        
-        if config.is_lmstudio:
-            return GenAIFactory._create_lmstudio(config)
-        elif config.is_openai:
-            return GenAIFactory._create_openai(config)
-        elif config.is_azure:
-            return GenAIFactory._create_azure(config)
-    
+
+        if config.is_lmstudio_with_mcp:
+            return GenAIFactory._create_lmstudio_with_mcp(config)
+        elif config.is_lmstudio:
+            return GenAIFactory._create_lmstudio_with_mcp(config)
+        elif config.is_mcp_only:
+            return GenAIFactory._create_mcp_only(config)
+        else:
+            raise ValueError(f"Provider '{config.provider}' não implementado.")
+
     @staticmethod
     def _create_lmstudio(config: GenAIConfig):
-        """Cria cliente LMStudio via OpenAI API"""
         from langchain_openai import ChatOpenAI
-        
         return ChatOpenAI(
-            base_url=config.get_api_url(),
-            api_key="not-needed",
-            model=config.model_name,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            top_p=config.top_p,
-        )
-    
-    @staticmethod
-    def _create_openai(config: GenAIConfig):
-        """Cria cliente OpenAI"""
-        from langchain_openai import ChatOpenAI
-        
-        return ChatOpenAI(
+            base_url=f"{config.base_url.rstrip('/')}",
             api_key=config.api_key,
             model=config.model_name,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
             top_p=config.top_p,
+            streaming=True,
         )
-    
+
+    # Trecho corrigido em genai_factory.py
     @staticmethod
-    def _create_azure(config: GenAIConfig):
-        """Cria cliente Azure OpenAI"""
-        from langchain_openai import AzureChatOpenAI
-        
-        return AzureChatOpenAI(
-            azure_endpoint=config.base_url,
-            azure_deployment=config.model_name,
-            api_version=config.api_version,
-            api_key=config.api_key,
+    def _create_lmstudio_with_mcp(config: GenAIConfig):
+        from langchain_openai import ChatOpenAI
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        import asyncio
+        import nest_asyncio
+
+        nest_asyncio.apply()
+
+        # 1. Configurar o LLM
+        llm = ChatOpenAI(
+            base_url=f"{config.base_url.rstrip('/')}/v1",
+            api_key=config.api_key or "lm-studio",
+            model=config.model_name,
             temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            top_p=config.top_p,
+            streaming=True
         )
 
+        # 2. Obter ferramentas do MCP
+        try:
+            mcp_client = MultiServerMCPClient(config.mcp_servers)
+            loop = asyncio.get_event_loop()
+            tools = loop.run_until_complete(mcp_client.get_tools())
+            print(f"✅ Agente configurado com {len(tools)} ferramentas.")
+            return LMStudioMCPWrapper(llm, tools, config)
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"❌ Falha ao carregar MCP: {e}")
+            return LMStudioMCPWrapper(llm, [], config)
 
+    @staticmethod
+    def _create_mcp_only(config: GenAIConfig):
+        # Implementação anterior (se precisar usar só MCP sem LLM local)
+        pass
+
+
+class LMStudioMCPWrapper:
+    """Wrapper que combina LMStudio (LLM) + MCP (Ferramentas)"""
+
+    def __init__(self, llm, tools, config):
+        self.llm = llm
+        self.tools = tools
+        self.config = config
+        self.is_lmstudio_with_mcp = True
+
+    async def ainvoke(self, messages: list, **kwargs):
+        """Executa agente com LMStudio + ferramentas MCP"""
+        from langgraph.prebuilt import create_react_agent
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        lc_messages = [
+            SystemMessage(content=msg["content"]) if msg.get("role") == "system" else HumanMessage(content=msg["content"])
+            for msg in messages
+        ]
+
+        agent = create_react_agent(
+            model=self.llm,
+            tools=self.tools,
+            # message_modifier opcional para melhorar comportamento
+        )
+
+        result = await agent.ainvoke({"messages": lc_messages})
+        return result["messages"][-1].content
+
+
+# ==================== ChatResponseGenerator (mantido por enquanto) ====================
 class ChatResponseGenerator:
     """Gerador de respostas de chat com suporte a streaming"""
     

@@ -315,6 +315,110 @@ async def save_yaml_file(content: str, file_type: str, filename: str) -> bool:
         print(f"[ERROR] save_yaml_file: {e} | Caminho: {filepath if 'filepath' in locals() else 'N/A'}")
         return False
 
+# ==================== Nova Função: Streaming com MCP Tools ====================
+
+async def generate_response_with_tools_stream(
+    message: str,
+    system_prompt: str,
+    context: Optional[List[Dict]] = None,
+    collection_name: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
+    """
+    Versão com suporte a MCP Tools (DuckDuckGo, etc.)
+    Usa LangGraph Agent + streaming de tokens
+    """
+    if not genai or not hasattr(genai, 'is_lmstudio_with_mcp'):
+        # Fallback para método antigo se não estiver usando MCP
+        async for chunk in ChatResponseGenerator.generate_streaming_response(
+            message=message,
+            system_prompt=system_prompt,
+            context=context,
+            use_chromadb=bool(collection_name),
+            chromadb_client=chroma_client,
+            collection_name=collection_name,
+            similarity_threshold=0.3
+        ):
+            yield chunk
+        return
+
+    # ====================== Caminho com MCP Tools ======================
+    try:
+        # Construir mensagens
+        messages = []
+        messages.append({"role": "system", "content": system_prompt})
+
+        if context:
+            messages.extend(context[-10:])  # último 10 mensagens
+
+        messages.append({"role": "user", "content": message})
+
+        # Usar o wrapper que criamos anteriormente
+        async for chunk in stream_agent_response(genai, messages):
+            yield chunk
+
+    except Exception as e:
+        error_msg = f"Erro ao processar com ferramentas: {str(e)}"
+        yield f"data: {json.dumps({'content': error_msg})}\n\n"
+
+
+async def stream_agent_response(genai_wrapper, messages: list):
+    from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+    from langgraph.prebuilt import create_react_agent
+    import json
+    import traceback
+
+    lc_messages = []
+
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content", "")
+
+        if role == "system":
+            lc_messages.append(SystemMessage(content=content))
+        elif role == "assistant":
+            lc_messages.append(AIMessage(content=content))
+        else:
+            lc_messages.append(HumanMessage(content=content))
+
+    agent = create_react_agent(
+        model=genai_wrapper.llm,
+        tools=genai_wrapper.tools
+    )
+
+    try:
+        async for event in agent.astream_events(
+            {"messages": lc_messages},
+            version="v2"
+        ):
+            event_type = event["event"]
+
+            if event_type == "on_chat_model_stream":
+                chunk = event["data"]["chunk"].content
+
+                if chunk:
+                    yield f"data: {json.dumps({'content': chunk})}\n\n"
+
+            elif event_type == "on_tool_start":
+                tool_name = event["data"].get("name", "tool")
+
+                payload = {
+                    "content": f"\n[Executando ferramenta: {tool_name}]\n"
+                }
+
+                yield f"data: {json.dumps(payload)}\n\n"
+
+            elif event_type == "on_tool_end":
+                payload = {
+                    "content": "\n[Ferramenta concluída]\n"
+                }
+
+                yield f"data: {json.dumps(payload)}\n\n"
+
+    except Exception as e:
+        traceback.print_exc()
+
+        yield f"data: {json.dumps({'content': f'Erro interno do agente: {str(e)}'})}\n\n"
+
 
 @app.post("/api/vectordb/upload")
 async def upload_file_unified(file: UploadFile = File(...), collection_name: str = Form(...)) -> UnifiedFileUploadResponse:
@@ -806,147 +910,66 @@ async def health_general():
 
 @app.post("/api/chat/help/stream")
 async def chat_help_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat de dúvidas com streaming de resposta
-    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    system_prompt = SYSTEM_PROMPTS.get("help", "Responda baseado no contexto fornecido.")
     
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto
-    """
-    try:
-        # Usar collection_name do query param ou session_id do request body como fallback
-        effective_collection_name = collection_name or request.session_id or ""
-        
-        # Definir prompt para help
-        system_prompt = SYSTEM_PROMPTS.get("help", "Responda baseado no contexto fornecido.")
-        
-        # Gerar resposta com streaming
-        async def generate():
-            async for chunk in generate_specialized_response_stream(
-                message=request.message,
-                system_prompt=system_prompt,
-                context=request.context,
-                use_chromadb=True,
-                collection_name=effective_collection_name if effective_collection_name else None
-            ):
-                yield chunk
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat help stream: {str(e)}")
+    async def generate():
+        async for chunk in generate_response_with_tools_stream(
+            message=request.message,
+            system_prompt=system_prompt,
+            context=[{"role": m.role, "content": m.content} for m in (request.context or [])],
+            collection_name=collection_name or None
+        ):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @app.post("/api/chat/aluno/stream")
 async def chat_aluno_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat aluno com streaming de resposta
-    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    system_prompt = SYSTEM_PROMPTS.get("aluno", "Você é um assistente de aprendizado.")
     
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto
-    """
-    try:
-        # Usar collection_name do query param ou session_id do request body como fallback
-        effective_collection_name = collection_name or request.session_id or ""
-        
-        # Definir prompt para aluno
-        system_prompt = SYSTEM_PROMPTS.get("aluno", "Você é um assistente de aprendizado.")
-        
-        # Gerar resposta com streaming
-        async def generate():
-            async for chunk in generate_specialized_response_stream(
-                message=request.message,
-                system_prompt=system_prompt,
-                context=request.context,
-                use_chromadb=True,
-                collection_name=effective_collection_name if effective_collection_name else None
-            ):
-                yield chunk
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat aluno stream: {str(e)}")
+    async def generate():
+        async for chunk in generate_response_with_tools_stream(
+            message=request.message,
+            system_prompt=system_prompt,
+            context=[{"role": m.role, "content": m.content} for m in (request.context or [])],
+            collection_name=collection_name or None
+        ):
+            yield chunk
 
-
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @app.post("/api/chat/sql/stream")
 async def chat_sql_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat SQL com streaming de resposta
-    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    system_prompt = SYSTEM_PROMPTS.get("sql", "Você é um especialista em SQL.")
     
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto
-    """
-    try:
-        # Usar collection_name do query param ou session_id do request body como fallback
-        effective_collection_name = collection_name or request.session_id or ""
-        
-        # Definir prompt para SQL
-        system_prompt = SYSTEM_PROMPTS.get("sql", "Você é um especialista em SQL.")
-        
-        # Gerar resposta com streaming
-        async def generate():
-            async for chunk in generate_specialized_response_stream(
-                message=request.message,
-                system_prompt=system_prompt,
-                context=request.context,
-                use_chromadb=True,
-                collection_name=effective_collection_name if effective_collection_name else None
-            ):
-                yield chunk
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat SQL stream: {str(e)}")
+    async def generate():
+        async for chunk in generate_response_with_tools_stream(
+            message=request.message,
+            system_prompt=system_prompt,
+            context=[{"role": m.role, "content": m.content} for m in (request.context or [])],
+            collection_name=collection_name or None
+        ):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @app.post("/api/chat/general/stream")
 async def chat_general_stream_endpoint(request: SpecializedChatRequest, collection_name: str = ""):
-    """
-    Endpoint de chat geral com streaming de resposta
-    Retorna Server-Sent Events (SSE) com conteúdo sendo gerado em tempo real
+    system_prompt = SYSTEM_PROMPTS.get("general", "Você é um assistente útil.")
     
-    Query params opcionais:
-    - collection_name: coleção ChromaDB para contexto (não usado em chat geral)
-    """
-    try:
-        # Chat geral não usa ChromaDB, então collection_name é ignorado
-        
-        # Definir prompt para chat geral
-        system_prompt = SYSTEM_PROMPTS.get("general", "Você é um assistente amigável e prestativo.")
-        
-        # Gerar resposta com streaming
-        async def generate():
-            async for chunk in generate_specialized_response_stream(
-                message=request.message,
-                system_prompt=system_prompt,
-                context=request.context,
-                use_chromadb=False,  # Chat geral não usa ChromaDB
-                collection_name=None
-            ):
-                yield chunk
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar chat geral stream: {str(e)}")
+    async def generate():
+        async for chunk in generate_response_with_tools_stream(
+            message=request.message,
+            system_prompt=system_prompt,
+            context=[{"role": m.role, "content": m.content} for m in (request.context or [])],
+            collection_name=None  # chat geral não usa ChromaDB
+        ):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ===========================
