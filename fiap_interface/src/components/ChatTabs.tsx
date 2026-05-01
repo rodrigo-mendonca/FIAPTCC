@@ -676,11 +676,11 @@ const chatConfigs = {
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
     suggestions: [
       "Liste todas as tabelas disponíveis",
-      "O que você sabe?",
-      "Quais são as regras de desconto?",
-      "Como calcular comissões?",
-      "O que fazer com clientes inadimplentes?",
-      "Como gerar relatórios mensais?",
+      "Verifica na documentação sobre saldo devedor do cliente",
+      "Cria um grafico dos ultimos 3 meses de vendas",
+      "Qual o maior cliente?",
+      "Qual o produto mais vendido?",
+      "Cria uma tabela com os 10 produtos mais vendidos",
       "Como cadastrar um novo cliente?",
       "Qual é o fluxo de aprovação de crédito?",
       "Como alterar preços de produtos?",
@@ -730,7 +730,7 @@ const tabsConfig = {
       sx: { fontWeight: 'bold' }
     }
   },
-  sql: { 
+  /*sql: { 
     visible: true, 
     index: 1,
     tabProps: {
@@ -739,7 +739,7 @@ const tabsConfig = {
       iconPosition: "start" as const,
       sx: { fontWeight: 'bold' }
     }
-  },
+  },*/
   help: { 
     visible: true, 
     index: 2,
@@ -750,7 +750,7 @@ const tabsConfig = {
       sx: { fontWeight: 'bold' }
     }
   }
-  ,
+  /*,
   aluno: { 
     visible: true, 
     index: 3,
@@ -760,7 +760,7 @@ const tabsConfig = {
       iconPosition: "start" as const,
       sx: { fontWeight: 'bold' }
     }
-  }
+  }*/
 };
 
 const API_URL = process.env.REACT_APP_API_URL;

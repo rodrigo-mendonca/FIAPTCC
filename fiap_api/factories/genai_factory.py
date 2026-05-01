@@ -249,7 +249,7 @@ class ChatResponseGenerator:
         use_chromadb: bool = True,
         chromadb_client = None,
         chromadb_context: str = "",
-        similarity_threshold: float = 0.5,  
+        similarity_threshold: float = 0.8,  
         collection_name: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """

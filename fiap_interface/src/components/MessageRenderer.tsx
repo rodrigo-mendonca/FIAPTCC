@@ -42,7 +42,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
   // ==================== DETECÇÃO MELHORADA DE HTML ====================
     const isRealHtml = (text: string): boolean => {
       if (!text || typeof text !== 'string') return false;
-      const trimmed = text.replace(/```html/g, '').trim();
+      const trimmed = text.replace(/```html/g, '').replace(/```/g, '').trim();
 
       // Detecta conteúdo que claramente é HTML (começa com tag ou contém tags comuns)
       return (
@@ -87,7 +87,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
           </head>
           <body>
             <div class="message-renderer ${darkMode ? 'dark-mode' : ''}">
-              ${content.replace(/```html/g, '').trim()}
+              ${content.replace(/```html/g, '').replace(/```/g, '').trim()}
             </div>
 
             <script>

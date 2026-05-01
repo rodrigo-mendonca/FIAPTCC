@@ -60,8 +60,8 @@ class LMStudioEmbeddingFunction(EmbeddingFunction):
         for text in input:
             try:
                 response = requests.post(
-                    f"{self.lmstudio_url}/embeddings",
-                    headers={"Content-Type": "application/json"},
+                    f"{self.lmstudio_url}/v1/embeddings",
+                    headers={"Content-Type": "application/json", 'Authorization': f'Bearer {os.getenv("EMBEDDINGS_API_KEY")}'},
                     json={
                         "input": text,
                         "model": self.model
@@ -539,7 +539,7 @@ class ChromaDBClient:
             print(f"[OK] Erro ao criar/obter coleção: {e}")
             return False
     
-    def query(self, query_text: str, n_results: int, context: str = "all", similarity_threshold: float = 0.3) -> List[Dict]:
+    def query(self, query_text: str, n_results: int, context: str = "all", similarity_threshold: float = 0.8) -> List[Dict]:
         """
         Busca documentos similares na coleção com filtro de relevância
         
@@ -553,6 +553,16 @@ class ChromaDBClient:
             Lista de documentos encontrados com similarity >= threshold
         """
         try:
+            # Inspeciona o embedding bruto do documento suspeito
+            doc = self.collection.get(
+                ids=["servicos_credito_pagamento"],
+                include=["embeddings", "documents", "metadatas"]
+            )
+
+            print("[DEBUG] Conteúdo:", doc['documents'])
+            print("[DEBUG] Embedding (primeiros 10 valores):", doc['embeddings'][0][:10])
+            print("[DEBUG] Metadata:", doc['metadatas'])
+
             print(f"[OK] Buscando: '{query_text}' no contexto: {context}")
             print(f"[OK] Limiar de similaridade: {similarity_threshold}")
             
@@ -605,17 +615,17 @@ class ChromaDBClient:
                 total_returned = len(results['documents'][0])
                 
                 for i, doc in enumerate(results['documents'][0]):
-                    similarity = 1 - results['distances'][0][i]
+                    similarity = round(results['distances'][0][i], 3)
                     
                     print(f"[OK] Documento {results['ids'][0][i]} distances: {results['distances'][0][i]}, similaridade: {similarity}")
 
                     # Filtra por threshold de similaridade
-                    if similarity >= similarity_threshold:
+                    if similarity <= similarity_threshold:
                         result = {
                             'id': results['ids'][0][i],
                             'content': doc,
                             'metadata': results['metadatas'][0][i],
-                            'similarity': round(similarity, 3),
+                            'similarity': similarity,
                             'type': results['metadatas'][0][i].get('type', 'unknown')
                         }
                         formatted_results.append(result)

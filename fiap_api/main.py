@@ -163,7 +163,7 @@ async def generate_specialized_response_stream(
     context: Optional[List[ChatMessage]] = None,
     use_chromadb: bool = True,
     collection_name: Optional[str] = None,
-    similarity_threshold: float = 0.3
+    similarity_threshold: float = 0.8
 ) -> AsyncGenerator[str, None]:
     """
     Gera resposta especializada com streaming usando GenAI com contexto do ChromaDB
@@ -335,8 +335,7 @@ async def generate_response_with_tools_stream(
             context=context,
             use_chromadb=bool(collection_name),
             chromadb_client=chroma_client,
-            collection_name=collection_name,
-            similarity_threshold=0.3
+            collection_name=collection_name
         ):
             yield chunk
         return
@@ -353,7 +352,12 @@ async def generate_response_with_tools_stream(
         messages.append({"role": "user", "content": message})
 
         # Usar o wrapper que criamos anteriormente
-        async for chunk in stream_agent_response(genai, messages):
+        async for chunk in stream_agent_response(
+            genai_wrapper=genai,
+            messages=messages,
+            chromadb_client=chromadb_client,
+            collection_name=collection_name
+        ):
             yield chunk
 
     except Exception as e:
@@ -361,9 +365,15 @@ async def generate_response_with_tools_stream(
         yield f"data: {json.dumps({'content': error_msg})}\n\n"
 
 
-async def stream_agent_response(genai_wrapper, messages: list):
+async def stream_agent_response(
+    genai_wrapper,
+    messages: list,
+    chromadb_client=None,
+    collection_name: str | None = None
+):
     from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
     from langgraph.prebuilt import create_react_agent
+    from langchain_core.tools import tool
     import json
     import traceback
 
@@ -380,9 +390,60 @@ async def stream_agent_response(genai_wrapper, messages: list):
         else:
             lc_messages.append(HumanMessage(content=content))
 
+    # ==========================================
+    # Mantém tools originais vindas do wrapper
+    # ==========================================
+    tools = list(getattr(genai_wrapper, "tools", []) or [])
+
+    # ==========================================
+    # Adiciona Tool ChromaDB se collection existir
+    # ==========================================
+    if chromadb_client and collection_name:
+        print("[INFO] Adicionando ferramenta de busca no ChromaDB para a coleção:", collection_name)
+        @tool
+        def search_knowledge_base(query: str) -> str:
+            """
+            Use esta ferramenta SEMPRE que a pergunta envolver:
+            - documentação
+            - regras de negócio
+            - processos internos
+            - estrutura técnica da aplicação
+            """
+            try:
+                print("[INFO] Consultando ChromaDB para a coleção:", collection_name)
+                print("[INFO] Consultando ChromaDB com a query:", query)
+                chromadb_client.set_collection(collection_name)
+                results = chromadb_client.query(
+                    query,
+                    n_results=CHROMADB_DEFAULT_RESULTS
+                )
+                print("results", results)
+                if not results:
+                    return "Nenhum resultado encontrado."
+
+                formatted = []
+
+                for idx, result in enumerate(results, 1):
+                    formatted.append(
+                        f"[{idx}] "
+                        f"Conteúdo: {result.get('content', '')}\n"
+                        f"Metadata: {result.get('metadata', {})}\n"
+                        f"Similaridade: {result.get('similarity', 0):.2f}"
+                    )
+
+                return "\n\n".join(formatted)
+
+            except Exception as e:
+                return f"Erro ao consultar ChromaDB: {str(e)}"
+
+        tools.append(search_knowledge_base)
+
+    # ==========================================
+    # MESMA CONFIG do generate_response_with_tools_stream
+    # ==========================================
     agent = create_react_agent(
         model=genai_wrapper.llm,
-        tools=genai_wrapper.tools
+        tools=tools
     )
 
     try:
@@ -400,14 +461,14 @@ async def stream_agent_response(genai_wrapper, messages: list):
 
             elif event_type == "on_tool_start":
                 payload = {
-                    "content": f"\n**[Executando consulta]**\n"
+                    "content": "\n**[Executando consulta]**\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
 
             elif event_type == "on_tool_end":
                 payload = {
-                    "content": f"\n**[Consulta concluída]**\n\n"
+                    "content": "\n**[Consulta concluída]**\n\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
