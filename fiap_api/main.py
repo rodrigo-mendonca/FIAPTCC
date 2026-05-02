@@ -461,14 +461,14 @@ async def stream_agent_response(
 
             elif event_type == "on_tool_start":
                 payload = {
-                    "content": "\n**[Executando consulta]**\n"
+                    "content": "\n[Executando consulta]\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
 
             elif event_type == "on_tool_end":
                 payload = {
-                    "content": "\n**[Consulta concluída]**\n\n"
+                    "content": "\n[Consulta concluída]\n\n"
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"

@@ -210,3 +210,4 @@ fiap_lmstudio/AppImage/LM-Studio-0.3.23-3-x64.AppImage
 tests/chromadb/data/docs_cg/*
 fiap_chromadb/chroma/*
 data/*
+node_modules/*

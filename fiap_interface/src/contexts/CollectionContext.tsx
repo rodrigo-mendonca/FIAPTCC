@@ -77,11 +77,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
 
   // Carrega coleções periodicamente para manter sincronizado
   useEffect(() => {
-    const interval = setInterval(() => {
-      refreshCollections();
-    }, 5000); // Atualiza a cada 5 segundos
-    
-    return () => clearInterval(interval);
+    refreshCollections();    
   }, [selectedCollection]);
 
   // Função para criar uma nova coleção
