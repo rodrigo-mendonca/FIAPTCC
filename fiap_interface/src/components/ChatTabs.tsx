@@ -321,7 +321,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
       <Box sx={{ flex: 2 }}>
-        <Card sx={{ height: 'calc(100vh - 520px)', display: 'flex', flexDirection: 'column' }}>
+        <Card sx={{ minHeight: 500, height: 'calc(100vh - 520px)', display: 'flex', flexDirection: 'column' }}>
           <Box
             sx={{
               background: 'linear-gradient(135deg, #ED145B 0%, #C7104A 100%)',

@@ -1,4 +1,4 @@
-# Development Dockerfile for React app
+# Development Dockerfile for TCC
 FROM node:18-alpine
 
 # Set working directory
