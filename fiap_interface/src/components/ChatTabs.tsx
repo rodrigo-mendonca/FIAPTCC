@@ -1,9 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
-  Tabs,
-  Tab,
-  Paper,
   Card,
   CardContent,
   Typography,
@@ -11,22 +8,23 @@ import {
   Button,
   Avatar,
   useTheme,
-  alpha,
   Chip,
   IconButton,
 } from '@mui/material';
 import {
-  Code as CodeIcon,
   Help as HelpIcon,
   Chat as ChatIcon,
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
-  Delete as DeleteIcon,
+  DeleteSweep as ClearChatIcon,
   Refresh as RefreshIcon,
+  Code as CodeIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useCollection } from '../contexts/CollectionContext';
-
+import CollectionSelector from './CollectionSelector';
 import MarkdownRenderer from './MarkdownRenderer';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -38,7 +36,7 @@ interface Message {
   timestamp: Date;
 }
 
-interface ChatConfig {
+export interface ChatConfig {
   title: string;
   icon: React.ReactElement;
   streamEndpoint: string;
@@ -55,11 +53,20 @@ interface ChatConfig {
 interface ConfigurableChatProps {
   config: ChatConfig;
   darkMode?: boolean;
+  showCollectionSelector?: boolean;
+  containerHeight?: string | number;
+  hideSuggestions?: boolean;
 }
 
 // ── Componente principal de chat ──────────────────────────────────────────────
 
-const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = false }) => {
+export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
+  config,
+  darkMode = false,
+  showCollectionSelector = false,
+  containerHeight,
+  hideSuggestions = false,
+}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -70,6 +77,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   const { selectedCollection } = useCollection();
   const [alunoType, setAlunoType] = useState<string>('business_rules');
   const [registering, setRegistering] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -79,16 +87,21 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
     scrollToBottom();
   }, [messages]);
 
+  // Limpa o chat quando a coleção muda
+  useEffect(() => {
+    setMessages([]);
+    setInputMessage('');
+  }, [selectedCollection]);
+
+
   useEffect(() => {
     if (config.isAluno && messages.length === 0) {
-      const initMsg: Message = {
+      setMessages([{
         id: 'aluno_init',
-        content:
-          'Vou aprender com base no que você informar. Antes de prosseguir, verifiquei se você está falando de dois assuntos ao mesmo tempo — se estiver, por favor escolha somente 1 tema. Escolha um tipo: Regra de negócio, Base de dados ou Serviço. Se precisar, pedirei mais informações. Quando tudo estiver ok, por favor revise e confirme se devo registrar.',
+        content: 'Vou aprender com base no que você informar. Antes de prosseguir, verifiquei se você está falando de dois assuntos ao mesmo tempo — se estiver, por favor escolha somente 1 tema. Escolha um tipo: Regra de negócio, Base de dados ou Serviço. Se precisar, pedirei mais informações. Quando tudo estiver ok, por favor revise e confirme se devo registrar.',
         sender: 'bot',
         timestamp: new Date(),
-      };
-      setMessages([initMsg]);
+      }]);
     }
   }, [config.isAluno, messages.length]);
 
@@ -98,18 +111,14 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
 
   const readyToRegister = Boolean(
     lastBotMessage &&
-      /pronto para registrar|revisar e confirmar|confirme se devo registrar|revise e confirme|posso registrar|devo registrar|informações suficientes|quando estiver tudo certo|já posso registrar|pronto para salvar/i.test(
-        lastBotMessage.content
-      )
+    /pronto para registrar|revisar e confirmar|confirme se devo registrar|revise e confirme|posso registrar|devo registrar|informações suficientes|quando estiver tudo certo|já posso registrar|pronto para salvar/i.test(
+      lastBotMessage.content
+    )
   );
 
   const clearChat = async () => {
     setIsClearing(true);
-    try {
-      setMessages([]);
-    } finally {
-      setIsClearing(false);
-    }
+    try { setMessages([]); } finally { setIsClearing(false); }
   };
 
   const sendMessage = async () => {
@@ -138,11 +147,9 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
       let messageToSend = currentInput;
       if (config.isAluno) {
         const typeLabel =
-          alunoType === 'business_rules'
-            ? 'Regra de negócio'
-            : alunoType === 'database_struct'
-            ? 'Base de dados'
-            : 'Serviço';
+          alunoType === 'business_rules' ? 'Regra de negócio'
+          : alunoType === 'database_struct' ? 'Base de dados'
+          : 'Serviço';
         messageToSend = `INSTRUÇÕES AO ASSISTENTE-ALUNO: Você é um aluno que está aprendendo. O usuário está ensinando SOBRE: ${typeLabel}. Seu objetivo é extrair e construir um objeto JSON completo desse tipo com todos os campos necessários. Se faltarem informações, faça PERGUNTAS DIRETAS e ESPECÍFICAS ao usuário para obter os campos que faltam. Não invente valores. Quando você tiver todas as informações necessárias, responda primeiro a linha: "PRONTO_PARA_REGISTRAR" seguida do JSON completo. Pergunte apenas uma coisa por vez. Seja objetivo e claro. Agora segue a entrada do usuário:\n${currentInput}`;
       }
 
@@ -155,11 +162,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
 
       const response = await fetch(fullURL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-          'Cache-Control': 'no-cache',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', 'Cache-Control': 'no-cache' },
         body: JSON.stringify({ message: messageToSend, context }),
         mode: 'cors',
         credentials: 'same-origin',
@@ -171,7 +174,6 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
       if (!reader) throw new Error('Response body não disponível');
 
       let accumulatedContent = '';
-
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -191,9 +193,7 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
                       )
                     );
                   }
-                } catch {
-                  // chunk parcial — ignora
-                }
+                } catch { /* chunk parcial */ }
               }
             }
           }
@@ -217,30 +217,19 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   };
 
   const handleRegister = async () => {
-    const lastBot = [...messages]
-      .reverse()
-      .find((m) => m.sender === 'bot' && m.content?.trim().length > 0);
-
-    if (!lastBot) {
-      alert('Nenhuma informação do bot encontrada para registrar.');
-      return;
-    }
+    const lastBot = [...messages].reverse().find((m) => m.sender === 'bot' && m.content?.trim().length > 0);
+    if (!lastBot) { alert('Nenhuma informação do bot encontrada para registrar.'); return; }
 
     const containsMultiple =
       (lastBot.content || '').split(/[\.\n]/).filter(Boolean).length > 1 &&
       /\band\b|\be\b|,/i.test(lastBot.content);
-
     if (containsMultiple) {
-      const ok = window.confirm(
-        'Parece que você está falando sobre mais de um tema. Deseja continuar e registrar apenas este conteúdo, ou prefere escolher um único tema antes de registrar? (Clique Cancelar para escolher)'
-      );
+      const ok = window.confirm('Parece que você está falando sobre mais de um tema. Deseja continuar e registrar apenas este conteúdo, ou prefere escolher um único tema antes de registrar? (Clique Cancelar para escolher)');
       if (!ok) return;
     }
 
     let parsed = null;
-    try {
-      parsed = JSON.parse(lastBot.content);
-    } catch {
+    try { parsed = JSON.parse(lastBot.content); } catch {
       const ok = window.confirm('O conteúdo do bot não está em JSON válido. Deseja registrar como texto livre?');
       if (!ok) return;
     }
@@ -256,20 +245,16 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       if (!resp.ok) {
         const err = await resp.json().catch(() => null);
         throw new Error(err?.detail || 'Erro ao registrar item');
       }
-
-      setMessages([
-        {
-          id: Date.now().toString() + '_regok',
-          content: 'Ensinamento registrado com sucesso. Agora você já pode falar sobre outro assunto.',
-          sender: 'bot',
-          timestamp: new Date(),
-        },
-      ]);
+      setMessages([{
+        id: Date.now().toString() + '_regok',
+        content: 'Ensinamento registrado com sucesso. Agora você já pode falar sobre outro assunto.',
+        sender: 'bot',
+        timestamp: new Date(),
+      }]);
     } catch (err: any) {
       alert('Falha ao registrar item: ' + (err?.message || err));
     } finally {
@@ -278,102 +263,83 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const renderBotContent = (message: Message) => {
+    const isStreaming = streamingMessageId === message.id;
     if (config.isSQL && message.content) {
       return (
         <Box>
-          <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
-            SQL Gerado:
-          </Typography>
-          <pre
-            style={{
-              background: '#2d2d2d',
-              color: '#ffffff',
-              padding: '12px',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              fontFamily: 'Monaco, Consolas, monospace',
-              whiteSpace: 'pre-wrap',
-              overflow: 'auto',
-              margin: 0,
-            }}
-          >
+          <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>SQL Gerado:</Typography>
+          <pre style={{ background: '#2d2d2d', color: '#ffffff', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', fontFamily: 'Monaco, Consolas, monospace', whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>
             {message.content}
           </pre>
         </Box>
       );
     }
-
-    return (
-      <MarkdownRenderer
-        content={message.content}
-        isStreaming={streamingMessageId === message.id}
-      />
-    );
+    return <MarkdownRenderer content={message.content} isStreaming={isStreaming} />;
   };
 
+  const cardHeight = containerHeight ?? 'calc(100vh - 120px)';
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3 }}>
-      <Box sx={{ flex: 2 }}>
-        <Card sx={{ minHeight: 500, height: 'calc(100vh - 520px)', display: 'flex', flexDirection: 'column' }}>
-          <Box
-            sx={{
-              background: 'linear-gradient(135deg, #ED145B 0%, #C7104A 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 2,
-              borderRadius: '12px 12px 0 0',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {config.icon}
-              <Typography variant="h6">{config.title}</Typography>
-              <Chip
-                label={`${messages.length} mensagens`}
-                size="small"
-                sx={{ backgroundColor: alpha('#ffffff', 0.2), color: '#ffffff' }}
-              />
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'row',
+      gap: (!hideSuggestions && suggestionsOpen) ? 3 : 1,
+      height: cardHeight,
+      alignItems: 'stretch',
+    }}>
+      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* ── Header ── */}
+          <Box sx={{
+            background: 'linear-gradient(135deg, #2E6DA4 0%, #1A3A5C 100%)',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: 2,
+            py: 1.5,
+            borderRadius: '12px 12px 0 0',
+            gap: 1,
+          }}>
+            {/* Left */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#27AE60', flexShrink: 0, boxShadow: '0 0 0 2px rgba(39,174,96,.3)' }} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '.95rem', lineHeight: 1.2 }}>{config.title}</Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,.6)', fontSize: '.72rem' }}>
+                  {config.description} · {messages.length} mensagens
+                </Typography>
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {messages.length > 0 && (
-                <IconButton
-                  onClick={clearChat}
-                  disabled={isClearing}
-                  sx={{
-                    color: '#ffffff',
-                    backgroundColor: alpha('#ffffff', 0.1),
-                    '&:hover': { backgroundColor: alpha('#ffffff', 0.2) },
-                  }}
-                  title="Limpar conversa"
-                >
-                  {isClearing ? <RefreshIcon className="spinning" /> : <DeleteIcon />}
-                </IconButton>
-              )}
+
+            {/* Right */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+              {showCollectionSelector && <CollectionSelector compact />}
+              <IconButton
+                onClick={clearChat}
+                disabled={isClearing || messages.length === 0}
+                title="Limpar conversa"
+                sx={{
+                  mt:1,
+                  color: messages.length > 0 ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.3)',
+                  '&:hover': { bgcolor: messages.length > 0 ? 'rgba(255,255,255,.12)' : 'transparent' },
+                }}
+              >
+                {isClearing ? <RefreshIcon className="spinning" /> : <ClearChatIcon  />}
+              </IconButton>
             </Box>
           </Box>
 
-          <CardContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%', flex: 1 }}>
+          {/* ── Messages ── */}
+          <CardContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
             <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {messages.length === 0 && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    textAlign: 'center',
-                    opacity: 0.7,
-                  }}
-                >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', opacity: 0.7 }}>
                   <BotIcon sx={{ fontSize: 48, mb: 2, color: 'primary.main' }} />
                   <Typography variant="h6" gutterBottom>{config.description}</Typography>
                   <Typography variant="body2" color="text.secondary">{config.emptyStateMessage}</Typography>
@@ -381,92 +347,54 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
               )}
 
               {messages.map((message) => (
-                <Box
-                  key={message.id}
-                  sx={{ display: 'flex', justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start', mb: 1 }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: message.sender === 'user' ? 'row-reverse' : 'row',
-                      alignItems: 'flex-start',
-                      gap: 1,
-                      maxWidth: '95%',
-                      width: '100%',
-                    }}
-                  >
+                <Box key={message.id} sx={{ display: 'flex', justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start', mb: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: message.sender === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 1, maxWidth: '95%', width: '100%' }}>
                     <Avatar sx={{ width: 32, height: 32, background: '#64748b', color: '#ffffff' }}>
                       {message.sender === 'user' ? <PersonIcon /> : <BotIcon />}
                     </Avatar>
-
-                    <Paper
-                      elevation={1}
+                    <Box
                       sx={{
-                        p: 2,
-                        width: '100%',
-                        borderRadius: 2,
-                        background: message.sender === 'user' ? '#ED145B' : darkMode ? '#1e293b' : '#f8fafc',
+                        p: 2, width: '100%', borderRadius: 2,
+                        background: message.sender === 'user' ? '#2E6DA4' : darkMode ? '#1e293b' : '#f8fafc',
                         color: message.sender === 'user' ? '#ffffff' : darkMode ? '#ffffff' : '#000000',
                         wordBreak: 'break-word',
                         border: message.sender === 'bot' ? `1px solid ${darkMode ? '#475569' : '#e2e8f0'}` : 'none',
+                        boxShadow: '0 1px 4px rgba(0,0,0,.08)',
                       }}
                     >
-                      {message.sender === 'bot' ? (
-                        renderBotContent(message)
-                      ) : (
-                        <Typography variant="body1">{message.content}</Typography>
-                      )}
-                      <Typography
-                        variant="caption"
-                        sx={{ display: 'block', mt: 1, opacity: 0.7, textAlign: message.sender === 'user' ? 'right' : 'left' }}
-                      >
+                      {message.sender === 'bot' ? renderBotContent(message) : <Typography variant="body1">{message.content}</Typography>}
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7, textAlign: message.sender === 'user' ? 'right' : 'left' }}>
                         {message.timestamp.toLocaleTimeString()}
                       </Typography>
-                    </Paper>
+                    </Box>
                   </Box>
                 </Box>
               ))}
-
               <div ref={messagesEndRef} />
             </Box>
 
+            {/* ── Input ── */}
             <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
               <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
                 <TextField
-                  fullWidth
-                  multiline
-                  maxRows={4}
+                  fullWidth multiline maxRows={4}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder={config.placeholder}
                   disabled={isTyping}
-                  variant="outlined"
-                  size="small"
+                  variant="outlined" size="small"
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
                 />
                 <Button
-                  variant="contained"
-                  onClick={sendMessage}
+                  variant="contained" onClick={sendMessage}
                   disabled={!inputMessage.trim() || isTyping}
-                  sx={{
-                    borderRadius: 3,
-                    minWidth: 48,
-                    background: '#ED145B',
-                    '&:hover': { background: '#C7104A' },
-                    '&:disabled': { background: '#94a3b8', color: '#ffffff' },
-                  }}
+                  sx={{ borderRadius: 3, minWidth: 48, bgcolor: '#2E6DA4', '&:hover': { bgcolor: '#1A3A5C' }, '&:disabled': { bgcolor: '#94a3b8', color: '#ffffff' } }}
                 >
                   <SendIcon />
                 </Button>
                 {config.isAluno && readyToRegister && (
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    onClick={handleRegister}
-                    disabled={registering}
-                    sx={{ borderRadius: 3, minWidth: 140 }}
-                  >
+                  <Button variant="contained" color="secondary" onClick={handleRegister} disabled={registering} sx={{ borderRadius: 3, minWidth: 140 }}>
                     Registrar
                   </Button>
                 )}
@@ -476,13 +404,9 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
             {config.isAluno && (
               <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', gap: 2, alignItems: 'center' }}>
                 <TextField
-                  select
-                  SelectProps={{ native: true }}
-                  value={alunoType}
+                  select SelectProps={{ native: true }} value={alunoType}
                   onChange={(e) => setAlunoType(e.target.value)}
-                  size="small"
-                  label="Tipo"
-                  sx={{ minWidth: 220 }}
+                  size="small" label="Tipo" sx={{ minWidth: 220 }}
                 >
                   <option value="business_rules">Regra de negócio</option>
                   <option value="database_struct">Base de dados</option>
@@ -494,49 +418,64 @@ const ConfigurableChat: React.FC<ConfigurableChatProps> = ({ config, darkMode = 
         </Card>
       </Box>
 
-      <Box sx={{ flex: 1 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>💡 {config.suggestionsTitle}</Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>{config.suggestionsDescription}</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
-              {config.suggestions.map((suggestion, index) => (
-                <Chip
-                  key={index}
-                  label={suggestion}
-                  variant="outlined"
-                  clickable
-                  onClick={() => setInputMessage(suggestion)}
-                  size="small"
-                  sx={{ justifyContent: 'flex-start', height: 'auto', py: 1, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'left' } }}
-                />
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+      {/* ── Suggestions panel ── */}
+      {!hideSuggestions && (
+        suggestionsOpen ? (
+          <Box sx={{ width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+            <Card sx={{ flex: 1, overflow: 'auto' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '.95rem' }}>💡 {config.suggestionsTitle}</Typography>
+                  <IconButton size="small" onClick={() => setSuggestionsOpen(false)} title="Ocultar sugestões">
+                    <ChevronRightIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {config.suggestionsDescription}
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {config.suggestions.map((suggestion, index) => (
+                    <Chip
+                      key={index} label={suggestion} variant="outlined" clickable
+                      onClick={() => setInputMessage(suggestion)} size="small"
+                      sx={{ justifyContent: 'flex-start', height: 'auto', py: 1, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'left' } }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', pt: 0.5 }}>
+            <IconButton
+              onClick={() => setSuggestionsOpen(true)}
+              title="Mostrar sugestões"
+              sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+            >
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )
+      )}
     </Box>
   );
 };
 
 // ── Configurações dos chats ───────────────────────────────────────────────────
 
-const chatConfigs = {
+export const chatConfigs: Record<string, ChatConfig> = {
   general: {
-    title: '💬 Chat Geral',
+    title: '💬 Chat',
     icon: <ChatIcon />,
     streamEndpoint: '/api/chat/general/stream',
     placeholder: 'Digite sua mensagem para conversar...',
     description: 'Dúvidas?',
     emptyStateMessage: 'Converse livremente com a IA sobre qualquer assunto.',
     suggestions: [
-      'Qual é o seu nome?','Olá! Como você pode me ajudar?','Me explique sobre inteligência artificial',
-      'Quais são as últimas tendências em tecnologia?','Como posso melhorar minha produtividade?',
-      'Me conte uma curiosidade interessante','Como funciona o machine learning?',
-      'Quais são os benefícios da automação empresarial?','Me explique sobre computação em nuvem',
-      'Como a IA está transformando os negócios?','Quais são as melhores práticas de segurança digital?',
-      'Me conte sobre desenvolvimento de software','Como escolher as melhores ferramentas para minha empresa?',
-      'Quais são as tendências em análise de dados?','Me explique sobre transformação digital',
+      'Qual é o seu nome?', 'Olá! Como você pode me ajudar?', 'Me explique sobre inteligência artificial',
+      'Quais são as últimas tendências em tecnologia?', 'Como posso melhorar minha produtividade?',
+      'Me conte uma curiosidade interessante', 'Como funciona o machine learning?',
+      'Quais são os benefícios da automação empresarial?',
     ],
     suggestionsTitle: 'Sugestões de Conversa',
     suggestionsDescription: 'Clique nas sugestões abaixo para iniciar uma conversa:',
@@ -550,117 +489,43 @@ const chatConfigs = {
     description: 'Gerador de SQL',
     emptyStateMessage: 'Faça perguntas para gerar consultas SQL baseadas na estrutura do banco.',
     suggestions: [
-      'Liste todos os clientes ativos','Busque vendas do último mês','Produtos com estoque baixo',
-      'Clientes inadimplentes','Vendas por funcionário','Top 10 produtos mais vendidos',
-      'Clientes que mais compraram este ano','Vendas por região geográfica',
-      'Produtos sem movimento nos últimos 6 meses','Fornecedores com mais pedidos',
-      'Média de vendas por vendedor','Clientes com limite de crédito estourado',
-      'Campanhas de marketing mais efetivas','Tickets de suporte em aberto',
-      'Contratos que vencem nos próximos 30 dias',
+      'Liste todos os clientes ativos', 'Busque vendas do último mês', 'Produtos com estoque baixo',
+      'Clientes inadimplentes', 'Vendas por funcionário', 'Top 10 produtos mais vendidos',
     ],
     suggestionsTitle: 'Exemplos de Consultas',
     suggestionsDescription: 'Clique nas sugestões abaixo para gerar SQL:',
     isSQL: true,
   },
   help: {
-    title: '❓ Chat Dúvidas',
+    title: '❓ Dúvidas',
     icon: <HelpIcon />,
     streamEndpoint: '/api/chat/help/stream',
-    placeholder: 'Ex: Como funciona o processo de vendas?',
+    placeholder: 'Digite a mensagem para iniciar uma conversa...',
     description: 'Assistente de Dúvidas',
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
     suggestions: [
-      'Liste todas as tabelas disponíveis','Verifica na documentação sobre saldo devedor do cliente',
-      'Cria um grafico dos ultimos 3 meses de vendas','Qual o maior cliente?',
-      'Qual o produto mais vendido?','Cria uma tabela com os 10 produtos mais vendidos',
-      'Como cadastrar um novo cliente?','Qual é o fluxo de aprovação de crédito?',
-      'Como alterar preços de produtos?','Quais são os prazos de entrega padrão?',
-      'Como cancelar uma venda?','Como configurar uma campanha de marketing?',
-      'Qual é o processo de devolução de produtos?','Como acompanhar o status de uma entrega?',
-      'Quais são os níveis de acesso do sistema?','Como fazer backup dos dados?',
+      'Liste todas as tabelas disponíveis', 'Verifica na documentação sobre saldo devedor do cliente',
+      'Cria um gráfico dos últimos 3 meses de vendas', 'Qual o maior cliente?',
+      'Qual o produto mais vendido?', 'Cria uma tabela com os 10 produtos mais vendidos',
+      'Como cadastrar um novo cliente?', 'Qual é o fluxo de aprovação de crédito?',
+      'Como alterar preços de produtos?', 'Quais são os prazos de entrega padrão?',
     ],
     suggestionsTitle: 'Exemplos de Dúvidas',
     suggestionsDescription: 'Clique nas sugestões abaixo para fazer perguntas:',
     isSQL: false,
   },
-  aluno: {
-    title: '🧠 Chat Aluno',
-    icon: <BotIcon />,
-    streamEndpoint: '/api/chat/aluno/stream',
-    placeholder: 'Descreva a informação que você quer que eu aprenda...',
-    description: 'Este chat aprenderá com base no que você informar.',
-    emptyStateMessage: 'Explique algo que deseja registrar no sistema. Quando estiver pronto, revise e confirme para registrar.',
-    suggestions: [
-      'Registrar uma regra de negócio sobre descontos','Descrever nova tabela de clientes',
-      'Registrar serviço de integração com ERP','Explicar validação para campo CPF',
-      'Detalhar campo de endereço na tabela cliente',
-      'quero adicionar uma nova regra para novos o clientes, só pode ser cadastrado, se tiver a informação de renda e endereço',
-    ],
-    suggestionsTitle: 'Exemplos para teste',
-    suggestionsDescription: 'Clique em um exemplo para preencher a mensagem e testar o fluxo de registro.',
-    isSQL: false,
-    isAluno: true,
-  },
-};
-
-// ── Configuração de visibilidade das abas ─────────────────────────────────────
-
-const tabsConfig = {
-  general: {
-    visible: true,
-    index: 0,
-    tabProps: { icon: <ChatIcon />, label: 'Chat Geral', iconPosition: 'start' as const, sx: { fontWeight: 'bold' } },
-  },
-  /*sql: {
-    visible: true,
-    index: 1,
-    tabProps: { icon: <CodeIcon />, label: 'Chat SQL', iconPosition: 'start' as const, sx: { fontWeight: 'bold' } },
-  },*/
-  help: {
-    visible: true,
-    index: 2,
-    tabProps: { icon: <HelpIcon />, label: 'Chat Dúvidas', iconPosition: 'start' as const, sx: { fontWeight: 'bold' } },
-  },
-  /*aluno: {
-    visible: true,
-    index: 3,
-    tabProps: { icon: <BotIcon />, label: 'Chat Aluno', iconPosition: 'start' as const, sx: { fontWeight: 'bold' } },
-  },*/
 };
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-// ── ChatTabs ──────────────────────────────────────────────────────────────────
+// ── ChatTabs: apenas o Chat Dúvidas ──────────────────────────────────────────
 
-const ChatTabs: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => {
-  const [selectedTab, setSelectedTab] = useState(0);
-  const visibleTabs = Object.entries(tabsConfig).filter(([_, cfg]) => cfg.visible);
-  const tabKeys = visibleTabs.map(([key]) => key);
-
-  return (
-    <Box sx={{ width: '100%', typography: 'body1' }}>
-      <Paper sx={{ mb: 3 }}>
-        <Tabs
-          value={selectedTab}
-          onChange={(_, newValue) => setSelectedTab(newValue)}
-          variant="fullWidth"
-          indicatorColor="primary"
-          textColor="primary"
-        >
-          {visibleTabs.map(([key, cfg]) => (
-            <Tab key={key} {...cfg.tabProps} />
-          ))}
-        </Tabs>
-      </Paper>
-      <Box>
-        {tabKeys.map((key, index) => (
-          <Box key={key} sx={{ display: selectedTab === index ? 'block' : 'none' }}>
-            <ConfigurableChat config={chatConfigs[key as keyof typeof chatConfigs]} darkMode={darkMode} />
-          </Box>
-        ))}
-      </Box>
-    </Box>
-  );
-};
+const ChatTabs: React.FC<{ darkMode?: boolean }> = ({ darkMode = false }) => (
+  <ConfigurableChat
+    config={chatConfigs.help}
+    darkMode={darkMode}
+    showCollectionSelector
+  />
+);
 
 export default ChatTabs;

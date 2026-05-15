@@ -42,12 +42,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
   }, []);
 
-  // Função para definir coleção (com localStorage e reload)
   const setSelectedCollection = (collection: string) => {
     setSelectedCollectionState(collection);
     localStorage.setItem('selectedCollection', collection);
-    // Recarrega a página para limpar todos os campos e aplicar a nova coleção
-    window.location.reload();
   };
 
   // Função para atualizar a lista de coleções disponíveis
@@ -96,11 +93,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         throw new Error(error.detail || 'Erro ao criar coleção');
       }
 
-      // Atualiza a coleção selecionada para a nova
       setSelectedCollection(collectionName);
-      // Recarrega a página para aplicar a mudança
-      await new Promise(resolve => setTimeout(resolve, 500));
-      window.location.reload();
     } catch (error) {
       throw error;
     }

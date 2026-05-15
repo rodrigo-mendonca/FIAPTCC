@@ -59,7 +59,7 @@ const flattenChildren = (children: ReactNode): string => {
 
 export const MarkdownRenderer: React.FC<{ content: string; isStreaming: boolean }> = ({ content, isStreaming }) => {
   const theme = useTheme();
-const isDark = theme.palette.mode === 'dark';
+  const isDark = theme.palette.mode === 'dark';
 
 const markdownStyles = `
   .markdown-container { 
@@ -95,6 +95,7 @@ const markdownStyles = `
     vertical-align: middle;
   }
 
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .animate-spin { animation: spin 1s linear infinite; display: inline-block; }
 
