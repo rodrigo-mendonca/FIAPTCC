@@ -43,11 +43,11 @@ class GenAIConfig:
 
         # ====================== CONFIGURAÇÃO MCP ======================
         self.mcp_servers: Dict[str, Dict] = {
-            #"duckduckgo": {
-            #    "transport": "stdio",
-            #    "command": "uvx",
-            #    "args": ["duckduckgo-mcp-server"]
-            #},
+            "duckduckgo": {
+                "transport": "stdio",
+                "command": "uvx",
+                "args": ["duckduckgo-mcp-server"]
+            },
             "mcp-postgres": {
                 "transport": "stdio",
                 "command": "docker",
