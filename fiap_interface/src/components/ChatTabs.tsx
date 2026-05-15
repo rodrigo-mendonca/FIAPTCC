@@ -508,7 +508,7 @@ export const chatConfigs: Record<string, ChatConfig> = {
       'Cria um gráfico dos últimos 3 meses de vendas', 'Qual o maior cliente?',
       'Qual o produto mais vendido?', 'Cria uma tabela com os 10 produtos mais vendidos',
       'Como cadastrar um novo cliente?', 'Qual é o fluxo de aprovação de crédito?',
-      'Como alterar preços de produtos?', 'Quais são os prazos de entrega padrão?',
+      'Como alterar preços de produtos?', 'Quais são os prazos de entrega padrão?', "Cria um gráfico de linhas com as vendas totais por dia do mês de abril"
     ],
     suggestionsTitle: 'Exemplos de Dúvidas',
     suggestionsDescription: 'Clique nas sugestões abaixo para fazer perguntas:',

@@ -124,83 +124,68 @@ const markdownStyles = `
     return text;
   }, [content]);
 
+  const components = useMemo(() => ({
+    p({ children }: { children?: ReactNode }) {
+      const text = flattenChildren(children);
+      const parts = text.split(/(\[Executando consulta\]|\[Consulta concluída\])/g);
+
+      if (parts.length > 1) {
+        return (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            marginBottom: '16px',
+            border: 'none',
+            outline: 'none'
+          }}>
+            {parts.map((part, i) => {
+              if (part === '[Executando consulta]') return <ToolStatusBadge key={i} type="executing" />;
+              if (part === '[Consulta concluída]') return <ToolStatusBadge key={i} type="completed" />;
+              const cleanText = part.trim();
+              return cleanText ? <span key={i} style={{ fontSize: '1rem' }}>{cleanText}</span> : null;
+            })}
+          </div>
+        );
+      }
+      return <p style={{ marginBottom: '16px', border: 'none' }}>{children}</p>;
+    },
+
+    code(props: any) {
+      const { children, className, node, ...rest } = props;
+      const match = /language-(\w+)/.exec(className || '');
+      const lang = match ? match[1] : '';
+      const codeValue = String(children).replace(/\n$/, '');
+      const isInline = !className;
+      const isVega = lang === 'vega-lite' ||
+                     (!isInline && codeValue.includes('vega.github.io/schema/vega-lite'));
+
+      if (!isInline && isVega) {
+        return <VegaLiteBlock spec={codeValue} />;
+      }
+
+      if (isInline) {
+        return (
+          <code style={{ padding: '2px 4px', borderRadius: '4px' }} {...rest}>
+            {children}
+          </code>
+        );
+      }
+
+      return (
+        <pre style={{ padding: '1rem', borderRadius: '8px', overflowX: 'auto' }}>
+          <code className={className} {...rest}>
+            {children}
+          </code>
+        </pre>
+      );
+    }
+  }), []);
+
   return (
     <div className="markdown-container">
       <style>{markdownStyles}</style>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // Customização do parágrafo para os Status Badges (usando a lógica anterior)
-          p({ children }) {
-            const text = flattenChildren(children);
-            const parts = text.split(/(\[Executando consulta\]|\[Consulta concluída\])/g);
-            
-            if (parts.length > 1) {
-              return (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '4px',           // Gap reduzido
-                  marginBottom: '16px',
-                  border: 'none',       // Garante que não haja borda no container
-                  outline: 'none' 
-                }}>
-                  {parts.map((part, i) => {
-                    if (part === '[Executando consulta]') return <ToolStatusBadge key={i} type="executing" />;
-                    if (part === '[Consulta concluída]') return <ToolStatusBadge key={i} type="completed" />;
-                    
-                    // Remove espaços em branco que criam "linhas vazias" entre os badges
-                    const cleanText = part.trim();
-                    return cleanText ? <span key={i} style={{ fontSize: '1rem' }}>{cleanText}</span> : null;
-                  })}
-                </div>
-              );
-            }
-            return <p style={{ marginBottom: '16px', border: 'none' }}>{children}</p>;
-          },
-
-          // Customização do bloco de código corrigindo o erro de Tipagem
-          code(props) {
-            // No react-markdown v9, 'inline' não existe mais formalmente nas props.
-            // O padrão agora é: se tem classe 'language-', é bloco. Se não tem, é inline.
-            const { children, className, node, ...rest } = props;
-            
-            const match = /language-(\w+)/.exec(className || '');
-            const lang = match ? match[1] : '';
-            const codeValue = String(children).replace(/\n$/, '');
-
-            // Se não houver className, o react-markdown costuma tratar como inline code
-            const isInline = !className;
-
-            // Lógica de Detecção Vega-Lite (Blindada)
-            const isVega = lang === 'vega-lite' || 
-                           (!isInline && codeValue.includes('vega.github.io/schema/vega-lite'));
-
-            if (!isInline && isVega) {
-              return <VegaLiteBlock spec={codeValue} />;
-            }
-
-            if (isInline) {
-              return (
-                <code 
-                  style={{ padding: '2px 4px', borderRadius: '4px' }} 
-                  {...rest}
-                >
-                  {children}
-                </code>
-              );
-            }
-
-            return (
-              <pre style={{ padding: '1rem', borderRadius: '8px', overflowX: 'auto' }}>
-                <code className={className} {...rest}>
-                  {children}
-                </code>
-              </pre>
-            );
-          }
-        }}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {processedContent}
       </ReactMarkdown>
       {isStreaming && <span className="typing-cursor" />}

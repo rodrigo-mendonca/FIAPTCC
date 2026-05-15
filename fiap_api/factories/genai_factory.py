@@ -406,7 +406,7 @@ class ChatResponseGenerator:
         # Construir URL da API
         api_url = f"{genai_params.endpoint}/chat/completions"
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=900.0) as client:
             async with client.stream(
                 "POST",
                 api_url,
