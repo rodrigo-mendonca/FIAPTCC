@@ -73,6 +73,8 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
   const theme = useTheme();
   const { selectedCollection } = useCollection();
   const [alunoType, setAlunoType] = useState<string>('business_rules');
@@ -80,8 +82,24 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!userScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Considera "no fundo" se estiver a menos de 80px do final
+      userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 80;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -131,6 +149,7 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
       timestamp: new Date(),
     };
 
+    userScrolledUp.current = false;
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = inputMessage;
     setInputMessage('');
@@ -337,7 +356,7 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
 
           {/* ── Messages ── */}
           <CardContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
-            <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box ref={messagesContainerRef} sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {messages.length === 0 && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', opacity: 0.7 }}>
                   <BotIcon sx={{ fontSize: 48, mb: 2, color: 'primary.main' }} />
