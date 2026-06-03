@@ -17,7 +17,7 @@ import {
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
-  DeleteSweep as ClearChatIcon,
+  Backspace as ClearChatIcon,
   Refresh as RefreshIcon,
   Code as CodeIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -79,7 +79,7 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
   const { selectedCollection } = useCollection();
   const [alunoType, setAlunoType] = useState<string>('business_rules');
   const [registering, setRegistering] = useState(false);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   const scrollToBottom = () => {
     if (!userScrolledUp.current) {

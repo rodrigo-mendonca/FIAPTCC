@@ -77,11 +77,11 @@ const CollectionSelector: React.FC<Props> = ({ compact = false }) => {
   // Dialog para criar coleção (shared)
   const createDialog = (
     <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Criar Nova Coleção</DialogTitle>
+      <DialogTitle>Criar Nova Fonte</DialogTitle>
       <DialogContent sx={{ pt: 2 }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <TextField
-          autoFocus fullWidth label="Nome da Coleção" placeholder="Ex: minha_colecao"
+          autoFocus fullWidth label="Nome da Fonte" placeholder="Ex: minha_fonte"
           value={newCollectionName}
           onChange={(e) => { setNewCollectionName(e.target.value); setError(null); }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !isCreating) handleCreateCollection(); }}
@@ -102,9 +102,9 @@ const CollectionSelector: React.FC<Props> = ({ compact = false }) => {
   // Dialog de confirmação de deleção (shared)
   const deleteDialog = (
     <Dialog open={openDeleteDialog} onClose={handleDeleteDialogClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Deletar Coleção</DialogTitle>
+      <DialogTitle>Deletar Fonte</DialogTitle>
       <DialogContent sx={{ pt: 2 }}>
-        <Typography gutterBottom>Tem certeza que deseja deletar a coleção <strong>{collectionToDelete}</strong>?</Typography>
+        <Typography gutterBottom>Tem certeza que deseja deletar a fonte <strong>{collectionToDelete}</strong>?</Typography>
         <Alert severity="warning" sx={{ mt: 2 }}>Esta ação é irreversível e todos os documentos serão perdidos.</Alert>
       </DialogContent>
       <DialogActions>
@@ -121,7 +121,7 @@ const CollectionSelector: React.FC<Props> = ({ compact = false }) => {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
         <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: '.62rem', letterSpacing: '.08em', textTransform: 'uppercase', lineHeight: 1 }}>
-          Coleção
+          Fonte
         </Typography>
         <FormControl size="small">
         <Select

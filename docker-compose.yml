@@ -70,7 +70,7 @@ services:
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio
       - GENAI_ENDPOINT=http://192.168.50.30:1234/v1
-      - GENAI_MODEL=qwen3-coder-30b-a3b-instruct
+      - GENAI_MODEL=qwen/qwen3.5-9b
       - GENAI_API_KEY=sk-lm-dTRG1KqN:IqVqzXZWQjtcVqlSZzMS
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7
@@ -160,7 +160,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=mcpdb
+      - POSTGRES_DB=cnpj_dados_abertos
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -184,7 +184,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mcpdb
+      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
     depends_on:
       - postgres
     networks:

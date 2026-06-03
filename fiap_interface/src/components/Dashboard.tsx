@@ -1,32 +1,10 @@
-import React from 'react';
-import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Card, CardContent, Typography, Button, Skeleton } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   PieChart, Pie, Legend, ResponsiveContainer,
 } from 'recharts';
 import { metricsData, setoresBarData, porteDonutData, insightsData } from '../mockData';
-
-const CHART_COLORS = ['#2E6DA4', '#4A9FD4', '#27AE60', '#E67E22', '#8E44AD', '#1ABC9C', '#E74C3C', '#F39C12'];
-const PORTE_COLORS = ['#4A9FD4', '#2E6DA4', '#27AE60', '#E67E22'];
-
-const VARIANT_TOP: Record<string, string> = {
-  blue: '#2E6DA4',
-  green: '#27AE60',
-  orange: '#E67E22',
-  teal: '#1ABC9C',
-};
-
-const BADGE_STYLE: Record<string, { bg: string; color: string }> = {
-  up:   { bg: '#D5F5E3', color: '#27AE60' },
-  down: { bg: '#FADBD8', color: '#E74C3C' },
-  new:  { bg: '#EBF5FB', color: '#2E6DA4' },
-};
-
-const INSIGHT_BORDER: Record<string, string> = {
-  green: '#27AE60',
-  blue: '#2E6DA4',
-  orange: '#E67E22',
-};
 
 interface Props {
   darkMode?: boolean;
@@ -37,30 +15,103 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
   const tooltipBg = darkMode ? '#1a2535' : '#fff';
   const titleColor = darkMode ? '#e2eaf4' : '#1A3A5C';
 
+  const [metrics, setMetrics] = useState(metricsData);
+  const [setores, setSetores] = useState(setoresBarData);
+  const [porte, setPorte] = useState(porteDonutData);
+  const [insights, setInsights] = useState(insightsData);
+  const [loading, setLoading] = useState(false);
+
+  // Busca os dados do mock e atualiza o estado da página
+  const refresh = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setMetrics(metricsData);
+      setSetores(setoresBarData);
+      setPorte(porteDonutData);
+      setInsights(insightsData);
+      setLoading(false);
+    }, 600);
+  };
+
+  useEffect(() => { refresh(); }, []);
+
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
           <Typography sx={{ fontWeight: 800, fontSize: '1.3rem', color: titleColor }}>
             Visão Geral do Mercado
           </Typography>
-          <Chip
-            label="Atualizado hoje"
-            size="small"
-            sx={{ bgcolor: '#2E6DA4', color: 'white', fontWeight: 700, fontSize: '.72rem' }}
-          />
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            Dados de CNPJs ativos – Receita Federal do Brasil
+          </Typography>
         </Box>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-          Dados de CNPJs ativos – Receita Federal do Brasil
-        </Typography>
+        <Button
+          onClick={refresh}
+          disabled={loading}
+          size="small"
+          variant="contained"
+          sx={{
+            bgcolor: '#2E6DA4', '&:hover': { bgcolor: '#1A3A5C' },
+            color: 'white', fontWeight: 700, fontSize: '.72rem',
+            textTransform: 'none', borderRadius: '8px',
+          }}
+        >
+          {loading ? 'Atualizando…' : '🔄 Atualizar dados'}
+        </Button>
       </Box>
 
+      {loading ? (
+        <>
+          {/* Skeleton: metric cards */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} sx={{ overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
+                <Skeleton variant="rectangular" height={3} />
+                <CardContent sx={{ p: '18px 20px !important' }}>
+                  <Skeleton variant="text" width="65%" height={14} />
+                  <Skeleton variant="text" width="45%" height={34} sx={{ mt: '6px' }} />
+                  <Skeleton variant="text" width="55%" height={12} sx={{ mt: '4px' }} />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+
+          {/* Skeleton: charts row */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2, mb: 3 }}>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
+                <CardContent>
+                  <Skeleton variant="text" width="50%" height={18} />
+                  <Skeleton variant="text" width="35%" height={12} sx={{ mb: 1.5 }} />
+                  <Skeleton variant="rounded" height={220} />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+
+          {/* Skeleton: insight cards */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.75 }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>
+                <CardContent sx={{ p: '16px !important' }}>
+                  <Skeleton variant="text" width="70%" height={16} />
+                  <Skeleton variant="text" width="100%" height={12} sx={{ mt: '5px' }} />
+                  <Skeleton variant="text" width="90%" height={12} />
+                  <Skeleton variant="rounded" width={92} height={20} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        </>
+      ) : (
+      <>
       {/* Metric cards */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
-        {metricsData.map((m, i) => (
+        {metrics.map((m, i) => (
           <Card key={i} sx={{ overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.05)', position: 'relative' }}>
-            <Box sx={{ height: 3, bgcolor: VARIANT_TOP[m.variant] }} />
+            <Box sx={{ height: 3, bgcolor: m.topColor }} />
             <CardContent sx={{ p: '18px 20px !important' }}>
               <Typography sx={{ fontSize: '.75rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', mb: '6px' }}>
                 {m.label}
@@ -71,7 +122,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
               <Typography sx={{ fontSize: '.75rem', color: '#27AE60', mt: '4px' }}>
                 {m.sub}
               </Typography>
-              <Box sx={{ position: 'absolute', right: 14, top: 18, fontSize: '1.5rem', opacity: .18 }}>
+              <Box sx={{ position: 'absolute', right: 14, top: 18, fontSize: '1.5rem', opacity: 1 }}>
                 {m.icon}
               </Box>
             </CardContent>
@@ -84,23 +135,25 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
           <CardContent>
             <Typography sx={{ fontWeight: 700, color: titleColor, fontSize: '.9rem', mb: '4px' }}>
-              Aberturas por Setor – São Paulo (2025 Q1–Q4)
+              Aberturas por Setor – São Paulo
             </Typography>
             <Typography sx={{ fontSize: '.75rem', color: 'text.secondary', mb: 1.5 }}>
               Top 8 CNAEs por volume de abertura de empresas
             </Typography>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={setoresBarData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+              <BarChart data={setores} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridLine} />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} unit="k" />
                 <Tooltip
-                  formatter={(v: number) => [`${v}k`, 'Novas empresas']}
-                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0' }}
+                  formatter={(v: any, _n: any, item: any) => [`${v}${item.payload.unit}`, item.payload.tooltipLabel]}
+                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0', color: titleColor }}
+                  labelStyle={{ color: titleColor }}
+                  itemStyle={{ color: titleColor }}
                 />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {setoresBarData.map((_, idx) => (
-                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                  {setores.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.color} />
                   ))}
                 </Bar>
               </BarChart>
@@ -119,22 +172,25 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
-                  data={porteDonutData}
+                  data={porte}
                   cx="50%"
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
                   dataKey="value"
                   paddingAngle={2}
+                  stroke="none"
                 >
-                  {porteDonutData.map((_, idx) => (
-                    <Cell key={idx} fill={PORTE_COLORS[idx]} />
+                  {porte.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.color} stroke="none" />
                   ))}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Tooltip
-                  formatter={(v: number) => [`${v}%`, '']}
-                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0' }}
+                  formatter={(v: any, _n: any, item: any) => [`${v}${item.payload.unit}`, item.payload.tooltipLabel]}
+                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0', color: titleColor }}
+                  labelStyle={{ color: titleColor }}
+                  itemStyle={{ color: titleColor }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -144,10 +200,9 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
 
       {/* Insight cards */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.75 }}>
-        {insightsData.map((insight, i) => {
-          const badge = BADGE_STYLE[insight.badgeType];
+        {insights.map((insight, i) => {
           return (
-            <Card key={i} sx={{ borderLeft: `4px solid ${INSIGHT_BORDER[insight.variant]}`, boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>
+            <Card key={i} sx={{ borderLeft: `4px solid ${insight.borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>
               <CardContent sx={{ p: '16px !important' }}>
                 <Typography sx={{ fontWeight: 700, color: titleColor, fontSize: '.82rem', mb: '5px' }}>
                   {insight.icon} {insight.title}
@@ -157,7 +212,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
                 </Typography>
                 <Box sx={{
                   display: 'inline-block', mt: 1, px: 1, py: '2px',
-                  borderRadius: '99px', bgcolor: badge.bg, color: badge.color,
+                  borderRadius: '99px', bgcolor: insight.badgeBg, color: insight.badgeColor,
                   fontSize: '.7rem', fontWeight: 700,
                 }}>
                   {insight.badge}
@@ -167,6 +222,8 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
           );
         })}
       </Box>
+      </>
+      )}
     </Box>
   );
 };

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography,
-  Select, MenuItem, FormControl, InputLabel, Button, SelectChangeEvent,
+  Select, MenuItem, FormControl, InputLabel, Button, SelectChangeEvent, Skeleton,
 } from '@mui/material';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9,11 +9,9 @@ import {
 } from 'recharts';
 import { lineEvolutionData, cidadesBarData } from '../mockData';
 
-const COLORS = ['#2E6DA4', '#4A9FD4', '#27AE60', '#E67E22', '#8E44AD'];
-
 const ESTADOS = ['São Paulo', 'Rio de Janeiro', 'Minas Gerais', 'Paraná', 'Todos'];
 const PORTES = ['Todos', 'MEI', 'Microempresa (ME)', 'Pequeno Porte (EPP)', 'Grande'];
-const PERIODOS = ['Último trimestre', 'Últimos 6 meses', 'Último ano', '2024 completo'];
+const PERIODOS = ['Último trimestre', 'Últimos 6 meses', 'Último ano', 'Ano de 2025'];
 
 interface Props {
   darkMode?: boolean;
@@ -26,15 +24,41 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   const [periodo, setPeriodo] = useState('Último trimestre');
   const [chartSub, setChartSub] = useState('São Paulo · Todos os setores · Último trimestre');
   const [lineData, setLineData] = useState(lineEvolutionData['Todos os setores'].data);
+  const [cidades, setCidades] = useState(cidadesBarData);
+  const [loading, setLoading] = useState(false);
 
   const gridLine = darkMode ? 'rgba(255,255,255,.07)' : '#f0f4f8';
   const tooltipBg = darkMode ? '#1a2535' : '#fff';
   const titleColor = darkMode ? '#e2eaf4' : '#1A3A5C';
 
+  // Recorta a série de acordo com o período selecionado
+  const sliceByPeriodo = (data: { mes: string; value: number }[]) => {
+    switch (periodo) {
+      case 'Últimos 6 meses': return data.slice(-6);
+      case 'Último ano':      return data.slice(-12);
+      case 'Ano de 2025':     return data.filter(d => d.mes.endsWith('/25'));
+      case 'Último trimestre':
+      default:                return data.slice(-3);
+    }
+  };
+
+  // Busca os dados do mock e atualiza o estado da página
+  const refresh = () => {
+    setLoading(true);
+    setTimeout(() => {
+      const base = lineEvolutionData[cnae] || lineEvolutionData['Todos os setores'];
+      setLineData(sliceByPeriodo(base.data));
+      setCidades(cidadesBarData);
+      setLoading(false);
+    }, 600);
+  };
+
+  useEffect(() => { refresh(); }, []);
+
   const applyFilters = () => {
     setChartSub(`${estado} · ${cnae} · ${periodo}`);
     const base = lineEvolutionData[cnae] || lineEvolutionData['Todos os setores'];
-    const noisy = base.data.map(d => ({
+    const noisy = sliceByPeriodo(base.data).map(d => ({
       ...d,
       value: Math.round(d.value + (Math.random() - 0.5) * d.value * 0.12),
     }));
@@ -51,13 +75,28 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 2.5 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: '1.3rem', color: titleColor }}>
-          Explorar Mercado
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-          Filtre e visualize dados de CNPJs por CNAE, porte, estado e período
-        </Typography>
+      <Box sx={{ mb: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography sx={{ fontWeight: 800, fontSize: '1.3rem', color: titleColor }}>
+            Explorar Mercado
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            Filtre e visualize dados de CNPJs por CNAE, porte, estado e período
+          </Typography>
+        </Box>
+        <Button
+          onClick={refresh}
+          disabled={loading}
+          size="small"
+          variant="contained"
+          sx={{
+            bgcolor: '#2E6DA4', '&:hover': { bgcolor: '#1A3A5C' },
+            color: 'white', fontWeight: 700, fontSize: '.72rem',
+            textTransform: 'none', borderRadius: '8px',
+          }}
+        >
+          {loading ? 'Atualizando…' : '🔄 Atualizar dados'}
+        </Button>
       </Box>
 
       {/* Filters bar */}
@@ -108,6 +147,19 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
       </Card>
 
       {/* Charts */}
+      {loading ? (
+        <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
+              <CardContent>
+                <Skeleton variant="text" width="50%" height={18} />
+                <Skeleton variant="text" width="35%" height={12} sx={{ mb: 1.5 }} />
+                <Skeleton variant="rounded" height={220} />
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      ) : (
       <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
           <CardContent>
@@ -123,7 +175,9 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
                 <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
-                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0' }}
+                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0', color: titleColor }}
+                  labelStyle={{ color: titleColor }}
+                  itemStyle={{ color: titleColor }}
                 />
                 <Line
                   type="monotone"
@@ -148,7 +202,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
             </Typography>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
-                data={cidadesBarData}
+                data={cidades}
                 layout="vertical"
                 margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
               >
@@ -156,11 +210,13 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={78} />
                 <Tooltip
-                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0' }}
+                  contentStyle={{ background: tooltipBg, borderRadius: 8, fontSize: '.8rem', border: '1px solid #D5E3F0', color: titleColor }}
+                  labelStyle={{ color: titleColor }}
+                  itemStyle={{ color: titleColor }}
                 />
                 <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                  {cidadesBarData.map((_, idx) => (
-                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                  {cidades.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.color} />
                   ))}
                 </Bar>
               </BarChart>
@@ -168,6 +224,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
           </CardContent>
         </Card>
       </Box>
+      )}
     </Box>
   );
 };

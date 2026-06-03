@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import {
@@ -81,15 +81,13 @@ function App() {
     },
   });
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':  return <Dashboard darkMode={darkMode} />;
-      case 'chat':       return <ChatTabs darkMode={darkMode} />;
-      case 'explorar':   return <ExplorarMercado darkMode={darkMode} />;
-      case 'exportar':   return <Exportar darkMode={darkMode} />;
-      case 'manutencao': return <Manutencao darkMode={darkMode} />;
-    }
-  };
+  const PAGES: { id: PageId; element: ReactNode }[] = [
+    { id: 'dashboard',  element: <Dashboard darkMode={darkMode} /> },
+    { id: 'chat',       element: <ChatTabs darkMode={darkMode} /> },
+    { id: 'explorar',   element: <ExplorarMercado darkMode={darkMode} /> },
+    { id: 'exportar',   element: <Exportar darkMode={darkMode} /> },
+    { id: 'manutencao', element: <Manutencao darkMode={darkMode} /> },
+  ];
 
   return (
     <ThemeProvider theme={theme}>
@@ -177,7 +175,7 @@ function App() {
               {/* Footer */}
               <Box sx={{ p: '16px 20px', borderTop: '1px solid rgba(255,255,255,.1)' }}>
                 <Typography sx={{ color: 'rgba(255,255,255,.4)', fontSize: '.75rem', lineHeight: 1.7 }}>
-                  Contabilizei · Branding Team<br />
+                  FIAP · MBA<br />
                   Dados: Receita Federal (RFB)
                 </Typography>
               </Box>
@@ -209,7 +207,7 @@ function App() {
 
                     {/* User name + avatar menu */}
                     <Typography variant="body2" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                      Maria Oliveira
+                      Contabilizei
                     </Typography>
                     <Avatar
                       onClick={(e) => setUserMenuAnchor(e.currentTarget)}
@@ -219,7 +217,7 @@ function App() {
                         '&:hover': { bgcolor: '#1A3A5C' }, transition: '.15s',
                       }}
                     >
-                      MO
+                      CT
                     </Avatar>
 
                     {/* User dropdown menu */}
@@ -232,8 +230,8 @@ function App() {
                       PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,.15)' } }}
                     >
                       <Box sx={{ px: 2, py: 1.5 }}>
-                        <Typography sx={{ fontWeight: 700, fontSize: '.9rem' }}>Maria Oliveira</Typography>
-                        <Typography variant="caption" color="text.secondary">maria@contabilizei.com.br</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: '.9rem' }}>Contabilizei</Typography>
+                        <Typography variant="caption" color="text.secondary">teste@contabilizei.com.br</Typography>
                       </Box>
                       <Divider />
                       <MenuItem
@@ -248,9 +246,13 @@ function App() {
                 </Toolbar>
               </AppBar>
 
-              {/* Page content */}
+              {/* Page content — todas as telas ficam montadas; só a ativa é exibida */}
               <Box sx={{ flex: 1, p: 3.5, bgcolor: 'background.default' }}>
-                {renderPage()}
+                {PAGES.map(({ id, element }) => (
+                  <Box key={id} sx={{ display: currentPage === id ? 'block' : 'none' }}>
+                    {element}
+                  </Box>
+                ))}
               </Box>
             </Box>
           </Box>
