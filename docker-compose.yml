@@ -13,7 +13,7 @@ services:
       - ./fiap_api/.env
     environment:
       - CHROMADB_HOST=chromadb
-      - CHROMADB_PORT=8200
+      - CHROMADB_PORT=8210
       - ENVIRONMENT=docker
       # ========== CORS ========== 
       - CORS_ORIGINS=http://localhost:3000,http://host.docker.internal:8001,http://host.docker.internal:8080
@@ -23,7 +23,7 @@ services:
       - GENAI_PROVIDER=lmstudio
       - GENAI_ENDPOINT=https://api.groq.com/openai
       - GENAI_MODEL=qwen/qwen3-32b
-      - GENAI_API_KEY=
+      - GENAI_API_KEY=${GENAI_API_KEY}
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7
       - GENAI_MAX_TOKENS=8192
@@ -33,7 +33,7 @@ services:
       - EMBEDDINGS_PROVIDER=lmstudio
       - EMBEDDINGS_ENDPOINT=https://api.groq.com/openai
       - EMBEDDINGS_MODEL=qwen/qwen3-32b
-      - EMBEDDINGS_API_KEY=
+      - EMBEDDINGS_API_KEY=${EMBEDDINGS_API_KEY}
       - EMBEDDINGS_API_VERSION=
 
       # ========== POSTGRESQL ==========
@@ -90,18 +90,18 @@ services:
       dockerfile: Dockerfile
     container_name: chromadb
     ports:
-      - "8200:8200"
+      - "8210:8210"
     volumes:
       - ./data:/chroma/data
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_PORT=8200
+      - CHROMA_SERVER_PORT=8210
       - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:3000","http://host.docker.internal:8001"]
     restart: unless-stopped
     networks:
       - fiap-network
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8200"]
+      test: ["CMD", "nc", "-z", "localhost", "8210"]
       interval: 30s
       timeout: 10s
       retries: 3

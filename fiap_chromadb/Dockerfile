@@ -8,8 +8,8 @@ RUN mkdir -p /chroma/data
 WORKDIR /chroma
 
 # Expose ChromaDB port
-EXPOSE 8200
+EXPOSE 8210
 
 # Start ChromaDB server with the correct syntax
 ENTRYPOINT ["chroma"]
-CMD ["run", "--host", "0.0.0.0", "--port", "8200", "--path", "/chroma/data"]
+CMD ["run", "--host", "0.0.0.0", "--port", "8210", "--path", "/chroma/data"]

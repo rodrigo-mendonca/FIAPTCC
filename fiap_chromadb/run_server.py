@@ -13,19 +13,19 @@ def run_chromadb_server():
     try:
         # Usar chroma run se disponível
         cmd = [sys.executable, "-m", "chromadb.server"]
-        print(f"Iniciando ChromaDB na porta 8200...")
+        print(f"Iniciando ChromaDB na porta 8210...")
         print(f"Comando: {' '.join(cmd)}")
         
         # Define variáveis de ambiente
         env = os.environ.copy()
         env['CHROMA_HOST'] = '0.0.0.0'
-        env['CHROMA_PORT'] = '8200'
+        env['CHROMA_PORT'] = '8210'
         env['ALLOW_RESET'] = 'true'
         env['ALLOW_DELETE_COLLECTIONS'] = 'true'
         
         # Tenta usar chroma run
         result = subprocess.run(
-            ["chroma", "run", "--port", "8200", "--host", "0.0.0.0"],
+            ["chroma", "run", "--port", "8210", "--host", "0.0.0.0"],
             env=env
         )
         sys.exit(result.returncode)

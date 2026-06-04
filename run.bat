@@ -37,7 +37,7 @@ echo  Docker services started successfully!
 echo ==============================================
 echo  API Python: http://localhost:8001  
 echo  Interface React: http://localhost:3000
-echo  ChromaDB: http://localhost:8200
+echo  ChromaDB: http://localhost:8210
 echo.
 echo  To view logs: docker-compose logs -f
 echo  To stop: docker-compose down

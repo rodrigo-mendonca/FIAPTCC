@@ -57,7 +57,7 @@ echo ==============================================
 echo Services started successfully:
 echo  API: http://localhost:8001
 echo  UI: http://localhost:3000
-echo  ChromaDB: http://localhost:8200
+echo  ChromaDB: http://localhost:8210
 echo ==============================================
 timeout /t 3 /nobreak
 echo.
