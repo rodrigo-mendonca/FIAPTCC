@@ -7,8 +7,6 @@ services:
     container_name: fiap-api
     ports:
       - "8001:8001"
-    volumes:
-      - ./fiap_api:/app
     env_file:
       - ./fiap_api/.env
     environment:
@@ -65,9 +63,6 @@ services:
     container_name: fiap-interface
     ports:
       - "3000:3000"
-    volumes:
-      - ./fiap_interface:/app
-      - /app/node_modules
     environment:
       - NODE_ENV=development
       - API_URL=http://host.docker.internal:8001
@@ -92,7 +87,7 @@ services:
     ports:
       - "8210:8210"
     volumes:
-      - ./data:/chroma/data
+      - /DATA/AppData/TCC/chromadb:/chroma/data
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_PORT=8210
@@ -120,7 +115,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cnpj_dados_abertos
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /DATA/AppData/TCC/postgres:/var/lib/postgresql/data
     networks:
       - fiap-network
 
@@ -132,7 +127,7 @@ services:
       - PGADMIN_DEFAULT_EMAIL=mcp@mail.com
       - PGADMIN_DEFAULT_PASSWORD=postgres
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - /DATA/AppData/TCC/pgadmin:/var/lib/pgadmin
     networks:
       - fiap-network
 
@@ -147,10 +142,6 @@ services:
       - postgres
     networks:
       - fiap-network
-
-volumes:
-  postgres_data:
-  pgadmin_data:
 
 networks:
   fiap-network:
