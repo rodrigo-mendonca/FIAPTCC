@@ -84,8 +84,9 @@ services:
       context: ./fiap_chromadb
       dockerfile: Dockerfile
     container_name: chromadb
-    ports:
-      - "8210:8210"
+    # Acesso somente interno (rede fiap-network) — sem porta publicada no host
+    expose:
+      - "8210"
     volumes:
       - /DATA/AppData/TCC/chromadb:/chroma/data
     environment:
@@ -108,8 +109,9 @@ services:
     image: postgres:15
     command: ["postgres", "-c", "max_connections=1000"]
     restart: always
-    ports:
-      - "0.0.0.0:5432:5432"
+    # Acesso somente interno (rede fiap-network) — sem porta publicada no host
+    expose:
+      - "5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -134,8 +136,9 @@ services:
   mcp-postgres:
     image: acuvity/mcp-server-postgres:latest
     container_name: mcp-postgres
-    ports:
-      - "3001:8000"
+    # Acesso somente interno (rede fiap-network) — sem porta publicada no host
+    expose:
+      - "8000"
     environment:
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
     depends_on:
