@@ -129,7 +129,7 @@ services:
       - PGADMIN_DEFAULT_EMAIL=mcp@mail.com
       - PGADMIN_DEFAULT_PASSWORD=postgres
     volumes:
-      - /DATA/AppData/TCC/pgadmin:/var/lib/pgadmin
+      - pgadmin_data:/var/lib/pgadmin
     networks:
       - fiap-network
 
@@ -145,6 +145,9 @@ services:
       - postgres
     networks:
       - fiap-network
+
+volumes:
+  pgadmin_data:
 
 networks:
   fiap-network:
