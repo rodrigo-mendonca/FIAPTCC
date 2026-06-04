@@ -3,7 +3,7 @@ import { Box, Card, CardContent, Typography, Button, Snackbar, Alert, Skeleton }
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer,
 } from 'recharts';
-import { exportChartData } from '../mockData';
+import { fetchExportChart, BarDatum } from '../services/marketApi';
 import {
   chartToCanvas, canvasToPngBlob, buildChartPdf, buildCsv, downloadBlob,
 } from '../utils/chartExport';
@@ -49,7 +49,7 @@ interface Props {
 const Exportar: React.FC<Props> = ({ darkMode = false }) => {
   const [toast, setToast] = useState('');
   const [toastSeverity, setToastSeverity] = useState<'success' | 'error'>('success');
-  const [chartData, setChartData] = useState(exportChartData);
+  const [chartData, setChartData] = useState<BarDatum[]>([]);
   const [loading, setLoading] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
   const gridLine = darkMode ? 'rgba(255,255,255,.07)' : '#f0f4f8';
@@ -152,13 +152,16 @@ const Exportar: React.FC<Props> = ({ darkMode = false }) => {
     }
   };
 
-  // Busca os dados do mock e atualiza o estado da página
-  const refresh = () => {
+  // Busca os dados da API e atualiza o estado da página
+  const refresh = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setChartData(exportChartData);
+    try {
+      setChartData(await fetchExportChart());
+    } catch (err) {
+      console.error('Erro ao carregar dados do gráfico:', err);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   useEffect(() => { refresh(); }, []);

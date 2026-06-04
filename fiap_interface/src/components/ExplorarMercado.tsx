@@ -7,7 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Cell, ResponsiveContainer,
 } from 'recharts';
-import { lineEvolutionData, cidadesBarData } from '../mockData';
+import { fetchEvolution, fetchCidades, EvolutionData, EvolutionPoint, BarDatum } from '../services/marketApi';
 
 const ESTADOS = ['São Paulo', 'Rio de Janeiro', 'Minas Gerais', 'Paraná', 'Todos'];
 const PORTES = ['Todos', 'MEI', 'Microempresa (ME)', 'Pequeno Porte (EPP)', 'Grande'];
@@ -23,8 +23,9 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   const [porte, setPorte] = useState('Todos');
   const [periodo, setPeriodo] = useState('Último trimestre');
   const [chartSub, setChartSub] = useState('São Paulo · Todos os setores · Último trimestre');
-  const [lineData, setLineData] = useState(lineEvolutionData['Todos os setores'].data);
-  const [cidades, setCidades] = useState(cidadesBarData);
+  const [evolution, setEvolution] = useState<EvolutionData>({});
+  const [lineData, setLineData] = useState<EvolutionPoint[]>([]);
+  const [cidades, setCidades] = useState<BarDatum[]>([]);
   const [loading, setLoading] = useState(false);
 
   const gridLine = darkMode ? 'rgba(255,255,255,.07)' : '#f0f4f8';
@@ -32,7 +33,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   const titleColor = darkMode ? '#e2eaf4' : '#1A3A5C';
 
   // Recorta a série de acordo com o período selecionado
-  const sliceByPeriodo = (data: { mes: string; value: number }[]) => {
+  const sliceByPeriodo = (data: EvolutionPoint[]) => {
     switch (periodo) {
       case 'Últimos 6 meses': return data.slice(-6);
       case 'Último ano':      return data.slice(-12);
@@ -42,22 +43,28 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
     }
   };
 
-  // Busca os dados do mock e atualiza o estado da página
-  const refresh = () => {
+  // Busca os dados da API e atualiza o estado da página
+  const refresh = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const base = lineEvolutionData[cnae] || lineEvolutionData['Todos os setores'];
-      setLineData(sliceByPeriodo(base.data));
-      setCidades(cidadesBarData);
+    try {
+      const [evo, cid] = await Promise.all([fetchEvolution(), fetchCidades()]);
+      const base = evo[cnae] || evo['Todos os setores'];
+      setEvolution(evo);
+      setLineData(base ? sliceByPeriodo(base.data) : []);
+      setCidades(cid);
+    } catch (err) {
+      console.error('Erro ao carregar dados de mercado:', err);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   useEffect(() => { refresh(); }, []);
 
   const applyFilters = () => {
     setChartSub(`${estado} · ${cnae} · ${periodo}`);
-    const base = lineEvolutionData[cnae] || lineEvolutionData['Todos os setores'];
+    const base = evolution[cnae] || evolution['Todos os setores'];
+    if (!base) return;
     const noisy = sliceByPeriodo(base.data).map(d => ({
       ...d,
       value: Math.round(d.value + (Math.random() - 0.5) * d.value * 0.12),
@@ -113,7 +120,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
             <FormControl size="small">
               <InputLabel>Setor (CNAE)</InputLabel>
               <Select value={cnae} label="Setor (CNAE)" onChange={(e: SelectChangeEvent) => setCnae(e.target.value)} sx={selectSx}>
-                {Object.keys(lineEvolutionData).map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
+                {(Object.keys(evolution).length ? Object.keys(evolution) : ['Todos os setores']).map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
               </Select>
             </FormControl>
 

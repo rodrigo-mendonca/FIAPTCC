@@ -4,7 +4,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   PieChart, Pie, Legend, ResponsiveContainer,
 } from 'recharts';
-import { metricsData, setoresBarData, porteDonutData, insightsData } from '../mockData';
+import {
+  fetchMetrics, fetchSetores, fetchPorte, fetchInsights,
+  Metric, BarDatum, Insight,
+} from '../services/marketApi';
 
 interface Props {
   darkMode?: boolean;
@@ -15,22 +18,28 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
   const tooltipBg = darkMode ? '#1a2535' : '#fff';
   const titleColor = darkMode ? '#e2eaf4' : '#1A3A5C';
 
-  const [metrics, setMetrics] = useState(metricsData);
-  const [setores, setSetores] = useState(setoresBarData);
-  const [porte, setPorte] = useState(porteDonutData);
-  const [insights, setInsights] = useState(insightsData);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [setores, setSetores] = useState<BarDatum[]>([]);
+  const [porte, setPorte] = useState<BarDatum[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Busca os dados do mock e atualiza o estado da página
-  const refresh = () => {
+  // Busca os dados da API e atualiza o estado da página
+  const refresh = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setMetrics(metricsData);
-      setSetores(setoresBarData);
-      setPorte(porteDonutData);
-      setInsights(insightsData);
+    try {
+      const [m, s, p, i] = await Promise.all([
+        fetchMetrics(), fetchSetores(), fetchPorte(), fetchInsights(),
+      ]);
+      setMetrics(m);
+      setSetores(s);
+      setPorte(p);
+      setInsights(i);
+    } catch (err) {
+      console.error('Erro ao carregar dados do dashboard:', err);
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   useEffect(() => { refresh(); }, []);

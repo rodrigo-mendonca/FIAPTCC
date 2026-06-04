@@ -1,52 +1,4 @@
 services:
-  # LMStudio container (original)
-  #lmchat:
-  #  shm_size: '16gb'
-  #  build: 
-  #    dockerfile: Dockerfile
-  #    context: ./fiap_lmstudio
-  #    shm_size: '16gb'
-  #  deploy:
-  #    resources:
-  #      limits:
-  #        memory: 16G
-  #      reservations:
-  #        memory: 8G
-  #        devices:
-  #          - driver: nvidia
-  #            count: all
-  #            capabilities: [gpu]
-  #  container_name: fiap-lmchat
-  #  ports:
-  #    - "8080:1234"
-  #    - "5900:5900"
-  #    - "6080:6080"
-  #  volumes:
-  #    - C:\Users\rodri\.lmstudio\models:/root/.cache/lm-studio/models
-  #    - C:\Users\rodri\.lmstudio:/root/docs
-  #  environment:
-  #    - CONTEXT_LENGTH=32768
-  #    - CUDA_VISIBLE_DEVICES=0
-  #    - NVIDIA_VISIBLE_DEVICES=all
-  #    - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-  #    - OMP_NUM_THREADS=8
-  #    - CUDA_CACHE_DISABLE=0
-  #    - CUDA_LAUNCH_BLOCKING=0
-  #    - LMS_GPU_ACCELERATION=cuda
-  #    - LMS_GPU_MEMORY_FRACTION=0.9
-  #    - LMS_CPU_THREADS=8
-  #  command: ["/start_services.sh"]
-  #  restart: always
-  #  ulimits:
-  #    memlock:
-  #      soft: -1
-  #      hard: -1
-  #    stack:
-  #      soft: 67108864
-  #      hard: 67108864
-  #  networks:
-  #    - fiap-network
-
   # API
   fiap-api:
     build:
@@ -69,9 +21,9 @@ services:
 
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio
-      - GENAI_ENDPOINT=http://192.168.50.30:1234/v1
-      - GENAI_MODEL=qwen/qwen3.5-9b
-      - GENAI_API_KEY=sk-lm-dTRG1KqN:IqVqzXZWQjtcVqlSZzMS
+      - GENAI_ENDPOINT=https://api.groq.com/openai
+      - GENAI_MODEL=qwen/qwen3-32b
+      - GENAI_API_KEY=
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7
       - GENAI_MAX_TOKENS=8192
@@ -79,10 +31,16 @@ services:
 
       # ========== EMBEDDINGS ==========
       - EMBEDDINGS_PROVIDER=lmstudio
-      - EMBEDDINGS_ENDPOINT=http://192.168.50.30:1234/v1
-      - EMBEDDINGS_MODEL=text-embedding-nomic-embed-text-v1.5
-      - EMBEDDINGS_API_KEY=sk-lm-dTRG1KqN:IqVqzXZWQjtcVqlSZzMS
+      - EMBEDDINGS_ENDPOINT=https://api.groq.com/openai
+      - EMBEDDINGS_MODEL=qwen/qwen3-32b
+      - EMBEDDINGS_API_KEY=
       - EMBEDDINGS_API_VERSION=
+
+      # ========== POSTGRESQL ==========
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
+
+      # ========== MCP ==========
+      - MCP_POSTGRES_URL=http://mcp-postgres:8000/mcp
 
     restart: unless-stopped
     networks:
@@ -182,7 +140,7 @@ services:
     image: acuvity/mcp-server-postgres:latest
     container_name: mcp-postgres
     ports:
-      - "3001:3001"
+      - "3001:8000"
     environment:
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
     depends_on:

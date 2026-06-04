@@ -42,6 +42,10 @@ class GenAIConfig:
         self.top_p = params.top_p
 
         # ====================== CONFIGURAÇÃO MCP ======================
+        # O servidor mcp-postgres roda como container próprio (acuvity/mcp-server-postgres),
+        # expondo o minibridge em HTTP na porta 8000 (endpoint /mcp). Conectamos via rede
+        # em vez de "docker exec", pois o binário 'docker' não existe dentro do container da API.
+        mcp_postgres_url = os.getenv("MCP_POSTGRES_URL", "http://mcp-postgres:8000/mcp")
         self.mcp_servers: Dict[str, Dict] = {
             "duckduckgo": {
                 "transport": "stdio",
@@ -49,14 +53,8 @@ class GenAIConfig:
                 "args": ["duckduckgo-mcp-server"]
             },
             "mcp-postgres": {
-                "transport": "stdio",
-                "command": "docker",
-                "args": [
-                    "exec",
-                    "-i",
-                    "mcp-postgres",
-                    "/entrypoint.sh"
-                ]
+                "transport": "streamable_http",
+                "url": mcp_postgres_url
             }
         }
 

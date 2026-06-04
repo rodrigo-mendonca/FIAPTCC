@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import json
 from typing import AsyncGenerator, List, Optional, Dict, Any
 import requests
-from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory, FileValidator
+from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory, FileValidator, SQLFactory
 from factories.genai_factory import ChatResponseGenerator
 
 # Carrega variáveis de ambiente
@@ -1311,6 +1311,52 @@ async def add_item_vectordb(request: dict):
         return {"message": "Item adicionado com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============ ROTAS DE DADOS DE MERCADO (Dashboard / Explorar / Exportar) ============
+# Dados de CNPJs e aberturas de empresas consumidos pelas telas do frontend.
+# Os dados vêm dos métodos de SQLFactory (factories/sql_factory.py).
+
+@app.get("/api/market/metrics")
+async def get_market_metrics():
+    """Cartões de métricas da visão geral do mercado (Dashboard)."""
+    return SQLFactory.get_market_metrics()
+
+
+@app.get("/api/market/setores")
+async def get_market_setores():
+    """Aberturas por setor – top CNAEs (Dashboard, gráfico de barras)."""
+    return SQLFactory.get_market_setores()
+
+
+@app.get("/api/market/porte")
+async def get_market_porte():
+    """Distribuição de empresas por porte (Dashboard, gráfico de rosca)."""
+    return SQLFactory.get_market_porte()
+
+
+@app.get("/api/market/insights")
+async def get_market_insights():
+    """Cartões de insights do mercado (Dashboard)."""
+    return SQLFactory.get_market_insights()
+
+
+@app.get("/api/market/evolution")
+async def get_market_evolution():
+    """Evolução de aberturas por mês, por setor (Explorar Mercado)."""
+    return SQLFactory.get_market_evolution()
+
+
+@app.get("/api/market/cidades")
+async def get_market_cidades():
+    """Top 5 cidades por volume de abertura (Explorar Mercado)."""
+    return SQLFactory.get_market_cidades()
+
+
+@app.get("/api/market/export-chart")
+async def get_market_export_chart():
+    """Dados do gráfico de aberturas por setor usado na tela de Exportar."""
+    return SQLFactory.get_market_export_chart()
 
 
 if __name__ == "__main__":

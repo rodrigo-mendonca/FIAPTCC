@@ -257,23 +257,22 @@ function App() {
             </Box>
           </Box>
 
-          {/* ── Floating Chat Geral ── */}
-          {chatOpen && (
-            <Box sx={{
-              position: 'fixed', bottom: 88, right: 24, zIndex: 1300,
-              width: 820, height: 640,
-              borderRadius: 3, overflow: 'hidden',
-              boxShadow: '0 12px 48px rgba(0,0,0,.25)',
-              bgcolor: 'background.paper',
-            }}>
-              <ConfigurableChat
-                config={chatConfigs.general}
-                darkMode={darkMode}
-                containerHeight={640}
-                hideSuggestions
-              />
-            </Box>
-          )}
+          {/* ── Floating Chat Geral — fica sempre montado; só oculta ao fechar ── */}
+          <Box sx={{
+            display: chatOpen ? 'block' : 'none',
+            position: 'fixed', bottom: 88, right: 24, zIndex: 1300,
+            width: 820, height: 640,
+            borderRadius: 3, overflow: 'hidden',
+            boxShadow: '0 12px 48px rgba(0,0,0,.25)',
+            bgcolor: 'background.paper',
+          }}>
+            <ConfigurableChat
+              config={chatConfigs.general}
+              darkMode={darkMode}
+              containerHeight={640}
+              hideSuggestions
+            />
+          </Box>
 
           <Tooltip title={chatOpen ? 'Fechar' : 'Chat'} placement="left">
             <Fab
