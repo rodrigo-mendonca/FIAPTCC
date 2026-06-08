@@ -4,7 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemText,
   AppBar, Toolbar, Typography, IconButton, Avatar, GlobalStyles,
-  Menu, MenuItem, Fab, Tooltip, Divider,
+  Menu, MenuItem, Fab, Tooltip, Divider, useMediaQuery,
 } from '@mui/material';
 import {
   DarkMode as DarkModeIcon,
@@ -50,7 +50,8 @@ function App() {
     return saved ? JSON.parse(saved) : false;
   });
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useMediaQuery('(max-width:900px)');
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 900);
 
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -106,9 +107,12 @@ function App() {
 
             {/* ── Sidebar ── */}
             <Drawer
-              variant="permanent"
+              variant={isMobile ? 'temporary' : 'permanent'}
+              open={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              ModalProps={{ keepMounted: true }}
               sx={{
-                width: sidebarOpen ? SIDEBAR_WIDTH : 0,
+                width: isMobile ? 0 : (sidebarOpen ? SIDEBAR_WIDTH : 0),
                 flexShrink: 0,
                 transition: 'width .22s ease',
                 overflow: 'hidden',
@@ -120,7 +124,9 @@ function App() {
                   boxShadow: '2px 0 16px rgba(0,0,0,.18)',
                   display: 'flex',
                   flexDirection: 'column',
-                  transform: sidebarOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`,
+                  transform: isMobile
+                    ? 'none'
+                    : (sidebarOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`),
                   transition: 'transform .22s ease',
                 },
               }}
@@ -146,7 +152,10 @@ function App() {
                       )}
                       <ListItem disablePadding>
                         <ListItemButton
-                          onClick={() => setCurrentPage(item.id)}
+                          onClick={() => {
+                            setCurrentPage(item.id);
+                            if (isMobile) setSidebarOpen(false);
+                          }}
                           sx={{
                             px: '20px', py: '10px',
                             borderLeft: `3px solid ${active ? '#4A9FD4' : 'transparent'}`,
@@ -189,12 +198,12 @@ function App() {
                 position="sticky" elevation={0} color="inherit"
                 sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}
               >
-                <Toolbar sx={{ justifyContent: 'space-between', minHeight: '56px !important', px: '28px !important' }}>
+                <Toolbar sx={{ justifyContent: 'space-between', minHeight: '56px !important', px: { xs: '12px !important', md: '28px !important' } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <IconButton size="small" onClick={() => setSidebarOpen((o) => !o)} sx={{ color: 'text.secondary' }}>
                       <MenuIcon fontSize="small" />
                     </IconButton>
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: darkMode ? '#e2eaf4' : '#1A3A5C' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: { xs: '.85rem', md: '1rem' }, color: darkMode ? '#e2eaf4' : '#1A3A5C' }}>
                       {PAGE_TITLES[currentPage]}
                     </Typography>
                   </Box>
@@ -206,7 +215,7 @@ function App() {
                     </IconButton>
 
                     {/* User name + avatar menu */}
-                    <Typography variant="body2" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', ml: 0.5, display: { xs: 'none', sm: 'block' } }}>
                       Contabilizei
                     </Typography>
                     <Avatar
@@ -247,7 +256,7 @@ function App() {
               </AppBar>
 
               {/* Page content — todas as telas ficam montadas; só a ativa é exibida */}
-              <Box sx={{ flex: 1, p: 3.5, bgcolor: 'background.default' }}>
+              <Box sx={{ flex: 1, p: { xs: 1.5, md: 3.5 }, bgcolor: 'background.default' }}>
                 {PAGES.map(({ id, element }) => (
                   <Box key={id} sx={{ display: currentPage === id ? 'block' : 'none' }}>
                     {element}
@@ -260,8 +269,14 @@ function App() {
           {/* ── Floating Chat Geral — fica sempre montado; só oculta ao fechar ── */}
           <Box sx={{
             display: chatOpen ? 'block' : 'none',
-            position: 'fixed', bottom: 88, right: 24, zIndex: 1300,
-            width: 820, height: 640,
+            position: 'fixed',
+            bottom: { xs: 12, md: 88 },
+            right: { xs: 12, md: 24 },
+            left: { xs: 12, md: 'auto' },
+            top: { xs: 12, md: 'auto' },
+            zIndex: 1300,
+            width: { xs: 'auto', md: 820 },
+            height: { xs: 'auto', md: 640 },
             borderRadius: 3, overflow: 'hidden',
             boxShadow: '0 12px 48px rgba(0,0,0,.25)',
             bgcolor: 'background.paper',
@@ -269,7 +284,7 @@ function App() {
             <ConfigurableChat
               config={chatConfigs.general}
               darkMode={darkMode}
-              containerHeight={640}
+              containerHeight={isMobile ? '100%' : 640}
               hideSuggestions
             />
           </Box>

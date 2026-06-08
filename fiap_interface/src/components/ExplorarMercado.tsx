@@ -152,7 +152,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
 
       {/* Charts */}
       {loading ? (
-        <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2 }}>
           {Array.from({ length: 2 }).map((_, i) => (
             <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
               <CardContent>
@@ -164,7 +164,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
           ))}
         </Box>
       ) : (
-      <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2 }}>
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
           <CardContent>
             <Typography sx={{ fontWeight: 700, color: titleColor, fontSize: '.9rem', mb: '4px' }}>

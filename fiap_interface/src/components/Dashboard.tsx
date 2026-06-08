@@ -74,7 +74,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
       {loading ? (
         <>
           {/* Skeleton: metric cards */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
             {Array.from({ length: 4 }).map((_, i) => (
               <Card key={i} sx={{ overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
                 <Skeleton variant="rectangular" height={3} />
@@ -88,7 +88,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
           </Box>
 
           {/* Skeleton: charts row */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2, mb: 3 }}>
             {Array.from({ length: 2 }).map((_, i) => (
               <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
                 <CardContent>
@@ -101,7 +101,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
           </Box>
 
           {/* Skeleton: insight cards */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.75 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 1.75 }}>
             {Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>
                 <CardContent sx={{ p: '16px !important' }}>
@@ -117,7 +117,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
       ) : (
       <>
       {/* Metric cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
         {metrics.map((m, i) => (
           <Card key={i} sx={{ overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.05)', position: 'relative' }}>
             <Box sx={{ height: 3, bgcolor: m.topColor }} />
@@ -140,7 +140,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
       </Box>
 
       {/* Charts row */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 2, mb: 3 }}>
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,.05)' }}>
           <CardContent>
             <Typography sx={{ fontWeight: 700, color: titleColor, fontSize: '.9rem', mb: '4px' }}>
@@ -208,7 +208,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
       </Box>
 
       {/* Insight cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.75 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 1.75 }}>
         {insights.map((insight, i) => {
           return (
             <Card key={i} sx={{ borderLeft: `4px solid ${insight.borderColor}`, boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>

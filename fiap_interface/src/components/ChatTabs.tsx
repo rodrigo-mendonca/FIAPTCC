@@ -8,8 +8,12 @@ import {
   Button,
   Avatar,
   useTheme,
+  useMediaQuery,
   Chip,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   Help as HelpIcon,
@@ -22,6 +26,8 @@ import {
   Code as CodeIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Close as CloseIcon,
+  Lightbulb as LightbulbIcon,
 } from '@mui/icons-material';
 import { useCollection } from '../contexts/CollectionContext';
 import CollectionSelector from './CollectionSelector';
@@ -76,6 +82,7 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { selectedCollection } = useCollection();
   const [alunoType, setAlunoType] = useState<string>('business_rules');
   const [registering, setRegistering] = useState(false);
@@ -305,11 +312,22 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
   return (
     <Box sx={{
       display: 'flex',
-      flexDirection: 'row',
+      flexDirection: { xs: 'column', md: 'row' },
       gap: (!hideSuggestions && suggestionsOpen) ? 3 : 1,
       height: cardHeight,
       alignItems: 'stretch',
     }}>
+      {/* Mobile: botão acima do chat que abre as sugestões num popup */}
+      {isMobile && !hideSuggestions && (
+        <Button
+          variant="outlined"
+          startIcon={<LightbulbIcon />}
+          onClick={() => setSuggestionsOpen(true)}
+          sx={{ textTransform: 'none', borderRadius: 2, flexShrink: 0 }}
+        >
+          {config.suggestionsTitle}
+        </Button>
+      )}
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
@@ -318,7 +336,8 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
             background: 'linear-gradient(135deg, #2E6DA4 0%, #1A3A5C 100%)',
             color: '#ffffff',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
             justifyContent: 'space-between',
             px: 2,
             py: 1.5,
@@ -438,8 +457,48 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
       </Box>
 
       {/* ── Suggestions panel ── */}
-      {!hideSuggestions && (
-        suggestionsOpen ? (
+      {!hideSuggestions && (() => {
+        const suggestionChips = (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {config.suggestions.map((suggestion, index) => (
+              <Chip
+                key={index} label={suggestion} variant="outlined" clickable
+                onClick={() => { setInputMessage(suggestion); if (isMobile) setSuggestionsOpen(false); }}
+                size="small"
+                sx={{ justifyContent: 'flex-start', height: 'auto', py: 1, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'left' } }}
+              />
+            ))}
+          </Box>
+        );
+
+        // Mobile: as sugestões abrem num popup (Dialog), acionado pelo ícone de
+        // lâmpada no header. Aqui renderizamos apenas o popup, sem ocupar espaço no layout.
+        if (isMobile) {
+          return (
+            <Dialog
+              open={suggestionsOpen}
+              onClose={() => setSuggestionsOpen(false)}
+              fullWidth
+              maxWidth="sm"
+            >
+              <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 1 }}>
+                <span>💡 {config.suggestionsTitle}</span>
+                <IconButton onClick={() => setSuggestionsOpen(false)} size="small" title="Fechar">
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {config.suggestionsDescription}
+                </Typography>
+                {suggestionChips}
+              </DialogContent>
+            </Dialog>
+          );
+        }
+
+        // Desktop: painel lateral inline
+        return suggestionsOpen ? (
           <Box sx={{ width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             <Card sx={{ flex: 1, overflow: 'auto' }}>
               <CardContent>
@@ -452,15 +511,7 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                   {config.suggestionsDescription}
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {config.suggestions.map((suggestion, index) => (
-                    <Chip
-                      key={index} label={suggestion} variant="outlined" clickable
-                      onClick={() => setInputMessage(suggestion)} size="small"
-                      sx={{ justifyContent: 'flex-start', height: 'auto', py: 1, '& .MuiChip-label': { whiteSpace: 'normal', textAlign: 'left' } }}
-                    />
-                  ))}
-                </Box>
+                {suggestionChips}
               </CardContent>
             </Card>
           </Box>
@@ -474,8 +525,8 @@ export const ConfigurableChat: React.FC<ConfigurableChatProps> = ({
               <ChevronLeftIcon fontSize="small" />
             </IconButton>
           </Box>
-        )
-      )}
+        );
+      })()}
     </Box>
   );
 };
@@ -523,11 +574,13 @@ export const chatConfigs: Record<string, ChatConfig> = {
     description: 'Assistente de Dúvidas',
     emptyStateMessage: 'Tire dúvidas sobre o sistema comercial e regras de negócio.',
     suggestions: [
-      'Liste todas as tabelas disponíveis', 'Verifica na documentação sobre saldo devedor do cliente',
-      'Cria um gráfico dos últimos 3 meses de vendas', 'Qual o maior cliente?',
-      'Qual o produto mais vendido?', 'Cria uma tabela com os 10 produtos mais vendidos',
-      'Como cadastrar um novo cliente?', 'Qual é o fluxo de aprovação de crédito?',
-      'Como alterar preços de produtos?', 'Quais são os prazos de entrega padrão?', "Cria um gráfico de linhas com as vendas totais por dia do mês de abril"
+      'Quais setores tiveram maior crescimento de abertura de empresas nos últimos 12 meses?',
+      'Quais CNAEs mais cresceram no último trimestre?',
+      'Quais estados tiveram maior crescimento de MEIs?',
+      'Quais cidades apresentam crescimento acima da média nacional?',
+      'Qual setor teve maior crescimento YoY?',
+      'Quais segmentos cresceram mais rápido no interior do Brasil?',
+      'Existe alguma tendência emergente em novos CNPJs?',
     ],
     suggestionsTitle: 'Exemplos de Dúvidas',
     suggestionsDescription: 'Clique nas sugestões abaixo para fazer perguntas:',
