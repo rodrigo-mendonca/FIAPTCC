@@ -17,6 +17,9 @@ langgraph>=0.2.60
 # Vector DB
 chromadb>=1.0.0
 
+# PostgreSQL (driver usado pelo SQLAlchemy em factories/sql_factory.py)
+psycopg2-binary>=2.9.9
+
 # Utilitários
 requests>=2.32.0
 PyYAML>=6.0.1
