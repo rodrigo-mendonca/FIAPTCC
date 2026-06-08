@@ -11,7 +11,7 @@ from .env_factory import (
     MissingEnvironmentVariable,
 )
 from .document_optimizer import DocumentOptimizer, TextOptimizer, TokenCounter
-from .sql_factory import SQLFactory
+from .sql_factory import SQLFactory, sql_factory
 
 __all__ = [
     "GenAIFactory",
@@ -28,4 +28,5 @@ __all__ = [
     "TextOptimizer",
     "TokenCounter",
     "SQLFactory",
+    "sql_factory",
 ]

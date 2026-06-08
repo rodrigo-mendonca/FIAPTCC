@@ -7,23 +7,29 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Cell, ResponsiveContainer,
 } from 'recharts';
-import { fetchEvolution, fetchCidades, EvolutionData, EvolutionPoint, BarDatum } from '../services/marketApi';
+import {
+  fetchFiltros, fetchEvolution, fetchCidades,
+  FiltroOptions, EvolutionPoint, BarDatum,
+} from '../services/marketApi';
 
-const ESTADOS = ['São Paulo', 'Rio de Janeiro', 'Minas Gerais', 'Paraná', 'Todos'];
-const PORTES = ['Todos', 'MEI', 'Microempresa (ME)', 'Pequeno Porte (EPP)', 'Grande'];
-const PERIODOS = ['Último trimestre', 'Últimos 6 meses', 'Último ano', 'Ano de 2025'];
+const TODOS = 'Todos';
+const TODOS_SETORES = 'Todos os setores';
 
 interface Props {
   darkMode?: boolean;
 }
 
 const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
-  const [estado, setEstado] = useState('São Paulo');
-  const [cnae, setCnae] = useState('Todos os setores');
-  const [porte, setPorte] = useState('Todos');
-  const [periodo, setPeriodo] = useState('Último trimestre');
-  const [chartSub, setChartSub] = useState('São Paulo · Todos os setores · Último trimestre');
-  const [evolution, setEvolution] = useState<EvolutionData>({});
+  // Opções dos filtros (vêm da API / base de dados). "Todos" é sempre o padrão.
+  const [options, setOptions] = useState<FiltroOptions>({
+    estados: [TODOS], portes: [TODOS], periodos: [TODOS], setores: [TODOS_SETORES],
+  });
+
+  const [estado, setEstado] = useState(TODOS);
+  const [cnae, setCnae] = useState(TODOS_SETORES);
+  const [porte, setPorte] = useState(TODOS);
+  const [periodo, setPeriodo] = useState(TODOS);
+  const [chartSub, setChartSub] = useState(`${TODOS} · ${TODOS_SETORES} · ${TODOS}`);
   const [lineData, setLineData] = useState<EvolutionPoint[]>([]);
   const [cidades, setCidades] = useState<BarDatum[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,26 +38,14 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   const tooltipBg = darkMode ? '#1a2535' : '#fff';
   const titleColor = darkMode ? '#e2eaf4' : '#1A3A5C';
 
-  // Recorta a série de acordo com o período selecionado
-  const sliceByPeriodo = (data: EvolutionPoint[]) => {
-    switch (periodo) {
-      case 'Últimos 6 meses': return data.slice(-6);
-      case 'Último ano':      return data.slice(-12);
-      case 'Ano de 2025':     return data.filter(d => d.mes.endsWith('/25'));
-      case 'Último trimestre':
-      default:                return data.slice(-3);
-    }
-  };
-
-  // Busca os dados da API e atualiza o estado da página
-  const refresh = async () => {
+  // Busca os dados (já filtrados pelo backend) e atualiza a tela.
+  const load = async (filtros: { uf: string; porte: string; cnae: string; periodo: string }) => {
     setLoading(true);
     try {
-      const [evo, cid] = await Promise.all([fetchEvolution(), fetchCidades()]);
-      const base = evo[cnae] || evo['Todos os setores'];
-      setEvolution(evo);
-      setLineData(base ? sliceByPeriodo(base.data) : []);
+      const [evo, cid] = await Promise.all([fetchEvolution(filtros), fetchCidades(filtros)]);
+      setLineData(evo.data);
       setCidades(cid);
+      setChartSub(`${filtros.uf} · ${filtros.cnae} · ${filtros.periodo}`);
     } catch (err) {
       console.error('Erro ao carregar dados de mercado:', err);
     } finally {
@@ -59,18 +53,21 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  // Na montagem: carrega as opções de filtro da API e os dados com o padrão "Todos".
+  useEffect(() => {
+    (async () => {
+      try {
+        const opts = await fetchFiltros();
+        setOptions(opts);
+      } catch (err) {
+        console.error('Erro ao carregar filtros:', err);
+      }
+      await load({ uf: TODOS, porte: TODOS, cnae: TODOS_SETORES, periodo: TODOS });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const applyFilters = () => {
-    setChartSub(`${estado} · ${cnae} · ${periodo}`);
-    const base = evolution[cnae] || evolution['Todos os setores'];
-    if (!base) return;
-    const noisy = sliceByPeriodo(base.data).map(d => ({
-      ...d,
-      value: Math.round(d.value + (Math.random() - 0.5) * d.value * 0.12),
-    }));
-    setLineData(noisy);
-  };
+  const applyFilters = () => load({ uf: estado, porte, cnae, periodo });
 
   const selectSx = {
     bgcolor: darkMode ? 'rgba(255,255,255,.05)' : '#F4F7FB',
@@ -92,7 +89,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
           </Typography>
         </Box>
         <Button
-          onClick={refresh}
+          onClick={applyFilters}
           disabled={loading}
           size="small"
           variant="contained"
@@ -113,28 +110,28 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
             <FormControl size="small">
               <InputLabel>Estado</InputLabel>
               <Select value={estado} label="Estado" onChange={(e: SelectChangeEvent) => setEstado(e.target.value)} sx={selectSx}>
-                {ESTADOS.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
+                {options.estados.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
               </Select>
             </FormControl>
 
             <FormControl size="small">
               <InputLabel>Setor (CNAE)</InputLabel>
               <Select value={cnae} label="Setor (CNAE)" onChange={(e: SelectChangeEvent) => setCnae(e.target.value)} sx={selectSx}>
-                {(Object.keys(evolution).length ? Object.keys(evolution) : ['Todos os setores']).map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
+                {options.setores.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
               </Select>
             </FormControl>
 
             <FormControl size="small">
               <InputLabel>Porte</InputLabel>
               <Select value={porte} label="Porte" onChange={(e: SelectChangeEvent) => setPorte(e.target.value)} sx={selectSx}>
-                {PORTES.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
+                {options.portes.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
               </Select>
             </FormControl>
 
             <FormControl size="small">
               <InputLabel>Período</InputLabel>
               <Select value={periodo} label="Período" onChange={(e: SelectChangeEvent) => setPeriodo(e.target.value)} sx={selectSx}>
-                {PERIODOS.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
+                {options.periodos.map(v => <MenuItem key={v} value={v} sx={{ fontSize: '.83rem' }}>{v}</MenuItem>)}
               </Select>
             </FormControl>
 

@@ -24,22 +24,23 @@ class SQLFactory:
         self.engine = create_engine(self.db_path)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
     
-    def execute_query(self, query):
+    def execute_query(self, query, params=None):
         """
         Execute a SQL query and return results as JSON array
-        
+
         Args:
             query (str): SQL query to execute
-            
+            params (dict, optional): Named bind parameters (:name) for the query
+
         Returns:
             list: Array of dictionaries representing the query results
         """
         try:
             # Create a new session
             db_session = self.SessionLocal()
-            
+
             # Execute the query
-            result = db_session.execute(text(query))
+            result = db_session.execute(text(query), params or {})
             
             # Get column names
             columns = result.keys()
@@ -70,189 +71,329 @@ class SQLFactory:
     # Dados de mercado (CNPJs / aberturas de empresas)
     # ------------------------------------------------------------------
     # Consumidos pelas telas Dashboard, Explorar Mercado e Exportar.
-    # São retornados como dados de seed (mock) pois não há, por ora, uma
-    # fonte real para essas métricas de mercado (a base loja_db cobre
-    # apenas clientes/produtos/vendas). Quando uma tabela existir, basta
-    # trocar o corpo do método por self.execute_query("SELECT ..."),
-    # mantendo o mesmo formato de retorno — o frontend não muda.
+    # Os números são derivados da base dimensional (star schema):
+    #   fat_empresas_mensal  – fato mensal (nova_empresa, baixada, ...)
+    #   dim_empresas_mensal  – snapshot mensal (porte, situacao, cnae...)
+    #   dim_cnaes / dim_cnaes_segmento / dim_municipios / dim_competencias
     #
-    # São @staticmethod de propósito: não dependem de conexão com o banco,
-    # então funcionam mesmo sem DATABASE_URL configurada.
+    # Códigos observados na base:
+    #   situacao: 2 = ATIVA, 8 = BAIXADA  (padrão Receita Federal)
+    #   porte:    1 = MEI/Micro (mei=true), 2 = Pequeno Porte, 3 = Grande
+    #
+    # As cores e ícones permanecem definidos aqui: são metadados de
+    # apresentação, não dados de negócio. O formato de retorno é idêntico
+    # ao que o frontend já consome (fiap_interface/src/services/marketApi.ts).
+    #
+    # São instance methods pois dependem da conexão com o banco.
     # ==================================================================
 
+    # Paleta usada para colorir séries/barras de forma determinística.
+    _PALETTE = [
+        "#2E6DA4", "#4A9FD4", "#27AE60", "#E67E22", "#8E44AD",
+        "#1ABC9C", "#c8e73c", "#F39C12", "#a42e2e", "#16A085",
+    ]
+
+    _MESES_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+                 "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+    @classmethod
+    def _mes_label(cls, competencia):
+        """Converte 'YYYYMM' (ex.: '202605') em 'Mai/26'."""
+        competencia = str(competencia)
+        mes = int(competencia[4:6])
+        return f"{cls._MESES_PT[mes - 1]}/{competencia[2:4]}"
+
+    def _color(self, i):
+        return self._PALETTE[i % len(self._PALETTE)]
+
     @staticmethod
-    def get_market_metrics():
+    def _delta_sub(cur, base, periodo):
+        """Monta o texto de variação percentual de um cartão de métrica."""
+        if not base:
+            return "sem base comparativa"
+        pct = (cur - base) / base * 100
+        seta = "↑" if pct >= 0 else "↓"
+        return f"{seta} {pct:+.1f}% {periodo}"
+
+    def _aberturas_por_segmento(self):
+        """Total de novas empresas (aberturas) agrupado por segmento de CNAE."""
+        return self.execute_query("""
+            SELECT s.denominacao AS nome, COUNT(*) AS value
+            FROM fat_empresas_mensal f
+            JOIN dim_empresas_mensal em
+              ON em.id_dim_empresa = f.id_dim_empresa
+             AND em.id_dim_competencia = f.id_dim_competencia
+            JOIN dim_cnaes c ON c.id = em.id_dim_cnae
+            JOIN dim_cnaes_segmento s ON s.id = c.id_dim_cnae_segmento
+            WHERE f.nova_empresa
+            GROUP BY s.denominacao
+            ORDER BY value DESC
+        """)
+
+    def get_market_metrics(self):
         """Cartões de métricas da visão geral do mercado (Dashboard)."""
+        row = self.execute_query("""
+            WITH ult  AS (SELECT MAX(id) AS id FROM dim_competencias),
+                 prev AS (SELECT MAX(id) AS id FROM dim_competencias
+                          WHERE id < (SELECT id FROM ult)),
+                 ano  AS (SELECT (SELECT id FROM ult) - 12 AS id)
+            SELECT
+              (SELECT COUNT(*) FROM dim_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM ult) AND situacao = 2) AS ativas_ult,
+              (SELECT COUNT(*) FROM dim_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM ano) AND situacao = 2) AS ativas_ano,
+              (SELECT COUNT(*) FROM fat_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM ult) AND nova_empresa) AS novas_ult,
+              (SELECT COUNT(*) FROM fat_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM prev) AND nova_empresa) AS novas_prev,
+              (SELECT COUNT(DISTINCT id_dim_cnae) FROM dim_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM ult)) AS cnaes_ult,
+              (SELECT COUNT(*) FROM fat_empresas_mensal
+                 WHERE id_dim_competencia = (SELECT id FROM ult) AND baixada) AS baixas_ult
+        """)[0]
+
+        def fmt(n):
+            return f"{int(n):,}".replace(",", ".")
+
         return [
-            {"label": "CNPJs Ativos no Brasil", "value": "21,4M", "sub": "↑ +3,2% vs. ano anterior", "icon": "🏢", "topColor": "#2E6DA4"},
-            {"label": "Aberturas (último trimestre)", "value": "412K", "sub": "↑ +8,7% vs. mesmo período", "icon": "📈", "topColor": "#27AE60"},
-            {"label": "CNAEs em Alta (SP)", "value": "47", "sub": "Saúde, Tech e Educação lideram", "icon": "🎯", "topColor": "#E67E22"},
-            {"label": "Sua última consulta", "value": "2s", "sub": "Tempo médio de resposta", "icon": "⚡", "topColor": "#1ABC9C"},
+            {"label": "CNPJs Ativos", "value": fmt(row["ativas_ult"]),
+             "sub": self._delta_sub(row["ativas_ult"], row["ativas_ano"], "vs. ano anterior"),
+             "icon": "🏢", "topColor": "#2E6DA4"},
+            {"label": "Aberturas (último mês)", "value": fmt(row["novas_ult"]),
+             "sub": self._delta_sub(row["novas_ult"], row["novas_prev"], "vs. mês anterior"),
+             "icon": "📈", "topColor": "#27AE60"},
+            {"label": "CNAEs distintos", "value": fmt(row["cnaes_ult"]),
+             "sub": "Ativos no último mês", "icon": "🎯", "topColor": "#E67E22"},
+            {"label": "Baixas (último mês)", "value": fmt(row["baixas_ult"]),
+             "sub": "Encerramentos no período", "icon": "📉", "topColor": "#1ABC9C"},
         ]
 
-    @staticmethod
-    def get_market_setores():
+    def get_market_setores(self):
         """Aberturas por setor – top CNAEs (Dashboard, gráfico de barras)."""
+        rows = self._aberturas_por_segmento()
         return [
-            {"name": "Saúde", "value": 42.3, "color": "#a42e2e", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Tecnologia", "value": 38.1, "color": "#4A9FD4", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Educação", "value": 31.7, "color": "#27AE60", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Alimentação", "value": 28.4, "color": "#E67E22", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Financeiro", "value": 24.9, "color": "#8E44AD", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Construção", "value": 22.1, "color": "#1ABC9C", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Transporte", "value": 18.6, "color": "#c8e73c", "unit": "k", "tooltipLabel": "Novas empresas"},
-            {"name": "Varejo", "value": 14.2, "color": "#F39C12", "unit": "k", "tooltipLabel": "Novas empresas"},
+            {"name": r["nome"], "value": int(r["value"]), "color": self._color(i),
+             "unit": "", "tooltipLabel": "Novas empresas"}
+            for i, r in enumerate(rows)
         ]
 
-    @staticmethod
-    def get_market_porte():
-        """Distribuição de empresas por porte (Dashboard, gráfico de rosca)."""
+    def get_market_porte(self):
+        """Distribuição de empresas por porte na última competência (gráfico de rosca)."""
+        rows = self.execute_query("""
+            WITH ult AS (SELECT MAX(id_dim_competencia) AS c FROM dim_empresas_mensal)
+            SELECT
+              CASE WHEN mei THEN 'MEI'
+                   WHEN porte = 2 THEN 'Pequeno Porte'
+                   WHEN porte = 3 THEN 'Grande Porte'
+                   WHEN porte = 1 THEN 'Microempresa'
+                   ELSE 'Outros' END AS bucket,
+              COUNT(*) AS n
+            FROM dim_empresas_mensal
+            WHERE id_dim_competencia = (SELECT c FROM ult)
+            GROUP BY bucket
+            ORDER BY n DESC
+        """)
+        cores = {
+            "MEI": "#4A9FD4", "Microempresa": "#2E6DA4", "Pequeno Porte": "#27AE60",
+            "Grande Porte": "#E67E22", "Outros": "#95A5A6",
+        }
+        total = sum(r["n"] for r in rows) or 1
         return [
-            {"name": "MEI", "value": 52, "color": "#4A9FD4", "unit": "%", "tooltipLabel": "MEI"},
-            {"name": "Microempresa", "value": 28, "color": "#2E6DA4", "unit": "%", "tooltipLabel": "Microempresa"},
-            {"name": "Peq. Porte", "value": 16, "color": "#27AE60", "unit": "%", "tooltipLabel": "Pequena Empresa"},
-            {"name": "Grande", "value": 4, "color": "#E67E22", "unit": "%", "tooltipLabel": "Grande Empresa"},
+            {"name": r["bucket"], "value": round(r["n"] * 100 / total),
+             "color": cores.get(r["bucket"], "#95A5A6"), "unit": "%", "tooltipLabel": r["bucket"]}
+            for r in rows
         ]
 
-    @staticmethod
-    def get_market_insights():
-        """Cartões de insights do mercado (Dashboard)."""
-        return [
-            {
-                "icon": "🏥",
-                "title": "Saúde & Bem-estar em alta",
-                "text": "CNAE 86.30 cresceu 23% em aberturas este trimestre em SP – maior alta do ano.",
-                "badge": "↑ +23% Q4",
-                "badgeBg": "#D5F5E3",
-                "badgeColor": "#27AE60",
-                "borderColor": "#27AE60",
-            },
-            {
+    def get_market_insights(self):
+        """Cartões de insights do mercado (Dashboard), derivados das aberturas por setor."""
+        rows = self._aberturas_por_segmento()
+        if not rows:
+            return []
+
+        total = sum(r["value"] for r in rows) or 1
+        top = rows[0]
+        menor = rows[-1]
+        tech = next((r for r in rows if "Informa" in r["nome"]), None)
+
+        insights = [{
+            "icon": "🚀",
+            "title": f"{top['nome']} lidera as aberturas",
+            "text": (f"O segmento '{top['nome']}' concentra {top['value']} novas empresas "
+                     f"({top['value'] * 100 / total:.0f}% do total de aberturas)."),
+            "badge": f"{top['value'] * 100 / total:.0f}% do total",
+            "badgeBg": "#D5F5E3", "badgeColor": "#27AE60", "borderColor": "#27AE60",
+        }]
+
+        if tech and tech is not top:
+            insights.append({
                 "icon": "💡",
                 "title": "Tecnologia mantém ritmo",
-                "text": "Desenvolvimento de software (CNAE 62.01) soma 18.400 novas empresas em 2026.",
+                "text": (f"'{tech['nome']}' soma {tech['value']} novas empresas no período, "
+                         "uma oportunidade relevante para negócios B2B."),
                 "badge": "Oportunidade B2B",
-                "badgeBg": "#EBF5FB",
-                "badgeColor": "#2E6DA4",
-                "borderColor": "#2E6DA4",
-            },
-            {
-                "icon": "⚠️",
-                "title": "Varejo físico desacelera",
-                "text": "CNAEs de varejo registraram queda de 4% em novas aberturas vs. Q3.",
-                "badge": "↓ -4% Q4",
-                "badgeBg": "#FADBD8",
-                "badgeColor": "#E74C3C",
-                "borderColor": "#E67E22",
-            },
-        ]
+                "badgeBg": "#EBF5FB", "badgeColor": "#2E6DA4", "borderColor": "#2E6DA4",
+            })
 
-    @staticmethod
-    def get_market_evolution():
-        """Evolução de aberturas por mês, por setor (Explorar Mercado)."""
+        if menor is not top:
+            insights.append({
+                "icon": "⚠️",
+                "title": f"{menor['nome']} com menor volume",
+                "text": (f"'{menor['nome']}' registrou apenas {menor['value']} novas aberturas, "
+                         "o menor volume entre os segmentos."),
+                "badge": "Menor volume",
+                "badgeBg": "#FADBD8", "badgeColor": "#E74C3C", "borderColor": "#E67E22",
+            })
+
+        return insights
+
+    # ------------------------------------------------------------------
+    # Filtros da tela Explorar Mercado
+    # ------------------------------------------------------------------
+    # As opções de Estado/Porte/Setor vêm da base; Período é uma janela
+    # temporal fixa. Em todos os campos "Todos" (ou "Todos os setores")
+    # é a primeira opção e o padrão da tela.
+
+    # Janela (nº de competências mais recentes) por período. "Todos" = None.
+    _PERIODO_N = {
+        "Último trimestre": 3,
+        "Últimos 6 meses": 6,
+        "Último ano": 12,
+    }
+
+    # Ordem de exibição dos portes no filtro.
+    _PORTE_ORDEM = ["MEI", "Microempresa", "Pequeno Porte", "Grande Porte", "Outros"]
+
+    def get_market_filtros(self):
+        """Opções dos filtros da tela Explorar Mercado, derivadas da base."""
+        estados = self.execute_query("""
+            SELECT DISTINCT mun.uf
+            FROM dim_empresas_mensal em
+            JOIN dim_municipios mun ON mun.id = em.id_dim_municipio
+            ORDER BY mun.uf
+        """)
+        portes = self.execute_query("""
+            SELECT DISTINCT
+              CASE WHEN mei THEN 'MEI'
+                   WHEN porte = 2 THEN 'Pequeno Porte'
+                   WHEN porte = 3 THEN 'Grande Porte'
+                   WHEN porte = 1 THEN 'Microempresa'
+                   ELSE 'Outros' END AS bucket
+            FROM dim_empresas_mensal
+        """)
+        setores = self.execute_query("""
+            SELECT DISTINCT seg.denominacao AS nome
+            FROM dim_empresas_mensal em
+            JOIN dim_cnaes cn ON cn.id = em.id_dim_cnae
+            JOIN dim_cnaes_segmento seg ON seg.id = cn.id_dim_cnae_segmento
+            ORDER BY seg.denominacao
+        """)
+        buckets = {r["bucket"] for r in portes}
         return {
-            "Todos os setores": {
-                "data": [
-                    {"mes": "Jul/24", "value": 8200}, {"mes": "Ago/24", "value": 8600},
-                    {"mes": "Set/24", "value": 9100}, {"mes": "Out/24", "value": 9400},
-                    {"mes": "Nov/24", "value": 9900}, {"mes": "Dez/24", "value": 10300},
-                    {"mes": "Jan/25", "value": 10700}, {"mes": "Fev/25", "value": 11200},
-                    {"mes": "Mar/25", "value": 11600}, {"mes": "Abr/25", "value": 12000},
-                    {"mes": "Mai/25", "value": 12500}, {"mes": "Jun/25", "value": 13100},
-                    {"mes": "Jul/25", "value": 12800}, {"mes": "Ago/25", "value": 13300},
-                    {"mes": "Set/25", "value": 13900}, {"mes": "Out/25", "value": 14200},
-                    {"mes": "Nov/25", "value": 14800}, {"mes": "Dez/25", "value": 15100},
-                    {"mes": "Jan/26", "value": 15600}, {"mes": "Fev/26", "value": 16000},
-                    {"mes": "Mar/26", "value": 16500}, {"mes": "Abr/26", "value": 16900},
-                    {"mes": "Mai/26", "value": 17400}, {"mes": "Jun/26", "value": 18000},
-                ],
-            },
-            "Saúde e Bem-estar": {
-                "data": [
-                    {"mes": "Jul/24", "value": 2200}, {"mes": "Ago/24", "value": 2350},
-                    {"mes": "Set/24", "value": 2500}, {"mes": "Out/24", "value": 2650},
-                    {"mes": "Nov/24", "value": 2800}, {"mes": "Dez/24", "value": 2950},
-                    {"mes": "Jan/25", "value": 3100}, {"mes": "Fev/25", "value": 3250},
-                    {"mes": "Mar/25", "value": 3400}, {"mes": "Abr/25", "value": 3550},
-                    {"mes": "Mai/25", "value": 3700}, {"mes": "Jun/25", "value": 3850},
-                    {"mes": "Jul/25", "value": 3800}, {"mes": "Ago/25", "value": 4000},
-                    {"mes": "Set/25", "value": 4200}, {"mes": "Out/25", "value": 4350},
-                    {"mes": "Nov/25", "value": 4500}, {"mes": "Dez/25", "value": 4650},
-                    {"mes": "Jan/26", "value": 4800}, {"mes": "Fev/26", "value": 4950},
-                    {"mes": "Mar/26", "value": 5100}, {"mes": "Abr/26", "value": 5250},
-                    {"mes": "Mai/26", "value": 5400}, {"mes": "Jun/26", "value": 5600},
-                ],
-            },
-            "Tecnologia": {
-                "data": [
-                    {"mes": "Jul/24", "value": 2000}, {"mes": "Ago/24", "value": 2100},
-                    {"mes": "Set/24", "value": 2200}, {"mes": "Out/24", "value": 2300},
-                    {"mes": "Nov/24", "value": 2400}, {"mes": "Dez/24", "value": 2500},
-                    {"mes": "Jan/25", "value": 2600}, {"mes": "Fev/25", "value": 2700},
-                    {"mes": "Mar/25", "value": 2800}, {"mes": "Abr/25", "value": 2900},
-                    {"mes": "Mai/25", "value": 3000}, {"mes": "Jun/25", "value": 3100},
-                    {"mes": "Jul/25", "value": 3050}, {"mes": "Ago/25", "value": 3150},
-                    {"mes": "Set/25", "value": 3250}, {"mes": "Out/25", "value": 3350},
-                    {"mes": "Nov/25", "value": 3450}, {"mes": "Dez/25", "value": 3550},
-                    {"mes": "Jan/26", "value": 3650}, {"mes": "Fev/26", "value": 3750},
-                    {"mes": "Mar/26", "value": 3850}, {"mes": "Abr/26", "value": 3950},
-                    {"mes": "Mai/26", "value": 4050}, {"mes": "Jun/26", "value": 4200},
-                ],
-            },
-            "Educação": {
-                "data": [
-                    {"mes": "Jul/24", "value": 1400}, {"mes": "Ago/24", "value": 1460},
-                    {"mes": "Set/24", "value": 1520}, {"mes": "Out/24", "value": 1580},
-                    {"mes": "Nov/24", "value": 1640}, {"mes": "Dez/24", "value": 1700},
-                    {"mes": "Jan/25", "value": 1760}, {"mes": "Fev/25", "value": 1820},
-                    {"mes": "Mar/25", "value": 1880}, {"mes": "Abr/25", "value": 1940},
-                    {"mes": "Mai/25", "value": 2000}, {"mes": "Jun/25", "value": 2080},
-                    {"mes": "Jul/25", "value": 2040}, {"mes": "Ago/25", "value": 2120},
-                    {"mes": "Set/25", "value": 2200}, {"mes": "Out/25", "value": 2280},
-                    {"mes": "Nov/25", "value": 2360}, {"mes": "Dez/25", "value": 2440},
-                    {"mes": "Jan/26", "value": 2520}, {"mes": "Fev/26", "value": 2600},
-                    {"mes": "Mar/26", "value": 2680}, {"mes": "Abr/26", "value": 2760},
-                    {"mes": "Mai/26", "value": 2840}, {"mes": "Jun/26", "value": 2950},
-                ],
-            },
-            "Varejo": {
-                "data": [
-                    {"mes": "Jul/24", "value": 1650}, {"mes": "Ago/24", "value": 1620},
-                    {"mes": "Set/24", "value": 1600}, {"mes": "Out/24", "value": 1580},
-                    {"mes": "Nov/24", "value": 1560}, {"mes": "Dez/24", "value": 1530},
-                    {"mes": "Jan/25", "value": 1500}, {"mes": "Fev/25", "value": 1470},
-                    {"mes": "Mar/25", "value": 1450}, {"mes": "Abr/25", "value": 1420},
-                    {"mes": "Mai/25", "value": 1390}, {"mes": "Jun/25", "value": 1360},
-                    {"mes": "Jul/25", "value": 1380}, {"mes": "Ago/25", "value": 1350},
-                    {"mes": "Set/25", "value": 1320}, {"mes": "Out/25", "value": 1290},
-                    {"mes": "Nov/25", "value": 1260}, {"mes": "Dez/25", "value": 1230},
-                    {"mes": "Jan/26", "value": 1200}, {"mes": "Fev/26", "value": 1170},
-                    {"mes": "Mar/26", "value": 1140}, {"mes": "Abr/26", "value": 1110},
-                    {"mes": "Mai/26", "value": 1080}, {"mes": "Jun/26", "value": 1040},
-                ],
-            },
+            "estados": ["Todos"] + [r["uf"] for r in estados],
+            "portes": ["Todos"] + [b for b in self._PORTE_ORDEM if b in buckets],
+            "periodos": ["Todos", "Último trimestre", "Últimos 6 meses", "Último ano"],
+            "setores": ["Todos os setores"] + [r["nome"] for r in setores],
         }
 
-    @staticmethod
-    def get_market_cidades():
-        """Top 5 cidades por volume de abertura (Explorar Mercado)."""
+    def _filtros_clausulas(self, uf, porte, cnae, periodo):
+        """Monta cláusulas WHERE + bind params para os filtros de mercado.
+
+        As consultas que usam este helper devem expor os aliases:
+          mun (dim_municipios), em (dim_empresas_mensal),
+          seg (dim_cnaes_segmento) e c (dim_competencias).
+        """
+        clausulas, params = [], {}
+        if uf and uf != "Todos":
+            clausulas.append("mun.uf = :uf")
+            params["uf"] = uf
+        if porte and porte != "Todos":
+            mapa = {
+                "MEI": "em.mei = true",
+                "Microempresa": "(em.porte = 1 AND em.mei = false)",
+                "Pequeno Porte": "em.porte = 2",
+                "Grande Porte": "em.porte = 3",
+            }
+            if porte in mapa:
+                clausulas.append(mapa[porte])
+        if cnae and cnae != "Todos os setores":
+            clausulas.append("seg.denominacao = :cnae")
+            params["cnae"] = cnae
+        n = self._PERIODO_N.get(periodo)
+        if n:
+            clausulas.append("c.id > (SELECT MAX(id) FROM dim_competencias) - :pn")
+            params["pn"] = n
+        return clausulas, params
+
+    def get_market_evolution(self, uf="Todos", porte="Todos",
+                             cnae="Todos os setores", periodo="Todos"):
+        """Evolução de aberturas por mês (Explorar Mercado), filtrada pela base."""
+        # Eixo temporal: todas as competências da janela do período (ascendente),
+        # para que meses sem abertura apareçam como zero.
+        n = self._PERIODO_N.get(periodo)
+        comp_rows = self.execute_query(
+            "SELECT competencia FROM dim_competencias ORDER BY id DESC"
+            + (" LIMIT :n" if n else ""),
+            {"n": n} if n else None,
+        )
+        competencias = sorted(r["competencia"] for r in comp_rows)
+
+        # O período já está refletido no eixo; aqui filtramos só uf/porte/cnae.
+        clausulas, params = self._filtros_clausulas(uf, porte, cnae, periodo=None)
+        where = " AND ".join(["f.nova_empresa"] + clausulas)
+        rows = self.execute_query(f"""
+            SELECT c.competencia, COUNT(*) AS value
+            FROM fat_empresas_mensal f
+            JOIN dim_competencias c ON c.id = f.id_dim_competencia
+            JOIN dim_empresas_mensal em
+              ON em.id_dim_empresa = f.id_dim_empresa
+             AND em.id_dim_competencia = f.id_dim_competencia
+            JOIN dim_municipios mun ON mun.id = em.id_dim_municipio
+            JOIN dim_cnaes cn ON cn.id = em.id_dim_cnae
+            JOIN dim_cnaes_segmento seg ON seg.id = cn.id_dim_cnae_segmento
+            WHERE {where}
+            GROUP BY c.competencia
+        """, params)
+
+        valor = {r["competencia"]: r["value"] for r in rows}
+        return {
+            "data": [
+                {"mes": self._mes_label(c), "value": int(valor.get(c, 0))}
+                for c in competencias
+            ]
+        }
+
+    def get_market_cidades(self, uf="Todos", porte="Todos",
+                           cnae="Todos os setores", periodo="Todos"):
+        """Top 5 cidades por volume de aberturas (Explorar Mercado), filtrada pela base."""
+        clausulas, params = self._filtros_clausulas(uf, porte, cnae, periodo)
+        where = " AND ".join(["f.nova_empresa"] + clausulas)
+        rows = self.execute_query(f"""
+            SELECT mun.nome, mun.uf, COUNT(*) AS value
+            FROM fat_empresas_mensal f
+            JOIN dim_competencias c ON c.id = f.id_dim_competencia
+            JOIN dim_empresas_mensal em
+              ON em.id_dim_empresa = f.id_dim_empresa
+             AND em.id_dim_competencia = f.id_dim_competencia
+            JOIN dim_municipios mun ON mun.id = em.id_dim_municipio
+            JOIN dim_cnaes cn ON cn.id = em.id_dim_cnae
+            JOIN dim_cnaes_segmento seg ON seg.id = cn.id_dim_cnae_segmento
+            WHERE {where}
+            GROUP BY mun.nome, mun.uf
+            ORDER BY value DESC
+            LIMIT 5
+        """, params)
         return [
-            {"name": "São Paulo", "value": 9840, "color": "#2E6DA4"},
-            {"name": "Guarulhos", "value": 3210, "color": "#4A9FD4"},
-            {"name": "Campinas", "value": 2780, "color": "#27AE60"},
-            {"name": "Santo André", "value": 1940, "color": "#E67E22"},
-            {"name": "Osasco", "value": 1620, "color": "#8E44AD"},
+            {"name": f"{r['nome']}/{r['uf']}", "value": int(r["value"]), "color": self._color(i)}
+            for i, r in enumerate(rows)
         ]
 
-    @staticmethod
-    def get_market_export_chart():
-        """Dados do gráfico de aberturas por setor usado na tela de Exportar."""
+    def get_market_export_chart(self):
+        """Dados do gráfico de aberturas por setor usado na tela de Exportar (top 5)."""
+        rows = self._aberturas_por_segmento()[:5]
         return [
-            {"name": "Saúde", "value": 42.3, "color": "#2E6DA4", "unit": "k", "tooltipLabel": "Aberturas"},
-            {"name": "Tech", "value": 38.1, "color": "#4A9FD4", "unit": "k", "tooltipLabel": "Aberturas"},
-            {"name": "Educação", "value": 31.7, "color": "#27AE60", "unit": "k", "tooltipLabel": "Aberturas"},
-            {"name": "Alimentação", "value": 28.4, "color": "#E67E22", "unit": "k", "tooltipLabel": "Aberturas"},
-            {"name": "Financeiro", "value": 24.9, "color": "#8E44AD", "unit": "k", "tooltipLabel": "Aberturas"},
+            {"name": r["nome"], "value": int(r["value"]), "color": self._color(i),
+             "unit": "", "tooltipLabel": "Aberturas"}
+            for i, r in enumerate(rows)
         ]
 
 

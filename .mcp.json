@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "db-server": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-postgres", "/entrypoint.sh"]
+    }
+  }
+}

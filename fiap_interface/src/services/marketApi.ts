@@ -36,7 +36,26 @@ export interface EvolutionPoint {
   value: number;
 }
 
-export type EvolutionData = Record<string, { data: EvolutionPoint[] }>;
+// Série única da evolução, já filtrada pelo backend.
+export interface EvolutionSeries {
+  data: EvolutionPoint[];
+}
+
+// Opções dos filtros da tela Explorar Mercado (todas vindas da base).
+export interface FiltroOptions {
+  estados: string[];
+  portes: string[];
+  periodos: string[];
+  setores: string[];
+}
+
+// Filtros aplicados às consultas de evolução/cidades.
+export interface MarketFiltros {
+  uf: string;
+  porte: string;
+  cnae: string;
+  periodo: string;
+}
 
 // ===================== Helper =====================
 
@@ -48,12 +67,26 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function queryString(filtros: MarketFiltros): string {
+  const params = new URLSearchParams({
+    uf: filtros.uf,
+    porte: filtros.porte,
+    cnae: filtros.cnae,
+    periodo: filtros.periodo,
+  });
+  return `?${params.toString()}`;
+}
+
 // ===================== Endpoints =====================
 
 export const fetchMetrics = () => getJson<Metric[]>('/api/market/metrics');
 export const fetchSetores = () => getJson<BarDatum[]>('/api/market/setores');
 export const fetchPorte = () => getJson<BarDatum[]>('/api/market/porte');
 export const fetchInsights = () => getJson<Insight[]>('/api/market/insights');
-export const fetchEvolution = () => getJson<EvolutionData>('/api/market/evolution');
-export const fetchCidades = () => getJson<BarDatum[]>('/api/market/cidades');
 export const fetchExportChart = () => getJson<BarDatum[]>('/api/market/export-chart');
+
+export const fetchFiltros = () => getJson<FiltroOptions>('/api/market/filtros');
+export const fetchEvolution = (filtros: MarketFiltros) =>
+  getJson<EvolutionSeries>(`/api/market/evolution${queryString(filtros)}`);
+export const fetchCidades = (filtros: MarketFiltros) =>
+  getJson<BarDatum[]>(`/api/market/cidades${queryString(filtros)}`);
