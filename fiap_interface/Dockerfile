@@ -1,20 +1,31 @@
-# Development Dockerfile for TCC
-FROM node:18-alpine
+# Production Dockerfile for TCC (multi-stage)
 
-# Set working directory
+# --- Stage 1: build ---
+FROM node:18-alpine AS build
+
 WORKDIR /app
 
-# Copy package files
+# Install dependencies (cached unless package files change)
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy source code and build static assets
 COPY . .
+RUN npm run build
+
+# --- Stage 2: serve ---
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Lightweight static file server
+RUN npm install -g serve
+
+# Copy only the build output from the previous stage
+COPY --from=build /app/build ./build
 
 # Expose port
 EXPOSE 3000
 
-# Start development server
-CMD ["npm", "start"]
+# Serve the static build as a SPA (fallback to index.html)
+CMD ["serve", "-s", "build", "-l", "3000"]
