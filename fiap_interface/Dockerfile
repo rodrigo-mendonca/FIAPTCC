@@ -5,6 +5,12 @@ FROM node:18-alpine AS build
 
 WORKDIR /app
 
+# API URL is baked into the static bundle at build time (Create React App).
+# Override with: docker build --build-arg REACT_APP_API_URL=https://...
+# A shell env var takes precedence over the .env / .env.local files.
+ARG REACT_APP_API_URL=https://tcc-api.mendonca.casa
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
 # Install dependencies (cached unless package files change)
 COPY package*.json ./
 RUN npm ci
