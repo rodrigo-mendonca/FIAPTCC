@@ -471,13 +471,26 @@ async def stream_agent_response(
         @tool
         def search_knowledge_base(query: str) -> str:
             """
-            Use esta ferramenta SEMPRE que a pergunta envolver:
-            - Documentação
-            - Regras de negócio
+            Base de conhecimento (documentação/contexto) sobre o sistema e a base
+            de dados. Use para obter o CONTEXTO necessário antes de consultar o
+            Postgres.
+
+            Aqui você encontra:
+            - Documentação e regras de negócio
             - Processos internos
             - Estrutura técnica da aplicação
-            - Para ajudar buscar de informações na base de dados
-            - Informações sobre a base de dados
+            - Estrutura/esquema da base de dados (tabelas, colunas, relacionamentos)
+            - Significado e contexto dos dados
+
+            FLUXO OBRIGATÓRIO ao precisar de dados da base:
+            1. PRIMEIRO chame esta ferramenta para entender o esquema, as regras
+               de negócio e o contexto relevante para a pergunta.
+            2. SOMENTE DEPOIS use as ferramentas de banco de dados (Postgres/SQL)
+               para buscar os dados, montando a query com base no contexto obtido
+               aqui.
+
+            Nunca consulte o Postgres sem antes verificar o contexto nesta base de
+            conhecimento.
             """
             try:
                 print("[INFO] Consultando ChromaDB para a coleção:", collection_name)
