@@ -551,11 +551,16 @@ async def stream_agent_response(
             version="v2"
         ):
             event_type = event["event"]
-            # Log de diagnóstico: mostra a sequência de eventos do agente
-            print(f"[AGENT EVENT] {event_type}")
 
             if event_type == "on_chat_model_stream":
-                chunk = _extract_text(event["data"].get("chunk"))
+                raw_chunk = event["data"].get("chunk")
+                chunk = _extract_text(raw_chunk)
+                # Log de diagnóstico: detecta tool-call perdida vs reasoning
+                print(
+                    f"[AGENT EVENT] on_chat_model_stream content={chunk!r} "
+                    f"tool_call_chunks={getattr(raw_chunk, 'tool_call_chunks', None)!r} "
+                    f"resp_meta={getattr(raw_chunk, 'response_metadata', None)!r}"
+                )
 
                 if chunk:
                     streamed_any = True
@@ -565,7 +570,13 @@ async def stream_agent_response(
                 # Guarda o texto completo do turno; usado como fallback caso o
                 # endpoint NÃO faça streaming do turno pós-tool (resposta final
                 # chega inteira aqui em vez de em on_chat_model_stream).
-                text = _extract_text(event["data"].get("output"))
+                output = event["data"].get("output")
+                text = _extract_text(output)
+                print(
+                    f"[AGENT EVENT] on_chat_model_end text={text!r} "
+                    f"tool_calls={getattr(output, 'tool_calls', None)!r} "
+                    f"finish={getattr(output, 'response_metadata', None)!r}"
+                )
                 if text:
                     last_final_text = text
 
@@ -582,6 +593,9 @@ async def stream_agent_response(
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
+
+            else:
+                print(f"[AGENT EVENT] {event_type}")
 
         # Fallback: o agente terminou mas nada foi transmitido em streaming
         # (modelo respondeu sem stream após a tool). Envia a resposta final.
