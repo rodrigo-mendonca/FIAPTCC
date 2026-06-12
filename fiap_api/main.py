@@ -522,18 +522,52 @@ async def stream_agent_response(
         tools=tools
     )
 
+    def _extract_text(obj) -> str:
+        """Extrai o texto de conteúdo de um AIMessage/AIMessageChunk ou dict."""
+        if obj is None:
+            return ""
+        content = getattr(obj, "content", None)
+        if content is None and isinstance(obj, dict):
+            content = obj.get("content")
+        if isinstance(content, str):
+            return content
+        # content pode ser lista de blocos (ex.: [{"type": "text", "text": "..."}])
+        if isinstance(content, list):
+            parts = []
+            for block in content:
+                if isinstance(block, dict):
+                    parts.append(block.get("text") or block.get("content") or "")
+                elif isinstance(block, str):
+                    parts.append(block)
+            return "".join(parts)
+        return ""
+
+    streamed_any = False   # algum token foi transmitido?
+    last_final_text = ""   # texto do último turno do modelo (resposta final, p/ fallback)
+
     try:
         async for event in agent.astream_events(
             {"messages": lc_messages},
             version="v2"
         ):
             event_type = event["event"]
+            # Log de diagnóstico: mostra a sequência de eventos do agente
+            print(f"[AGENT EVENT] {event_type}")
 
             if event_type == "on_chat_model_stream":
-                chunk = event["data"]["chunk"].content
+                chunk = _extract_text(event["data"].get("chunk"))
 
                 if chunk:
+                    streamed_any = True
                     yield f"data: {json.dumps({'content': chunk})}\n\n"
+
+            elif event_type == "on_chat_model_end":
+                # Guarda o texto completo do turno; usado como fallback caso o
+                # endpoint NÃO faça streaming do turno pós-tool (resposta final
+                # chega inteira aqui em vez de em on_chat_model_stream).
+                text = _extract_text(event["data"].get("output"))
+                if text:
+                    last_final_text = text
 
             elif event_type == "on_tool_start":
                 payload = {
@@ -548,6 +582,12 @@ async def stream_agent_response(
                 }
 
                 yield f"data: {json.dumps(payload)}\n\n"
+
+        # Fallback: o agente terminou mas nada foi transmitido em streaming
+        # (modelo respondeu sem stream após a tool). Envia a resposta final.
+        if not streamed_any and last_final_text:
+            print("[AGENT] Nenhum token transmitido; usando fallback on_chat_model_end")
+            yield f"data: {json.dumps({'content': last_final_text})}\n\n"
 
     except Exception as e:
         traceback.print_exc()
