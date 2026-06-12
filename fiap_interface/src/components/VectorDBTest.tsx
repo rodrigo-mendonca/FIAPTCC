@@ -52,7 +52,7 @@ type FileUploadStatus = {
 
 const VectorDBTest: React.FC = () => {
   const [question, setQuestion] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState(0);
   const [dataSource, setDataSource] = useState('Todos');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);

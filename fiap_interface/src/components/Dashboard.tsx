@@ -22,7 +22,7 @@ const Dashboard: React.FC<Props> = ({ darkMode = false }) => {
   const [setores, setSetores] = useState<BarDatum[]>([]);
   const [porte, setPorte] = useState<BarDatum[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Busca os dados da API e atualiza o estado da página
   const refresh = async () => {

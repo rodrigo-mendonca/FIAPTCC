@@ -473,7 +473,7 @@ async def stream_agent_response(
             """
             Base de conhecimento (documentação/contexto) sobre o sistema e a base
             de dados. Use para obter o CONTEXTO necessário antes de consultar o
-            Postgres.
+            base de dados.
 
             Aqui você encontra:
             - Documentação e regras de negócio
@@ -481,16 +481,6 @@ async def stream_agent_response(
             - Estrutura técnica da aplicação
             - Estrutura/esquema da base de dados (tabelas, colunas, relacionamentos)
             - Significado e contexto dos dados
-
-            FLUXO OBRIGATÓRIO ao precisar de dados da base:
-            1. PRIMEIRO chame esta ferramenta para entender o esquema, as regras
-               de negócio e o contexto relevante para a pergunta.
-            2. SOMENTE DEPOIS use as ferramentas de banco de dados (Postgres/SQL)
-               para buscar os dados, montando a query com base no contexto obtido
-               aqui.
-
-            Nunca consulte o Postgres sem antes verificar o contexto nesta base de
-            conhecimento.
             """
             try:
                 print("[INFO] Consultando ChromaDB para a coleção:", collection_name)
@@ -502,7 +492,7 @@ async def stream_agent_response(
                 )
                 print("results", results)
                 if not results:
-                    return "Nenhum resultado encontrado."
+                    return "Nenhum resultado encontrado. Procure na base de dados."
 
                 formatted = []
 
@@ -519,7 +509,7 @@ async def stream_agent_response(
             except Exception as e:
                 return f"Erro ao consultar ChromaDB: {str(e)}"
 
-        tools.append(search_knowledge_base)
+        #tools.append(search_knowledge_base)
 
     # ==========================================
     # MESMA CONFIG do generate_response_with_tools_stream

@@ -32,7 +32,7 @@ const ExplorarMercado: React.FC<Props> = ({ darkMode = false }) => {
   const [chartSub, setChartSub] = useState(`${TODOS} · ${TODOS_SETORES} · ${TODOS}`);
   const [lineData, setLineData] = useState<EvolutionPoint[]>([]);
   const [cidades, setCidades] = useState<BarDatum[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const gridLine = darkMode ? 'rgba(255,255,255,.07)' : '#f0f4f8';
   const tooltipBg = darkMode ? '#1a2535' : '#fff';

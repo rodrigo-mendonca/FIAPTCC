@@ -15,7 +15,7 @@ services:
       - ENVIRONMENT=docker
       # ========== CORS ========== 
       - CORS_ORIGINS=http://localhost:3000,http://host.docker.internal:8001,http://host.docker.internal:8080
-      - CHROMADB_DEFAULT_RESULTS=150
+      - CHROMADB_DEFAULT_RESULTS=10
 
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio

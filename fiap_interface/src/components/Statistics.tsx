@@ -37,7 +37,7 @@ interface ServiceStatus {
 
 const Statistics: React.FC = () => {
   const [stats, setStats] = useState<VectorDBStats | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({

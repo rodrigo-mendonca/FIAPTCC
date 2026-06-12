@@ -56,7 +56,7 @@ services:
     image: acuvity/mcp-server-postgres:latest
     container_name: mcp-postgres
     ports:
-      - "3001:3001"
+      - "8000:8000"
     environment:
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
     depends_on:

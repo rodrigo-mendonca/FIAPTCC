@@ -50,7 +50,7 @@ const Exportar: React.FC<Props> = ({ darkMode = false }) => {
   const [toast, setToast] = useState('');
   const [toastSeverity, setToastSeverity] = useState<'success' | 'error'>('success');
   const [chartData, setChartData] = useState<BarDatum[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   const gridLine = darkMode ? 'rgba(255,255,255,.07)' : '#f0f4f8';
   const tooltipBg = darkMode ? '#1a2535' : '#fff';
