@@ -19,7 +19,13 @@ import {
   DialogContentText,
   Tabs,
   Tab,
-  Chip
+  Chip,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  IconButton
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -27,13 +33,22 @@ import {
   Search as SearchIcon,
   Settings as SettingsIcon,
   CheckCircle as CheckCircleIcon,
-  UploadFile as UploadFileIcon
+  UploadFile as UploadFileIcon,
+  Error as ErrorIcon,
+  InsertDriveFile as InsertDriveFileIcon
 } from '@mui/icons-material';
 import React, { useState, useEffect } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useNotification } from '../contexts/NotificationContext';
 
 const API_URL = process.env.REACT_APP_API_URL;
+
+// Estado de processamento de um arquivo individual durante o upload em streaming
+type FileUploadStatus = {
+  state: 'pending' | 'processing' | 'success' | 'error';
+  type?: string | null;
+  message?: string;
+};
 
 const VectorDBTest: React.FC = () => {
   const [question, setQuestion] = useState('');
@@ -46,8 +61,11 @@ const VectorDBTest: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [shouldReload, setShouldReload] = useState(false);
-  const [includeMetadata, setIncludeMetadata] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: string }>({});
+  const [isDragging, setIsDragging] = useState(false);
+  // Status de cada arquivo durante o upload em streaming
+  const [fileStatus, setFileStatus] = useState<{ [key: string]: FileUploadStatus }>({});
+  // Contador de progresso geral (arquivos processados / total)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [queryError, setQueryError] = useState<string | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
@@ -203,19 +221,57 @@ const VectorDBTest: React.FC = () => {
     setConfirmDialogOpen(false);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setSelectedFiles(files);
+  // Adiciona novos arquivos à seleção (vindos do input ou do drag & drop),
+  // ignorando duplicados pelo nome.
+  const addFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+    setSelectedFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      const merged = [...prev];
+      for (const f of incoming) {
+        if (!existing.has(f.name)) merged.push(f);
+      }
+      return merged;
+    });
     setUploadError(null);
     setUploadSuccess(null);
-    setUploadProgress({});
+    setFileStatus({});
+    setUploadProgress({ done: 0, total: 0 });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(event.target.files || []));
+  };
+
+  const handleRemoveFile = (name: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.name !== name));
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    if (!uploadingFiles) setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+    if (uploadingFiles) return;
+    const dropped = Array.from(event.dataTransfer.files || []).filter(f =>
+      /\.(ya?ml|json)$/i.test(f.name)
+    );
+    if (dropped.length === 0) {
+      showNotification('Apenas arquivos YAML, YML ou JSON são aceitos.', 'warning');
+      return;
+    }
+    addFiles(dropped);
   };
 
   const handleUploadFile = async () => {
-    console.log('✓ handleUploadFile chamado');
-    console.log('selectedFiles:', selectedFiles);
-    console.log('selectedCollection:', selectedCollection);
-    
     if (selectedFiles.length === 0) {
       showNotification('Selecione pelo menos um arquivo para enviar.', 'warning');
       return;
@@ -224,21 +280,22 @@ const VectorDBTest: React.FC = () => {
     setUploadingFiles(true);
     setUploadError(null);
     setUploadSuccess(null);
-    setUploadProgress({});
+    // Todos os arquivos começam como pendentes
+    setFileStatus(Object.fromEntries(selectedFiles.map(f => [f.name, { state: 'pending' } as FileUploadStatus])));
+    setUploadProgress({ done: 0, total: selectedFiles.length });
 
     try {
       // Verificar conexão com ChromaDB antes de tentar upload
       try {
         const healthResponse = await fetch(`${API_URL}/api/vectordb/health`);
         const health = await healthResponse.json();
-        
+
         if (!health.connected) {
-          console.log('ChromaDB desconectado, tentando reconectar...');
           const reconnectResponse = await fetch(`${API_URL}/api/vectordb/reconnect`, {
             method: 'POST'
           });
           const reconnectResult = await reconnectResponse.json();
-          
+
           if (reconnectResult.status !== 'ok') {
             setUploadError('ChromaDB não está disponível. Verifique se o serviço está rodando.');
             showNotification('ChromaDB não disponível', 'error');
@@ -252,26 +309,17 @@ const VectorDBTest: React.FC = () => {
 
       // Preparar FormData para upload em lote
       const formData = new FormData();
-      
-      // Adicionar todos os arquivos
       for (const file of selectedFiles) {
         formData.append('files', file);
       }
-      
       formData.append('collection_name', selectedCollection);
-      formData.append('include_metadata', String(includeMetadata));
 
-      console.log('📤 Enviando para:', `${API_URL}/api/vectordb/upload-batch`);
-      console.log('📦 Arquivos:', selectedFiles.length);
-      console.log('📍 Coleção:', selectedCollection);
-
-      // Usar novo endpoint de batch upload
       const response = await fetch(`${API_URL}/api/vectordb/upload-batch`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         let errText = response.statusText || `Status ${response.status}`;
         try {
           const body = await response.text();
@@ -291,44 +339,82 @@ const VectorDBTest: React.FC = () => {
         return;
       }
 
-      const result = await response.json();
-      
-      console.log('📨 Resposta do servidor:', result);
-      
-      // Processar resultado do batch
+      // Consumir o stream (Server-Sent Events) emitido pela API
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let completeData: any = null;
+
+      const handleEvent = (data: any) => {
+        switch (data.event) {
+          case 'start':
+            setUploadProgress({ done: 0, total: data.total });
+            break;
+          case 'file_start':
+            setFileStatus(prev => ({ ...prev, [data.filename]: { state: 'processing' } }));
+            break;
+          case 'file_done':
+            setFileStatus(prev => ({
+              ...prev,
+              [data.filename]: {
+                state: data.status === 'success' ? 'success' : 'error',
+                type: data.type,
+                message: data.message,
+              },
+            }));
+            setUploadProgress(prev => ({ ...prev, done: data.index }));
+            break;
+          case 'complete':
+            completeData = data;
+            break;
+          default:
+            break;
+        }
+      };
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Eventos SSE são separados por linha em branco
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        for (const part of parts) {
+          const line = part.split('\n').find(l => l.startsWith('data:'));
+          if (!line) continue;
+          try {
+            handleEvent(JSON.parse(line.slice(5).trim()));
+          } catch (e) {
+            console.warn('Falha ao interpretar evento SSE:', part, e);
+          }
+        }
+      }
+
+      // Processar resultado final
+      const result = completeData || { success_count: 0, error_count: 0, results: [] };
+
       if (result.success_count > 0) {
         const msg = `✅ ${result.success_count} arquivo(s) enviado(s) com sucesso${result.error_count > 0 ? ` (${result.error_count} falharam)` : ''}`;
         setUploadSuccess(msg);
         showNotification(msg, 'success');
-        
-        // Mostrar detalhes dos resultados
-        console.log('📋 Resultados do upload:', result.results);
-        console.log('📍 Coleção selecionada:', selectedCollection);
-        console.log('📊 Sucesso:', result.success_count, '| Erros:', result.error_count);
-        
-        // Aguardar um pouco para garantir que a indexação foi completada
-        console.log('⏳ Aguardando indexação ser concluída...');
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
+
         // Atualizar lista de coleções no contexto
-        console.log('🔄 Atualizando lista de coleções...');
         await refreshCollections();
-        console.log('✅ Lista atualizada');
-        
-        // Limpar UI sem reload
-        console.log('🧹 Limpando interface...');
-        setSelectedFiles([]);
+
+        // Limpar a seleção mantendo o resumo de status visível
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
         setUploadError(null);
-        setUploadProgress({});
-        
-        // Limpar mensagem de sucesso após 3 segundos
+
         setTimeout(() => {
+          setSelectedFiles([]);
+          setFileStatus({});
+          setUploadProgress({ done: 0, total: 0 });
           setUploadSuccess(null);
         }, 3000);
       } else if (result.error_count > 0) {
-        // Juntar mensagens de erro dos arquivos
         const errorMessages = Array.isArray(result.results)
           ? result.results.filter((r:any) => r.status === 'error' && r.message)
               .map((r:any) => `${r.filename ? r.filename + ': ' : ''}${r.message}`)
@@ -505,20 +591,36 @@ const VectorDBTest: React.FC = () => {
                   </Alert>
                 )}
 
-                <Box sx={{ mb: 3, p: 2, border: '2px dashed #1976d2', borderRadius: 2, backgroundColor: '#f5f5f5' }}>
-                  <input 
-                    type="file" 
-                    accept=".yaml,.yml,.json" 
+                <Box
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    border: '2px dashed',
+                    borderColor: isDragging ? 'primary.main' : '#90caf9',
+                    borderRadius: 2,
+                    backgroundColor: isDragging ? '#e3f2fd' : '#f5f9ff',
+                    transition: 'background-color 0.2s, border-color 0.2s',
+                    opacity: uploadingFiles ? 0.6 : 1,
+                    pointerEvents: uploadingFiles ? 'none' : 'auto',
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept=".yaml,.yml,.json"
                     onChange={handleFileChange}
                     id="file-input"
                     multiple
+                    disabled={uploadingFiles}
                     style={{ display: 'none' }}
                   />
-                  <label htmlFor="file-input" style={{ width: '100%', cursor: 'pointer' }}>
+                  <label htmlFor="file-input" style={{ width: '100%', cursor: uploadingFiles ? 'default' : 'pointer' }}>
                     <Box sx={{ textAlign: 'center', p: 2 }}>
-                      <UploadFileIcon sx={{ fontSize: 40, color: '#1976d2', mb: 1 }} />
-                      <Typography variant="body2" color="primary">
-                        Clique para selecionar arquivos ou arraste aqui
+                      <UploadFileIcon sx={{ fontSize: 44, color: isDragging ? 'primary.dark' : '#1976d2', mb: 1 }} />
+                      <Typography variant="body1" color="primary" sx={{ fontWeight: 500 }}>
+                        {isDragging ? 'Solte os arquivos aqui' : 'Clique para selecionar arquivos ou arraste aqui'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Formatos: YAML, YML ou JSON (múltiplos arquivos)
@@ -527,54 +629,86 @@ const VectorDBTest: React.FC = () => {
                   </label>
                 </Box>
 
-                {selectedFiles.length > 0 && (
+                {uploadingFiles && uploadProgress.total > 0 && (
                   <Box sx={{ mb: 3 }}>
-                    <Box sx={{ mb: 2, p: 1.5, backgroundColor: '#e8f5e9', borderRadius: 1, border: '1px solid #4caf50' }}>
-                      <Typography variant="subtitle2" color="success.main">
-                        ✓ {selectedFiles.length} arquivo(s) selecionado(s):
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Processando arquivos…
                       </Typography>
-                      <Box sx={{ mt: 1 }}>
-                        {selectedFiles.map((file, idx) => (
-                          <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
-                            <Typography variant="body2" sx={{ color: '#1976d2', fontWeight: '500' }}>
-                              • {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                            </Typography>
-                            {uploadProgress[file.name] && (
-                              <Typography variant="caption" sx={{ ml: 1, color: uploadProgress[file.name].includes('❌') ? '#d32f2f' : '#388e3c' }}>
-                                {uploadProgress[file.name]}
-                              </Typography>
-                            )}
-                          </Box>
-                        ))}
-                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {uploadProgress.done} / {uploadProgress.total}
+                      </Typography>
                     </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={uploadProgress.total > 0 ? (uploadProgress.done / uploadProgress.total) * 100 : 0}
+                    />
                   </Box>
                 )}
 
-                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <input 
-                    type="checkbox" 
-                    id="include-metadata" 
-                    checked={includeMetadata}
-                    onChange={(e) => setIncludeMetadata(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="include-metadata" style={{ cursor: 'pointer', marginBottom: 0 }}>
-                    <Typography variant="body2" sx={{ display: 'inline' }}>
-                      Incluir metadata (estrutura de documentação)
+                {selectedFiles.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      {selectedFiles.length} arquivo(s) selecionado(s)
                     </Typography>
-                  </label>
-                </Box>
+                    <List dense disablePadding sx={{ border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                      {selectedFiles.map((file, idx) => {
+                        const status = fileStatus[file.name];
+                        return (
+                          <ListItem
+                            key={idx}
+                            divider={idx < selectedFiles.length - 1}
+                            secondaryAction={
+                              uploadingFiles ? undefined : (
+                                <IconButton edge="end" size="small" onClick={() => handleRemoveFile(file.name)} aria-label="remover">
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              )
+                            }
+                          >
+                            <ListItemIcon sx={{ minWidth: 40 }}>
+                              {status?.state === 'processing' && <CircularProgress size={20} />}
+                              {status?.state === 'success' && <CheckCircleIcon color="success" fontSize="small" />}
+                              {status?.state === 'error' && <ErrorIcon color="error" fontSize="small" />}
+                              {(!status || status.state === 'pending') && <InsertDriveFileIcon color="action" fontSize="small" />}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.name}
+                              secondary={
+                                status?.state === 'error'
+                                  ? status.message
+                                  : status?.state === 'success'
+                                    ? `Importado como ${status.type}`
+                                    : status?.state === 'processing'
+                                      ? 'Processando…'
+                                      : `${(file.size / 1024).toFixed(2)} KB`
+                              }
+                              slotProps={{
+                                primary: { variant: 'body2', sx: { fontWeight: 500 } },
+                                secondary: {
+                                  variant: 'caption',
+                                  color: status?.state === 'error' ? 'error' : 'text.secondary',
+                                },
+                              }}
+                            />
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </Box>
+                )}
 
                 <Button
                   variant="contained"
-                  startIcon={uploadingFiles ? <CircularProgress size={20} /> : <SendIcon />}
+                  startIcon={uploadingFiles ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
                   disabled={uploadingFiles || selectedFiles.length === 0}
                   onClick={handleUploadFile}
                   fullWidth
                   size="large"
                 >
-                  {uploadingFiles ? `Enviando ${uploadProgress && Object.keys(uploadProgress).length}...` : `Enviar ${selectedFiles.length > 0 ? selectedFiles.length : '0'} Arquivo(s) para ChromaDB`}
+                  {uploadingFiles
+                    ? `Enviando ${uploadProgress.done}/${uploadProgress.total}…`
+                    : `Enviar ${selectedFiles.length > 0 ? selectedFiles.length : '0'} arquivo(s) para o ChromaDB`}
                 </Button>
               </CardContent>
             </Card>

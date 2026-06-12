@@ -632,265 +632,276 @@ async def validate_file_with_llm(content: str, filename: str, detected_type: Opt
     )
 
 
-@app.post("/api/vectordb/upload-batch")
-async def upload_files_batch(
-    files: List[UploadFile] = File(...), 
-    collection_name: str = Form(...),
-    include_metadata: str = Form(default="false")
+async def _process_uploaded_file(
+    filename: str,
+    content_bytes: bytes,
+    size: Optional[int],
+    target_collection: str
 ) -> Dict[str, Any]:
     """
-    Endpoint para upload em lote de múltiplos arquivos
-    
-    Características:
-    - Suporta N arquivos
-    - Auto-detecta categoria (base_dados, regras_negocio, servicos, rotinas_usuario)
-    - Valida com LLM se arquivo não tiver categoria clara
-    - Opcionalmente importa metadata (estrutura de documentação)
-    - Processa sequencialmente mantendo estado
+    Processa um único arquivo já lido em memória: detecta o tipo, salva em disco
+    e indexa no ChromaDB. Retorna um dict com o resultado (sucesso ou erro).
+
+    Extraído do loop do upload em lote para permitir o streaming de progresso.
     """
     try:
-        # Validações básicas
-        if not collection_name or not collection_name.strip():
-            raise HTTPException(status_code=400, detail="collection_name é obrigatório")
-        
-        if not files or len(files) == 0:
-            raise HTTPException(status_code=400, detail="Forneça pelo menos um arquivo")
-        
-        if not chromadb_client or not chromadb_client.client:
-            raise HTTPException(status_code=503, detail="ChromaDB não está disponível")
-        
-        # Garantir que a coleção existe
-        target_collection = collection_name
-        if not chromadb_client.set_collection(target_collection):
-            if not chromadb_client.create_collection(target_collection):
-                raise HTTPException(status_code=500, detail=f"Não foi possível criar coleção '{target_collection}'")
-        
-        results = []
-        include_meta = include_metadata.lower() == "true"
-        
-        # Processar cada arquivo
-        for idx, file in enumerate(files, 1):
-            try:
-                # Validar arquivo
-                if not file or file.size == 0:
-                    results.append({
-                        "filename": file.filename,
-                        "status": "error",
-                        "message": "Arquivo vazio",
-                        "type": None
-                    })
-                    continue
-                
-                # Ler conteúdo
-                content = await file.read()
-                content_str = content.decode('utf-8')
-                
-                # Detectar tipo
-                detected_type = detect_file_type(content_str, file.filename or "unknown")
-                
-                # Se não detectou ou confiança baixa, usar LLM para validar
-                if not detected_type:
-                    validation = await validate_file_with_llm(content_str, file.filename or "unknown", detected_type)
-                    detected_type = validation.get("detected_type")
-                    llm_info = validation.get("llm_analysis", {})
-                    
-                    if not detected_type:
-                        results.append({
-                            "filename": file.filename,
-                            "status": "error",
-                            "message": "Arquivo não pôde ser classificado. Verifique o conteúdo.",
-                            "type": None,
-                            "llm_suggestion": llm_info
-                        })
-                        continue
-                
-                # Salvar arquivo
-                save_success = await save_yaml_file(content_str, detected_type, file.filename or "documento.yaml")
-                
-                if not save_success:
-                    results.append({
-                        "filename": file.filename,
-                        "status": "error",
-                        "message": "Erro ao salvar arquivo no servidor",
-                        "type": detected_type
-                    })
-                    continue
-                
-                # Indexar arquivo imediatamente após salvar
+        if not content_bytes or len(content_bytes) == 0:
+            return {
+                "filename": filename,
+                "status": "error",
+                "message": "Arquivo vazio",
+                "type": None
+            }
+
+        content_str = content_bytes.decode('utf-8')
+
+        # Detectar tipo
+        detected_type = detect_file_type(content_str, filename or "unknown")
+
+        # Se não detectou, usar LLM para validar
+        if not detected_type:
+            validation = await validate_file_with_llm(content_str, filename or "unknown", detected_type)
+            detected_type = validation.get("detected_type")
+            llm_info = validation.get("llm_analysis", {})
+
+            if not detected_type:
+                return {
+                    "filename": filename,
+                    "status": "error",
+                    "message": "Arquivo não pôde ser classificado. Verifique o conteúdo.",
+                    "type": None,
+                    "llm_suggestion": llm_info
+                }
+
+        # Salvar arquivo
+        save_success = await save_yaml_file(content_str, detected_type, filename or "documento.yaml")
+
+        if not save_success:
+            return {
+                "filename": filename,
+                "status": "error",
+                "message": "Erro ao salvar arquivo no servidor",
+                "type": detected_type
+            }
+
+        # Indexar arquivo imediatamente após salvar
+        try:
+            file_base_name = os.path.splitext(filename or "documento")[0]
+
+            if detected_type == 'base_dados':
                 try:
-                    # Preparar documento para indexação
-                    file_base_name = os.path.splitext(file.filename or "documento")[0]
-                    
-                    # Procesar arquivo baseado no tipo
-                    if detected_type == 'base_dados':
-                        try:
-                            import yaml
-                            data = yaml.safe_load(content_str)
-                            if data and 'tabela' in data:
-                                # Obter o nome da tabela (pode ser string ou dict)
-                                table_name_value = data['tabela']
-                                if isinstance(table_name_value, dict):
-                                    table_name = table_name_value.get("nome", file_base_name)
-                                    table_metadata = table_name_value
-                                else:
-                                    table_name = str(table_name_value)
-                                    table_metadata = data  # Usar data completo como metadata
-                                
-                                # 1. Criar documento principal da tabela
-                                table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
-                                table_text = f"Tabela {table_name}: {table_desc}"
-                                doc_id = f"table_{file_base_name}"
-                                
-                                success = chromadb_client.add_document(
-                                    text=table_text,
-                                    metadata={
-                                        "type": "table",
-                                        "table_name": table_name,
-                                        "source_file": file.filename,
-                                        "source": "user_upload"
-                                    },
-                                    id=doc_id,
-                                    collection_name=target_collection
-                                )
-                                
-                                doc_count = 1 if success else 0
-                                
-                                # 2. Indexar colunas importantes (estrutura nova dos docs_cg)
-                                colunas_importantes = data.get("colunas_importantes", [])
-                                if isinstance(colunas_importantes, list):
-                                    for col in colunas_importantes:
-                                        if isinstance(col, dict) and col.get("nome"):
-                                            col_name = col.get("nome")
-                                            col_text = f"Coluna {col_name}: {col.get('descricao', '')} | Tipo: {col.get('tipo', 'unknown')} | Nulo: {col.get('nulo', 'N/A')}"
-                                            col_doc_id = f"field_{file_base_name}_{col_name}"
-                                            
-                                            col_success = chromadb_client.add_document(
-                                                text=col_text,
-                                                metadata={
-                                                    "type": "field",
-                                                    "table_name": table_name,
-                                                    "field_name": col_name,
-                                                    "data_type": col.get("tipo", "unknown"),
-                                                    "nullable": col.get("nulo", False),
-                                                    "source": "user_upload"
-                                                },
-                                                id=col_doc_id,
-                                                collection_name=target_collection
-                                            )
-                                            if col_success:
-                                                doc_count += 1
-                                
-                                # 3. Fallback: indexar fields para estrutura antiga (se houver)
-                                if isinstance(table_metadata, dict):
-                                    fields = table_metadata.get("fields", {})
-                                    if isinstance(fields, dict):
-                                        for field_name, field_data in fields.items():
-                                            if isinstance(field_data, dict) and field_data.get("pesquisavel", True):
-                                                field_desc = field_data.get("descricao", "")
-                                                field_type = field_data.get("tipo", "unknown")
-                                                field_text = f"Campo {field_name} da tabela {table_name} ({field_type}): {field_desc}"
-                                                field_doc_id = f"field_{file_base_name}_{field_name}"
-                                                
-                                                field_success = chromadb_client.add_document(
-                                                    text=field_text,
-                                                    metadata={
-                                                        "type": "field",
-                                                        "table_name": table_name,
-                                                        "field_name": field_name,
-                                                        "data_type": field_data.get("tipo", "unknown"),
-                                                        "source": "user_upload"
-                                                    },
-                                                    id=field_doc_id,
-                                                    collection_name=target_collection
-                                                )
-                                                if field_success:
-                                                    doc_count += 1
-                        except Exception as index_error:
-                            import traceback
-                            print(f"[ERROR] Erro ao indexar base_dados: {index_error}")
-                            traceback.print_exc()
-                    else:
-                        # Para outros tipos, fazer indexação genérica
-                        doc_id = f"{detected_type}_{file_base_name}"
+                    import yaml
+                    data = yaml.safe_load(content_str)
+                    if data and 'tabela' in data:
+                        # Obter o nome da tabela (pode ser string ou dict)
+                        table_name_value = data['tabela']
+                        if isinstance(table_name_value, dict):
+                            table_name = table_name_value.get("nome", file_base_name)
+                            table_metadata = table_name_value
+                        else:
+                            table_name = str(table_name_value)
+                            table_metadata = data  # Usar data completo como metadata
+
+                        # 1. Criar documento principal da tabela
+                        table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
+                        table_text = f"Tabela {table_name}: {table_desc}"
+                        doc_id = f"table_{file_base_name}"
+
                         chromadb_client.add_document(
-                            text=content_str[:1000],
+                            text=table_text,
                             metadata={
-                                "type": detected_type,
-                                "source_file": file.filename,
+                                "type": "table",
+                                "table_name": table_name,
+                                "source_file": filename,
                                 "source": "user_upload"
                             },
                             id=doc_id,
                             collection_name=target_collection
                         )
-                        
+
+                        # 2. Indexar colunas importantes (estrutura nova dos docs_cg)
+                        colunas_importantes = data.get("colunas_importantes", [])
+                        if isinstance(colunas_importantes, list):
+                            for col in colunas_importantes:
+                                if isinstance(col, dict) and col.get("nome"):
+                                    col_name = col.get("nome")
+                                    col_text = f"Coluna {col_name}: {col.get('descricao', '')} | Tipo: {col.get('tipo', 'unknown')} | Nulo: {col.get('nulo', 'N/A')}"
+                                    col_doc_id = f"field_{file_base_name}_{col_name}"
+
+                                    chromadb_client.add_document(
+                                        text=col_text,
+                                        metadata={
+                                            "type": "field",
+                                            "table_name": table_name,
+                                            "field_name": col_name,
+                                            "data_type": col.get("tipo", "unknown"),
+                                            "nullable": col.get("nulo", False),
+                                            "source": "user_upload"
+                                        },
+                                        id=col_doc_id,
+                                        collection_name=target_collection
+                                    )
+
+                        # 3. Fallback: indexar fields para estrutura antiga (se houver)
+                        if isinstance(table_metadata, dict):
+                            fields = table_metadata.get("fields", {})
+                            if isinstance(fields, dict):
+                                for field_name, field_data in fields.items():
+                                    if isinstance(field_data, dict) and field_data.get("pesquisavel", True):
+                                        field_desc = field_data.get("descricao", "")
+                                        field_type = field_data.get("tipo", "unknown")
+                                        field_text = f"Campo {field_name} da tabela {table_name} ({field_type}): {field_desc}"
+                                        field_doc_id = f"field_{file_base_name}_{field_name}"
+
+                                        chromadb_client.add_document(
+                                            text=field_text,
+                                            metadata={
+                                                "type": "field",
+                                                "table_name": table_name,
+                                                "field_name": field_name,
+                                                "data_type": field_data.get("tipo", "unknown"),
+                                                "source": "user_upload"
+                                            },
+                                            id=field_doc_id,
+                                            collection_name=target_collection
+                                        )
                 except Exception as index_error:
                     import traceback
-                    print(f"[ERROR] Erro ao indexar documento genérico: {index_error}")
+                    print(f"[ERROR] Erro ao indexar base_dados: {index_error}")
                     traceback.print_exc()
-                
-                # Se include_metadata, adicionar documento de metadata
-                metadata_docs = 0
-                if include_meta:
-                    # Criar documento de metadata
-                    try:
-                        metadata_doc = {
-                            'id': f"metadata_{detected_type}_{os.path.splitext(file.filename or 'doc')[0].lower()}",
-                            'text': f"Documentação: {file.filename}\n"
-                                   f"Tipo: {detected_type}\n"
-                                   f"Estrutura: {content_str[:500]}...",
-                            'metadata': {
-                                'type': 'documentation_structure',
-                                'category': detected_type,
-                                'source_file': file.filename,
-                                'source': 'file_structure'
-                            }
-                        }
-                        # Aqui seria adicionado ao ChromaDB
-                        metadata_docs = 1
-                    except Exception as e:
-                        pass
-                
-                results.append({
-                    "filename": file.filename,
-                    "status": "success",
-                    "message": f"Arquivo '{file.filename}' importado com sucesso como {detected_type}",
-                    "type": detected_type,
-                    "size": file.size,
-                    "metadata_docs": metadata_docs
-                })
-                
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"[ERROR] Erro ao processar arquivo '{file.filename}': {str(e)}")
-                results.append({
-                    "filename": file.filename,
-                    "status": "error",
-                    "message": str(e),
-                    "type": None
-                })
-        
-        # Resumo
-        success_count = len([r for r in results if r['status'] == 'success'])
-        error_count = len([r for r in results if r['status'] == 'error'])
-        
+            else:
+                # Para outros tipos, fazer indexação genérica
+                doc_id = f"{detected_type}_{file_base_name}"
+                chromadb_client.add_document(
+                    text=content_str[:1000],
+                    metadata={
+                        "type": detected_type,
+                        "source_file": filename,
+                        "source": "user_upload"
+                    },
+                    id=doc_id,
+                    collection_name=target_collection
+                )
+
+        except Exception as index_error:
+            import traceback
+            print(f"[ERROR] Erro ao indexar documento genérico: {index_error}")
+            traceback.print_exc()
+
         return {
-            "status": "success" if success_count > 0 else "error",
-            "total_files": len(files),
-            "success_count": success_count,
-            "error_count": error_count,
-            "results": results,
-            "collection": target_collection,
-            "include_metadata": include_meta
+            "filename": filename,
+            "status": "success",
+            "message": f"Arquivo '{filename}' importado com sucesso como {detected_type}",
+            "type": detected_type,
+            "size": size
         }
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"[ERROR] Erro ao processar arquivo: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro ao processar batch: {str(e)}")
+        print(f"[ERROR] Erro ao processar arquivo '{filename}': {str(e)}")
+        return {
+            "filename": filename,
+            "status": "error",
+            "message": str(e),
+            "type": None
+        }
+
+
+@app.post("/api/vectordb/upload-batch")
+async def upload_files_batch(
+    files: List[UploadFile] = File(...),
+    collection_name: str = Form(...)
+):
+    """
+    Endpoint para upload em lote de múltiplos arquivos, com progresso via
+    streaming (Server-Sent Events).
+
+    Em vez de processar tudo e só então responder (o que causava timeout no
+    navegador em lotes grandes), a resposta é enviada incrementalmente: um
+    evento por arquivo conforme ele é processado, mantendo a conexão ativa.
+
+    Eventos emitidos (cada linha `data: <json>`):
+    - {"event": "start", "total": N, "collection": "..."}
+    - {"event": "file_start", "index": i, "total": N, "filename": "..."}
+    - {"event": "file_done", "index": i, "total": N, ...resultado do arquivo}
+    - {"event": "complete", "success_count", "error_count", "results", ...}
+    """
+    # Validações básicas (antes de iniciar o stream, para retornar HTTP de erro)
+    if not collection_name or not collection_name.strip():
+        raise HTTPException(status_code=400, detail="collection_name é obrigatório")
+
+    if not files or len(files) == 0:
+        raise HTTPException(status_code=400, detail="Forneça pelo menos um arquivo")
+
+    if not chromadb_client or not chromadb_client.client:
+        raise HTTPException(status_code=503, detail="ChromaDB não está disponível")
+
+    # Garantir que a coleção existe
+    target_collection = collection_name
+    if not chromadb_client.set_collection(target_collection):
+        if not chromadb_client.create_collection(target_collection):
+            raise HTTPException(status_code=500, detail=f"Não foi possível criar coleção '{target_collection}'")
+
+    # Ler todo o conteúdo dos arquivos ANTES de iniciar o stream — o corpo da
+    # requisição precisa ser consumido enquanto o request ainda está disponível.
+    buffered_files = []
+    for file in files:
+        try:
+            raw = await file.read()
+        except Exception:
+            raw = b""
+        buffered_files.append({
+            "filename": file.filename,
+            "size": file.size if file.size is not None else len(raw),
+            "content": raw,
+        })
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        results = []
+        total = len(buffered_files)
+
+        yield f"data: {json.dumps({'event': 'start', 'total': total, 'collection': target_collection})}\n\n"
+
+        for idx, item in enumerate(buffered_files, 1):
+            filename = item["filename"] or "documento.yaml"
+
+            yield f"data: {json.dumps({'event': 'file_start', 'index': idx, 'total': total, 'filename': filename})}\n\n"
+            await asyncio.sleep(0)  # libera o loop para enviar o chunk imediatamente
+
+            result = await _process_uploaded_file(
+                filename=filename,
+                content_bytes=item["content"],
+                size=item["size"],
+                target_collection=target_collection
+            )
+            results.append(result)
+
+            yield f"data: {json.dumps({'event': 'file_done', 'index': idx, 'total': total, **result})}\n\n"
+            await asyncio.sleep(0)
+
+        success_count = len([r for r in results if r['status'] == 'success'])
+        error_count = len([r for r in results if r['status'] == 'error'])
+
+        complete_payload = {
+            'event': 'complete',
+            'status': 'success' if success_count > 0 else 'error',
+            'total_files': total,
+            'success_count': success_count,
+            'error_count': error_count,
+            'results': results,
+            'collection': target_collection,
+        }
+        yield f"data: {json.dumps(complete_payload)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # desabilita buffering em proxies (nginx)
+        }
+    )
 
 
 @app.post("/api/vectordb/reconnect")
