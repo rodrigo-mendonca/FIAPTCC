@@ -1,0 +1,118 @@
+tabela: dim_empresas_mensal
+descricao: Retrato mensal (snapshot) da empresa. Uma linha por CNPJ por competência,
+  com dados cadastrais, porte, situação, Simples e MEI.
+database: Receita
+contexto_negocio: 'Esta tabela representa o estado (snapshot) da empresa em cada competência.
+
+  Existe uma linha por CNPJ por competência mensal.
+
+  Contém os dados cadastrais vigentes no mês, como razão social, nome fantasia, porte
+  e situação cadastral, além das FKs para empresa, CNAE, município e competência.
+
+  Use dim_empresas_mensal para contar estoque/base em uma competência.
+
+  Use fat_empresas_mensal para contar eventos do mês.
+
+  '
+chaves:
+  pk:
+  - id
+  principais_fks:
+  - id_dim_empresa
+  - id_dim_cnae
+  - id_dim_municipio
+  - id_dim_competencia
+colunas_importantes:
+- nome: id
+  tipo: integer
+  nulo: false
+  descricao: Identificador interno do snapshot, chave primária
+  exemplo_significativo: '100'
+- nome: cnpj
+  tipo: varchar
+  nulo: false
+  descricao: CNPJ completo no snapshot, sem máscara
+  exemplo_significativo: '''10000001000101'''
+- nome: razao_social
+  tipo: varchar
+  nulo: true
+  descricao: Razão social da empresa
+  exemplo_significativo: '''Alpha Sistemas Digitais LTDA'''
+- nome: nome_fantasia
+  tipo: varchar
+  nulo: true
+  descricao: Nome fantasia da empresa
+  exemplo_significativo: '''Alpha Sistemas'''
+- nome: porte
+  tipo: integer
+  nulo: true
+  descricao: Código de porte da empresa
+  exemplo_significativo: '1, 2, 3'
+- nome: situacao
+  tipo: integer
+  nulo: true
+  descricao: Código da situação cadastral
+  exemplo_significativo: '2, 8'
+- nome: id_dim_empresa
+  tipo: integer
+  nulo: false
+  descricao: FK da empresa estável (dim_empresas)
+  exemplo_significativo: '10'
+- nome: id_dim_cnae
+  tipo: integer
+  nulo: true
+  descricao: FK do CNAE principal (dim_cnaes)
+  exemplo_significativo: '5'
+- nome: id_dim_municipio
+  tipo: integer
+  nulo: true
+  descricao: FK do município (dim_municipios)
+  exemplo_significativo: '3'
+- nome: id_dim_competencia
+  tipo: integer
+  nulo: false
+  descricao: FK da competência mensal (dim_competencias)
+  exemplo_significativo: '13'
+- nome: simples
+  tipo: boolean
+  nulo: true
+  descricao: Indica se a empresa está no Simples
+  exemplo_significativo: 'true'
+- nome: mei
+  tipo: boolean
+  nulo: true
+  descricao: Indica se a empresa é MEI
+  exemplo_significativo: 'true'
+relacionamentos:
+- tabela_referencia: dim_empresas
+  descricao: Cada snapshot pertence a uma empresa estável
+- tabela_referencia: dim_competencias
+  descricao: Cada snapshot pertence a uma competência mensal
+- tabela_referencia: dim_cnaes
+  descricao: Cada snapshot referencia o CNAE principal da empresa
+- tabela_referencia: dim_municipios
+  descricao: Cada snapshot referencia o município da empresa
+indices:
+- nome: idx_empresa_competencia
+  colunas:
+  - id_dim_empresa
+  - id_dim_competencia
+  unico: true
+  descricao: Garante um snapshot por empresa por competência
+- nome: idx_competencia
+  colunas:
+  - id_dim_competencia
+  unico: false
+  descricao: Base/estoque de empresas por competência
+- nome: idx_cnae
+  colunas:
+  - id_dim_cnae
+  unico: false
+  descricao: Empresas por CNAE
+- nome: idx_municipio
+  colunas:
+  - id_dim_municipio
+  unico: false
+  descricao: Empresas por cidade/UF
+semantica: Empresas ativas em um mês, empresas por cidade, empresas por CNAE, empresas
+  MEI, empresas do Simples, situação atual da competência. Use para concentração/estoque.

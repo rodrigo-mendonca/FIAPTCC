@@ -1,0 +1,56 @@
+tabela: dim_cnaes
+descricao: CNAE principal da empresa. Código e descrição da atividade econômica principal,
+  ligado ao segmento/seção macro.
+database: Receita
+contexto_negocio: 'Esta tabela representa o CNAE principal (atividade econômica) da
+  empresa.
+
+  Cada linha contém o código CNAE, sua descrição e o segmento/seção macro ao qual
+  pertence.
+
+  É usada para análises por atividade econômica e para agrupar empresas por CNAE.
+
+  '
+chaves:
+  pk:
+  - id
+  principais_fks:
+  - id_dim_cnae_segmento
+colunas_importantes:
+- nome: id
+  tipo: integer
+  nulo: false
+  descricao: Identificador interno do CNAE, chave primária
+  exemplo_significativo: '1'
+- nome: codigo
+  tipo: varchar
+  nulo: false
+  descricao: Código CNAE
+  exemplo_significativo: '''6201501'''
+- nome: nome
+  tipo: varchar
+  nulo: false
+  descricao: Descrição do CNAE
+  exemplo_significativo: '''Desenvolvimento de programas de computador sob encomenda'''
+- nome: id_dim_cnae_segmento
+  tipo: integer
+  nulo: true
+  descricao: FK do segmento/seção do CNAE (dim_cnaes_segmento)
+  exemplo_significativo: '7'
+relacionamentos:
+- tabela_referencia: dim_cnaes_segmento
+  descricao: Cada CNAE pertence a um segmento/seção macro
+- tabela_referencia: dim_empresas_mensal
+  descricao: Um CNAE é referenciado por múltiplos snapshots de empresas
+indices:
+- nome: idx_codigo
+  colunas:
+  - codigo
+  unico: true
+  descricao: Garante código CNAE único
+- nome: idx_segmento
+  colunas:
+  - id_dim_cnae_segmento
+  unico: false
+  descricao: CNAEs por segmento/seção
+semantica: CNAE, atividade econômica, atividade principal.

@@ -1,0 +1,47 @@
+tabela: dim_competencias
+descricao: Calendário mensal da base. Representa o mês de referência dos dados no
+  formato YYYYMM.
+database: Receita
+contexto_negocio: 'Esta tabela representa o mês de referência (competência) dos dados.
+
+  Cada linha corresponde a uma competência mensal no formato YYYYMM.
+
+  É utilizada como dimensão de tempo para análises de séries históricas, comparações
+  YoY e por trimestre.
+
+  O campo ''atualizado'' indica se a competência já foi carregada/processada.
+
+  '
+chaves:
+  pk:
+  - id
+  principais_fks: []
+colunas_importantes:
+- nome: id
+  tipo: integer
+  nulo: false
+  descricao: Identificador interno da competência, chave primária
+  exemplo_significativo: '1'
+- nome: competencia
+  tipo: integer
+  nulo: false
+  descricao: Mês de referência no formato YYYYMM
+  exemplo_significativo: '202605'
+- nome: atualizado
+  tipo: boolean
+  nulo: false
+  descricao: Indica se a competência foi carregada/processada
+  exemplo_significativo: 'true'
+relacionamentos:
+- tabela_referencia: dim_empresas_mensal
+  descricao: Uma competência tem múltiplos snapshots mensais de empresas
+- tabela_referencia: fat_empresas_mensal
+  descricao: Uma competência tem múltiplos eventos mensais de empresas
+indices:
+- nome: idx_competencia
+  colunas:
+  - competencia
+  unico: true
+  descricao: Garante competência única no formato YYYYMM
+semantica: Mês, Competência, Período. Ex. Maio de 2026 -> dim_competencias.competencia
+  = 202605.

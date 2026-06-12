@@ -1,0 +1,62 @@
+tabela: dim_municipios
+descricao: Localização da empresa. Município, UF e indicação se é capital, usado para
+  análises regionais (estado, cidade, capital x interior).
+database: Receita
+contexto_negocio: 'Esta tabela representa a localização (município) da empresa.
+
+  Cada linha contém o código IBGE, o nome do município, a UF e a indicação se é capital.
+
+  É usada para análises regionais por cidade, estado e capital x interior.
+
+  '
+chaves:
+  pk:
+  - id
+  principais_fks: []
+colunas_importantes:
+- nome: id
+  tipo: integer
+  nulo: false
+  descricao: Identificador interno do município, chave primária
+  exemplo_significativo: '1'
+- nome: codigo
+  tipo: varchar
+  nulo: false
+  descricao: Código do município
+  exemplo_significativo: '''3550308'''
+- nome: nome
+  tipo: varchar
+  nulo: false
+  descricao: Nome do município
+  exemplo_significativo: '''São Paulo'''
+- nome: uf
+  tipo: char
+  nulo: false
+  descricao: Estado (sigla da UF)
+  exemplo_significativo: '''SP'''
+- nome: capital
+  tipo: boolean
+  nulo: false
+  descricao: Indica se o município é capital
+  exemplo_significativo: 'true'
+relacionamentos:
+- tabela_referencia: dim_empresas_mensal
+  descricao: Um município é referenciado por múltiplos snapshots de empresas
+indices:
+- nome: idx_codigo
+  colunas:
+  - codigo
+  unico: true
+  descricao: Garante código de município único
+- nome: idx_uf
+  colunas:
+  - uf
+  unico: false
+  descricao: Empresas/municípios por estado
+- nome: idx_capital
+  colunas:
+  - capital
+  unico: false
+  descricao: Filtro capital x interior
+semantica: 'Cidade/município -> dim_municipios.nome. Estado/UF -> dim_municipios.uf.
+  Interior -> dim_municipios.capital = false. Capital -> dim_municipios.capital = true.'

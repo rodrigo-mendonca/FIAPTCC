@@ -1,0 +1,86 @@
+tabela: fat_empresas_mensal
+descricao: Eventos/indicadores mensais da empresa. Uma linha por empresa por competência,
+  com flags de abertura, baixa, mudança de situação e entrada/saída do Simples.
+database: Receita
+contexto_negocio: 'Esta tabela representa eventos mensais calculados por empresa.
+
+  Existe uma linha por empresa por competência, com indicadores (flags) que marcam
+  movimentações ocorridas no mês.
+
+  Para perguntas de crescimento (abertura, baixa, movimentação), normalmente usar
+  fat_empresas_mensal.
+
+  Para perguntas de concentração/estoque, usar dim_empresas_mensal.
+
+  '
+chaves:
+  pk:
+  - id_dim_competencia
+  - id_dim_empresa
+  principais_fks:
+  - id_dim_competencia
+  - id_dim_empresa
+colunas_importantes:
+- nome: id_dim_competencia
+  tipo: integer
+  nulo: false
+  descricao: FK da competência do evento (dim_competencias) - sempre presente
+  exemplo_significativo: '13'
+- nome: id_dim_empresa
+  tipo: integer
+  nulo: false
+  descricao: FK da empresa relacionada ao evento (dim_empresas) - sempre presente
+  exemplo_significativo: '10'
+- nome: nova_empresa
+  tipo: boolean
+  nulo: false
+  descricao: Empresa apareceu pela primeira vez na base (abertura/crescimento)
+  exemplo_significativo: 'true'
+- nome: baixada
+  tipo: boolean
+  nulo: false
+  descricao: Empresa mudou para situação baixada (baixas)
+  exemplo_significativo: 'true'
+- nome: mudou_situacao
+  tipo: boolean
+  nulo: false
+  descricao: Situação cadastral mudou (movimentação cadastral)
+  exemplo_significativo: 'true'
+- nome: entrou_simples
+  tipo: boolean
+  nulo: false
+  descricao: Empresa entrou no Simples (entrada no Simples)
+  exemplo_significativo: 'true'
+- nome: saiu_simples
+  tipo: boolean
+  nulo: false
+  descricao: Empresa saiu do Simples (saída do Simples)
+  exemplo_significativo: 'true'
+relacionamentos:
+- tabela_referencia: dim_empresas
+  descricao: Cada evento pertence a uma empresa estável
+- tabela_referencia: dim_competencias
+  descricao: Cada evento pertence a uma competência mensal
+indices:
+- nome: idx_competencia_empresa
+  colunas:
+  - id_dim_competencia
+  - id_dim_empresa
+  unico: true
+  descricao: Garante um registro de eventos por empresa por competência
+- nome: idx_nova_empresa
+  colunas:
+  - id_dim_competencia
+  - nova_empresa
+  unico: false
+  descricao: Aberturas/novos CNPJs por competência
+- nome: idx_baixada
+  colunas:
+  - id_dim_competencia
+  - baixada
+  unico: false
+  descricao: Baixas por competência
+semantica: 'Novas empresas, abertura de empresas, novos CNPJs -> nova_empresa = true.
+  Empresas baixadas, CNPJs baixados -> baixada = true. Mudança de situação -> mudou_situacao
+  = true. Entraram no Simples -> entrou_simples = true. Saíram do Simples -> saiu_simples
+  = true.'

@@ -1,0 +1,42 @@
+tabela: dim_empresas
+descricao: Identidade estável da empresa. Uma linha por CNPJ, mantendo o identificador
+  interno único e estável ao longo do tempo.
+database: Receita
+contexto_negocio: 'Esta tabela representa a identidade única e estável da empresa.
+
+  Existe uma única linha por CNPJ, com um identificador interno que nunca muda.
+
+  A mesma empresa deve ter sempre o mesmo id.
+
+  O histórico mensal da carga dos dados da receita NÃO fica nesta tabela, e sim em
+  dim_empresas_mensal e fat_empresas_mensal.
+
+  '
+chaves:
+  pk:
+  - id
+  principais_fks: []
+colunas_importantes:
+- nome: id
+  tipo: integer
+  nulo: false
+  descricao: Identificador interno estável da empresa, chave primária
+  exemplo_significativo: '10'
+- nome: cnpj
+  tipo: varchar
+  nulo: false
+  descricao: CNPJ completo, sem máscara
+  exemplo_significativo: '''10000001000101'''
+relacionamentos:
+- tabela_referencia: dim_empresas_mensal
+  descricao: Uma empresa tem múltiplos snapshots mensais (um por competência)
+- tabela_referencia: fat_empresas_mensal
+  descricao: Uma empresa tem múltiplos eventos mensais (um por competência)
+indices:
+- nome: idx_cnpj
+  colunas:
+  - cnpj
+  unico: true
+  descricao: Garante CNPJ único por empresa
+semantica: Empresa, CNPJ, Empresa única. Regra. A mesma empresa deve ter sempre o
+  mesmo id.
