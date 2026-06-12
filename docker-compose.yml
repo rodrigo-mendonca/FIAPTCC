@@ -19,8 +19,8 @@ services:
 
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio
-      - GENAI_ENDPOINT=https://api.groq.com/openai
-      - GENAI_MODEL=qwen/qwen3-32b
+      - GENAI_ENDPOINT=https://https://ai.mendonca.casa/
+      - GENAI_MODEL=qwen/qwen3.5-9b
       - GENAI_API_KEY=${GENAI_API_KEY}
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7

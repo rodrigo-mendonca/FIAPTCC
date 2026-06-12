@@ -62,7 +62,7 @@ const VectorDBTest: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [shouldReload, setShouldReload] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  // Status de cada arquivo durante o upload em streaming
+  // Status de cada arquivo durante o upload em streaming 
   const [fileStatus, setFileStatus] = useState<{ [key: string]: FileUploadStatus }>({});
   // Contador de progresso geral (arquivos processados / total)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
