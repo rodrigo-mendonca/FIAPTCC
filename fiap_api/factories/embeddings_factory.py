@@ -30,9 +30,12 @@ class EmbeddingsConfig:
         
         if self.provider == "azure" and (not self.api_key or not self.endpoint):
             raise ValueError("EMBEDDINGS_API_KEY e EMBEDDINGS_ENDPOINT são obrigatórios para provider 'azure'")
-        
-        if self.provider not in ["lmstudio", "openai", "azure"]:
-            raise ValueError(f"Provider '{self.provider}' não suportado. Use: lmstudio, openai, azure")
+
+        if self.provider == "jina" and not self.api_key:
+            raise ValueError("EMBEDDINGS_API_KEY é obrigatório para provider 'jina'")
+
+        if self.provider not in ["lmstudio", "jina", "openai", "azure"]:
+            raise ValueError(f"Provider '{self.provider}' não suportado. Use: lmstudio, jina, openai, azure")
 
 
 
@@ -48,10 +51,30 @@ class EmbeddingsFactory:
         
         if config.provider == "lmstudio":
             return EmbeddingsFactory._create_lmstudio(config)
+        elif config.provider == "jina":
+            return EmbeddingsFactory._create_jina(config)
         elif config.provider == "openai":
             return EmbeddingsFactory._create_openai(config)
         elif config.provider == "azure":
             return EmbeddingsFactory._create_azure(config)
+
+    @staticmethod
+    def _create_jina(config: EmbeddingsConfig):
+        """
+        Cria embeddings Jina (LangChain). A busca do ChromaDB usa a
+        RemoteEmbeddingFunction diretamente; este objeto existe para o pipeline
+        LangChain, quando aplicável.
+        """
+        try:
+            from langchain_community.embeddings import JinaEmbeddings
+            return JinaEmbeddings(
+                jina_api_key=config.api_key,
+                model_name=config.model,
+            )
+        except Exception as e:
+            # Não é crítico: o ChromaDB não depende deste objeto.
+            print(f"[WARN] JinaEmbeddings (LangChain) indisponível: {e}")
+            return None
     
     @staticmethod
     def _create_lmstudio(config: EmbeddingsConfig):

@@ -3,8 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import os
+import sys
+import asyncio
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import json
+
+# Console do Windows usa cp1252; os logs imprimem caracteres unicode (✓, ✗, ⚠️).
+# Sem isto, um print pode lançar UnicodeEncodeError e abortar a inicialização.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 from typing import AsyncGenerator, List, Optional, Dict, Any
 import requests
 from factories import GenAIFactory, EmbeddingsFactory, ChromaDBClient, EnvFactory, FileValidator, SQLFactory, sql_factory
@@ -57,21 +68,78 @@ except Exception as e:
     embeddings = None
 
 # Inicializar ChromaDB
+# IMPORTANTE: o construtor NÃO faz rede; a conexão é feita em background no
+# startup (lifespan) para não bloquear o boot da API. chromadb.HttpClient()
+# valida a conexão de forma síncrona e, se o servidor ainda não estiver pronto,
+# travaria o import inteiro do módulo (e, portanto, a subida do uvicorn).
 try:
     chromadb_client = ChromaDBClient()
-    
-    # Tenta conectar ao ChromaDB
-    if chromadb_client.connect():
-        chroma_client = chromadb_client
-        print(f"[OK] ChromaDB iniciado")
-    else:
-        chroma_client = None
 except Exception as e:
-    print(f"[ERROR] Erro ao inicializar ChromaDB: {e}")
-    chroma_client = None
+    print(f"[ERROR] Erro ao instanciar ChromaDBClient: {e}")
     chromadb_client = None
 
-app = FastAPI(title="LMStudio Chat API", version="1.0.0")
+# Definido quando a conexão é bem-sucedida (usado pelos geradores de resposta)
+chroma_client = None
+
+# Parâmetros de conexão configuráveis via .env
+CHROMADB_CONNECT_TIMEOUT = float(os.getenv("CHROMADB_CONNECT_TIMEOUT", "5"))
+CHROMADB_CONNECT_MAX_RETRIES = int(os.getenv("CHROMADB_CONNECT_MAX_RETRIES", "0"))  # 0 = tenta indefinidamente
+
+
+async def _connect_chromadb_with_retry():
+    """
+    Conecta ao ChromaDB em background, com timeout por tentativa e backoff.
+
+    Roda fora do caminho de import/boot: a API responde imediatamente e passa a
+    enxergar o ChromaDB assim que a conexão for estabelecida. Cada tentativa é
+    isolada em uma thread com timeout, de modo que um servidor lento/indisponível
+    nunca trava o event loop.
+    """
+    global chroma_client
+    if not chromadb_client:
+        print("[STARTUP] ChromaDBClient indisponível; API seguirá sem ChromaDB")
+        return
+
+    attempt = 0
+    delay = 2.0
+    while True:
+        attempt += 1
+        try:
+            connected = await asyncio.wait_for(
+                asyncio.to_thread(chromadb_client.connect),
+                timeout=CHROMADB_CONNECT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            connected = False
+            print(f"[STARTUP] Conexão com ChromaDB excedeu {CHROMADB_CONNECT_TIMEOUT}s (tentativa {attempt})")
+        except Exception as e:
+            connected = False
+            print(f"[STARTUP] Erro ao conectar ao ChromaDB (tentativa {attempt}): {e}")
+
+        if connected:
+            chroma_client = chromadb_client
+            print(f"[STARTUP] ✓ ChromaDB conectado (tentativa {attempt})")
+            return
+
+        if CHROMADB_CONNECT_MAX_RETRIES and attempt >= CHROMADB_CONNECT_MAX_RETRIES:
+            print(f"[STARTUP] Desistindo após {attempt} tentativas; API seguirá sem ChromaDB")
+            return
+
+        await asyncio.sleep(delay)
+        delay = min(delay * 2, 30.0)  # backoff exponencial até 30s
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Dispara a conexão em background sem bloquear a subida do servidor
+    connect_task = asyncio.create_task(_connect_chromadb_with_retry())
+    try:
+        yield
+    finally:
+        connect_task.cancel()
+
+
+app = FastAPI(title="LMStudio Chat API", version="1.0.0", lifespan=lifespan)
 
 # Configuração CORS
 app.add_middleware(
@@ -163,7 +231,7 @@ async def generate_specialized_response_stream(
     context: Optional[List[ChatMessage]] = None,
     use_chromadb: bool = True,
     collection_name: Optional[str] = None,
-    similarity_threshold: float = 0.8
+    similarity_threshold: float = 0.2
 ) -> AsyncGenerator[str, None]:
     """
     Gera resposta especializada com streaming usando GenAI com contexto do ChromaDB
@@ -830,8 +898,14 @@ async def reconnect_chromadb():
     """
     Força reconexão ao ChromaDB
     """
+    global chroma_client
     try:
-        if chromadb_client.connect():
+        if not chromadb_client:
+            return {"status": "error", "message": "ChromaDB client não inicializado"}
+        # connect() é bloqueante; isola em thread para não travar o event loop
+        connected = await asyncio.to_thread(chromadb_client.connect)
+        if connected:
+            chroma_client = chromadb_client
             return {
                 "status": "ok",
                 "message": "ChromaDB reconectado com sucesso"
@@ -1227,6 +1301,49 @@ async def delete_collection_endpoint(collection_name: str):
             return {"message": f"Coleção '{collection_name}' deletada com sucesso", "status": "success"}
         else:
             raise HTTPException(status_code=500, detail=f"Falha ao deletar coleção '{collection_name}'")
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/vectordb/collection/{collection_name}/reindex")
+async def reindex_collection(collection_name: str):
+    """
+    Recria a coleção e reindexa todos os YAML do disco.
+
+    Necessário após mudar a métrica de distância: o `hnsw:space` é fixado na
+    criação da coleção e não muda em coleções já existentes. Este endpoint
+    apaga a coleção (limpando a métrica L2 antiga e vetores ruins) e a
+    reconstrói com cosseno + a mesma embedding_function da busca.
+    """
+    try:
+        if not chromadb_client or not chromadb_client.client:
+            raise HTTPException(status_code=503, detail="ChromaDB não disponível")
+
+        # Resolve a pasta base dos YAML (mesma lógica de save_yaml_file)
+        import tempfile
+        data_dir = os.getenv('DATA_DIR')
+        base_path = data_dir if data_dir else os.path.join(tempfile.gettempdir(), 'fiap_uploads')
+
+        # 1. Apaga a coleção existente (remove métrica L2 e vetores antigos)
+        try:
+            chromadb_client.delete_collection(collection_name)
+        except Exception as del_err:
+            print(f"[REINDEX] Coleção '{collection_name}' não existia ou falhou ao deletar: {del_err}")
+
+        # 2. Recria com cosseno (embedding_function correta) e reingesta os YAML
+        #    do disco na MESMA coleção nomeada usada pela busca
+        summary = chromadb_client.reindex_collection_from_folder(base_path, collection_name)
+
+        return {
+            "status": "success",
+            "message": f"Coleção '{collection_name}' reindexada com métrica de cosseno",
+            "base_path": base_path,
+            "summary": summary,
+        }
     except HTTPException:
         raise
     except Exception as e:

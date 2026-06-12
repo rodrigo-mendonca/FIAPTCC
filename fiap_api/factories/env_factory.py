@@ -156,6 +156,14 @@ class EnvFactory:
             api_key = os.getenv("EMBEDDINGS_API_KEY", "")
             api_version = ""
             
+        elif provider == "jina":
+            endpoint = os.getenv("EMBEDDINGS_ENDPOINT", "https://api.jina.ai")
+            api_key = EnvFactory._require_env(
+                "EMBEDDINGS_API_KEY",
+                "❌ Erro: EMBEDDINGS_API_KEY é obrigatório para provider 'jina'"
+            )
+            api_version = ""
+
         elif provider == "openai":
             endpoint = ""
             api_key = EnvFactory._require_env(
@@ -163,7 +171,7 @@ class EnvFactory:
                 "❌ Erro: EMBEDDINGS_API_KEY é obrigatório para provider 'openai'"
             )
             api_version = ""
-            
+
         elif provider == "azure":
             endpoint = EnvFactory._require_env(
                 "EMBEDDINGS_ENDPOINT",
@@ -180,7 +188,7 @@ class EnvFactory:
         else:
             raise MissingEnvironmentVariable(
                 f"❌ Erro: Provider Embeddings inválido '{provider}'. "
-                f"Use: 'lmstudio', 'openai' ou 'azure'"
+                f"Use: 'lmstudio', 'jina', 'openai' ou 'azure'"
             )
         
         return EmbeddingsEnvParams(

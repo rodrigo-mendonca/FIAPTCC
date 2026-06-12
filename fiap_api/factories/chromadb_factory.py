@@ -1,94 +1,102 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 ChromaDB Factory - Gerenciamento de banco de dados vetorial
 Responsável por: criação de coleções, adição, deleção, consultas e processamento de documentos
-
-Suporta integração com LangChain via Chroma.from_documents() e retriever
 """
 
 import os
+import math
 from chromadb import EmbeddingFunction, Documents
 import chromadb
 import requests
 import yaml
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone, timedelta
+from typing import List, Dict, Any
+from datetime import datetime
 from pathlib import Path
-from .document_optimizer import DocumentOptimizer, TextOptimizer, TokenCounter
-
-# Imports adicionais para suporte a LangChain Chroma
-try:
-    from langchain_chroma import Chroma
-    from langchain_core.documents import Document
-    LANGCHAIN_CHROMA_AVAILABLE = True
-except ImportError:
-    LANGCHAIN_CHROMA_AVAILABLE = False
-    Chroma = None
-    Document = None
+from .document_optimizer import DocumentOptimizer
 
 
-def get_local_datetime():
-    """Retorna datetime no horário local brasileiro (America/Sao_Paulo)"""
-    utc_now = datetime.now(timezone.utc)
-    # UTC-3 (horário de Brasília)
-    brasilia_offset = timedelta(hours=-3)
-    brasilia_tz = timezone(brasilia_offset)
-    return utc_now.astimezone(brasilia_tz)
-
-
-class LMStudioEmbeddingFunction(EmbeddingFunction):
+class RemoteEmbeddingFunction(EmbeddingFunction):
     """
-    Função de embedding personalizada que usa o LMStudio
+    Função de embedding via API OpenAI-compatível.
+
+    Serve tanto para o LMStudio (endpoint local) quanto para a Jina AI
+    (https://api.jina.ai): ambos expõem POST /v1/embeddings, aceitam
+    Authorization: Bearer <api_key> e respondem no formato {"data":[{"embedding":[...]}]}.
+    O provider é escolhido apenas pela configuração (endpoint/model/api_key).
     """
-    def __init__(self, endpoint: str, model: str, embedding_dimension: int = 768):
-        self.lmstudio_url = endpoint
+
+    def __init__(self, endpoint: str, model: str, api_key: str = "",
+                 embedding_dimension: int = 768, task: str = None,
+                 dimensions: int = None, batch_size: int = 32):
+        self.endpoint = (endpoint or "").rstrip("/")
         self.model = model
+        self.api_key = api_key or ""
         self.embedding_dimension = embedding_dimension
-        
+        self.task = task              # opcional (Jina): ex. 'retrieval.passage'
+        self.dimensions = dimensions  # opcional (Jina v3): trunca o vetor
+        self.batch_size = batch_size
+
+    @staticmethod
+    def _normalize(embedding: List[float]) -> List[float]:
+        # Norma unitária: com vetores normalizados, distância L2 e cosseno ficam
+        # equivalentes, evitando que a escala do vetor distorça a busca.
+        norm = math.sqrt(sum(v * v for v in embedding))
+        return [v / norm for v in embedding] if norm > 0 else embedding
+
+    def _embed_batch(self, inputs: List[str]) -> List[List[float]]:
+        """Gera embeddings de um lote de textos em uma única requisição."""
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        payload = {"input": inputs, "model": self.model}
+        if self.task:
+            payload["task"] = self.task
+        if self.dimensions:
+            payload["dimensions"] = self.dimensions
+
+        response = requests.post(
+            f"{self.endpoint}/v1/embeddings",
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Falha ao gerar embedding ({response.status_code}): {response.text}"
+            )
+
+        data = response.json().get("data")
+        if not data or len(data) != len(inputs):
+            raise RuntimeError(f"Resposta de embedding inválida: {response.text[:300]}")
+
+        # Garante alinhamento com a ordem dos inputs
+        data.sort(key=lambda d: d.get("index", 0))
+        return [self._normalize(item["embedding"]) for item in data]
+
     def __call__(self, input: Documents) -> List[List[float]]:
         """
-        Gera embeddings usando o LMStudio
-        
-        Args:
-            input: Lista de textos para gerar embeddings
-            
-        Returns:
-            Lista de embeddings (vetores)
+        Gera embeddings para uma lista de textos, em lotes.
+
+        NÃO usa fallback de vetor-zero: um vetor de zeros polui a coleção (fica
+        "distante" de tudo e quebra a busca). Em caso de falha, propaga a exceção
+        para que indexação/consulta falhem de forma visível.
         """
         embeddings = []
-        
-        for text in input:
+        for i in range(0, len(input), self.batch_size):
+            batch = list(input[i:i + self.batch_size])
             try:
-                response = requests.post(
-                    f"{self.lmstudio_url}/v1/embeddings",
-                    headers={"Content-Type": "application/json", 'Authorization': f'Bearer {os.getenv("EMBEDDINGS_API_KEY")}'},
-                    json={
-                        "input": text,
-                        "model": self.model
-                    },
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    if 'data' in result and len(result['data']) > 0 and 'embedding' in result['data'][0]:
-                        embedding = result['data'][0]['embedding']
-                        embeddings.append(embedding)
-                    else:
-                        print(f"⚠️ Resposta de embedding inválida para '{text[:50]}...': {result}")
-                        # Fallback: gerar um embedding dummy
-                        embeddings.append([0.0] * self.embedding_dimension)
-                else:
-                    print(f"⚠️ Erro ao gerar embedding para '{text[:50]}...': {response.status_code} - {response.text}")
-                    # Fallback: gerar um embedding dummy
-                    embeddings.append([0.0] * self.embedding_dimension)
-                    
+                embeddings.extend(self._embed_batch(batch))
             except Exception as e:
-                print(f"⚠️ Erro na requisição de embedding: {e} - Resposta: {response.text if 'response' in locals() else 'N/A'}")
-                # Fallback: gerar um embedding dummy
-                embeddings.append([0.0] * self.embedding_dimension)
-                
+                print(f"⚠️ Erro ao gerar embeddings (lote {i // self.batch_size}): {e}")
+                raise
         return embeddings
+
+
+# Compatibilidade retroativa: o nome antigo continua válido.
+LMStudioEmbeddingFunction = RemoteEmbeddingFunction
 
 
 class DatabaseDocumentProcessor:
@@ -311,125 +319,6 @@ class DatabaseDocumentProcessor:
                     documents.append(rotina_doc)
         
         return documents
-    
-    def load_and_index_documents(self, base_path: str, chroma_client: Any) -> Dict[str, Any]:
-        """
-        Carrega todos os documentos do banco de dados local e os indexa no ChromaDB
-        
-        Args:
-            base_path: Caminho base onde estão os arquivos YAML
-            chroma_client: Cliente ChromaDB para inserção
-            
-        Returns:
-            Dicionário com resumo de execução
-        """
-        summary = {
-            'total_documents': 0,
-            'collections_created': [],
-            'errors': []
-        }
-        
-        # Tipos de documento e seus caminhos
-        document_types = {
-            'base_dados': 'base_dados',
-            'regras_negocio': 'regras_negocio',
-            'servicos': 'servicos',
-            'rotinas_usuario': 'rotinas_usuario'
-        }
-        
-        # Processa cada tipo de documento
-        for doc_type, folder_name in document_types.items():
-            try:
-                folder_path = f"{base_path}/{folder_name}"
-                print(f"Processando documentos {doc_type} de {folder_path}")
-                
-                # Carrega arquivos YAML
-                yaml_files = self.load_yaml_files_from_folder(folder_path)
-                
-                if not yaml_files:
-                    print(f"  Nenhum arquivo YAML encontrado em {folder_path}")
-                    continue
-                
-                # Extrai documentos específicos por tipo
-                if doc_type == 'base_dados':
-                    documents = self.extract_database_structure_documents(yaml_files)
-                elif doc_type == 'regras_negocio':
-                    documents = self.extract_business_rules_documents(yaml_files)
-                elif doc_type == 'servicos':
-                    documents = self.extract_services_documents(yaml_files)
-                elif doc_type == 'rotinas_usuario':
-                    documents = self.extract_user_routines_documents(yaml_files)
-                else:
-                    continue
-                
-                # Cria coleção no ChromaDB se não existir
-                collection_name = f"{doc_type}_documents"
-                collection = chroma_client.get_or_create_collection(collection_name)
-                
-                # Adiciona documentos em lotes
-                batch_size = 15
-                for i in range(0, len(documents), batch_size):
-                    batch = documents[i:i+batch_size]
-                    
-                    # Extrai campos para adição
-                    ids = [doc['id'] for doc in batch]
-                    texts = [doc['text'] for doc in batch]
-                    
-                    # Adiciona à coleção
-                    collection.add(
-                        ids=ids,
-                        documents=texts,
-                        metadatas=[doc.get('metadata', {}) for doc in batch]
-                    )
-                
-                summary['total_documents'] += len(documents)
-                summary['collections_created'].append(collection_name)
-                print(f"  ✓ {len(documents)} documentos indexados em {collection_name}")
-                
-            except Exception as e:
-                error_msg = f"Erro ao processar {doc_type}: {str(e)}"
-                summary['errors'].append(error_msg)
-                print(f"  ✗ {error_msg}")
-        
-        return summary
-    
-    def ingest_database_to_collection(self, client: Any, collection_name: str, database_path: str) -> int:
-        """
-        Ingesta arquivos da base de dados para uma coleção no ChromaDB
-        
-        Args:
-            client: Cliente ChromaDB
-            collection_name: Nome da coleção alvo
-            database_path: Caminho para os dados da base
-            
-        Returns:
-            Número de documentos adicionados
-        """
-        documents = self.load_yaml_files_from_folder(database_path)
-        
-        if not documents:
-            return 0
-        
-        # Extrai documentos desta pasta específica
-        extracted = self.extract_database_structure_documents(documents)
-        
-        # Obtém ou cria coleção
-        collection = client.get_or_create_collection(collection_name)
-        
-        # Adiciona documentos
-        batch_size = 15
-        total_added = 0
-        
-        for i in range(0, len(extracted), batch_size):
-            batch = extracted[i:i+batch_size]
-            ids = [doc['id'] for doc in batch]
-            texts = [doc['text'] for doc in batch]
-            metadatas = [doc.get('metadata', {}) for doc in batch]
-            
-            collection.add(ids=ids, documents=texts, metadatas=metadatas)
-            total_added += len(batch)
-        
-        return total_added
 
 
 class ChromaDBClient:
@@ -447,44 +336,52 @@ class ChromaDBClient:
             endpoint: URL para embeddings (opcional, carregado do env se não fornecido)
             embeddings_model: Modelo de embeddings (opcional, carregado do env se não fornecido)
         """
-        from .env_factory import EnvFactory
         import os as os_module
-        
+
         # Carregar parâmetros do ChromaDB
         if host is None:
             host = os_module.getenv("CHROMADB_HOST")
         if port is None:
             port_str = os_module.getenv("CHROMADB_PORT")
             port = int(port_str)
-        
-        # Carregar parâmetros de Embeddings
-        if endpoint is None:
-            endpoint = os_module.getenv("LMSTUDIO_ENDPOINT")
-        
-        if embeddings_model is None:
-            embeddings_model = os_module.getenv("LMSTUDIO_MODEL", "nomic-embed-text")
-        
-        try:
-            embeddings_params = EnvFactory.get_embeddings_params()
-            if endpoint is None:
-                endpoint = embeddings_params.endpoint
-            if embeddings_model is None:
-                embeddings_model = embeddings_params.model
-            print(f"[INIT] Embeddings params loaded from EnvFactory: endpoint={endpoint}, model={embeddings_model}")
-        except Exception as e:
-            print(f"[WARN] Erro ao carregar parâmetros de embeddings do EnvFactory: {e}")
-            print(f"[INIT] Usando valores default: endpoint={endpoint}, model={embeddings_model}")
+
+        # Provider de embeddings: 'lmstudio' (default) ou 'jina'
+        provider = (os_module.getenv("EMBEDDINGS_PROVIDER") or "lmstudio").lower()
+        api_key = os_module.getenv("EMBEDDINGS_API_KEY", "")
+
+        # Endpoint/modelo com defaults por provider (parâmetros explícitos têm prioridade,
+        # depois EMBEDDINGS_*, depois LMSTUDIO_* por compatibilidade)
+        if provider == "jina":
+            endpoint = endpoint or os_module.getenv("EMBEDDINGS_ENDPOINT") or "https://api.jina.ai"
+            embeddings_model = embeddings_model or os_module.getenv("EMBEDDINGS_MODEL") or "jina-embeddings-v3"
+        else:  # lmstudio
+            endpoint = endpoint or os_module.getenv("EMBEDDINGS_ENDPOINT") or os_module.getenv("LMSTUDIO_ENDPOINT")
+            embeddings_model = (embeddings_model or os_module.getenv("EMBEDDINGS_MODEL")
+                                or os_module.getenv("LMSTUDIO_MODEL") or "nomic-embed-text")
+
+        # Parâmetros opcionais (úteis para a Jina v3)
+        task = os_module.getenv("EMBEDDINGS_TASK") or None
+        dims_env = os_module.getenv("EMBEDDINGS_DIMENSIONS")
+        dimensions = int(dims_env) if dims_env and dims_env.isdigit() else None
 
         self.host = host
         self.port = port
+        self.provider = provider
         self.lmstudio_url = endpoint
         self.embeddings_model = embeddings_model
         self.client = None
         self.collection = None
-        self.embedding_function = LMStudioEmbeddingFunction(self.lmstudio_url, self.embeddings_model)
+        self.embedding_function = RemoteEmbeddingFunction(
+            endpoint=endpoint,
+            model=embeddings_model,
+            api_key=api_key,
+            task=task,
+            dimensions=dimensions,
+        )
         self.processor = DatabaseDocumentProcessor()
-        
-        print(f"[INIT] ChromaDBClient inicializado: host={self.host}, port={self.port}, embedding={self.embeddings_model}")
+
+        print(f"[INIT] ChromaDBClient inicializado: host={self.host}, port={self.port}, "
+              f"provider={self.provider}, endpoint={endpoint}, model={self.embeddings_model}")
     
     def connect(self) -> bool:
         """
@@ -529,7 +426,13 @@ class ChromaDBClient:
             self.collection = self.client.get_or_create_collection(
                 name=collection_name,
                 embedding_function=self.embedding_function,
-                metadata={"description": "Sistema comercial - estrutura, regras e serviços"}
+                metadata={
+                    "description": "Sistema comercial - estrutura, regras e serviços",
+                    # Usa distância de cosseno (0 = idêntico, 2 = oposto) em vez do
+                    # default L2, que com embeddings de alta dimensão produz valores
+                    # grandes e faz documentos relevantes parecerem "distantes".
+                    "hnsw:space": "cosine",
+                },
             )
             
             print(f"[OK] Coleção '{collection_name}' pronta com embedding personalizado!")
@@ -539,52 +442,42 @@ class ChromaDBClient:
             print(f"[OK] Erro ao criar/obter coleção: {e}")
             return False
     
-    def query(self, query_text: str, n_results: int, context: str = "all", similarity_threshold: float = 0.8) -> List[Dict]:
+    def query(self, query_text: str, n_results: int, context: str = "all", similarity_threshold: float = 0.0) -> List[Dict]:
         """
-        Busca documentos similares na coleção com filtro de relevância
-        
+        Busca documentos similares na coleção, ordenados por similaridade.
+
         Args:
             query_text: Texto da consulta
-            n_results: Número máximo de resultados (None para sem limite)
+            n_results: Número máximo de resultados (None ou <= 0 para sem limite)
             context: Contexto para filtrar ('all', 'business_rules', 'database_struct', 'system_services', 'user_routines')
-            similarity_threshold: Limiar mínimo de similaridade (0.0 a 1.0). Padrão: 0.3
-            
+            similarity_threshold: Similaridade MÍNIMA (0.0 a 1.0) para um documento
+                ser incluído. 1.0 = idêntico, 0.0 = sem relação. Padrão 0.0
+                (não descarta nada; apenas ordena por relevância).
+
         Returns:
-            Lista de documentos encontrados com similarity >= threshold
+            Lista de documentos com similarity >= threshold, ordenada da maior
+            para a menor similaridade.
         """
         try:
-            # Inspeciona o embedding bruto do documento suspeito
-            doc = self.collection.get(
-                ids=["servicos_credito_pagamento"],
-                include=["embeddings", "documents", "metadatas"]
-            )
-
-            print("[DEBUG] Conteúdo:", doc['documents'])
-            print("[DEBUG] Embedding (primeiros 10 valores):", doc['embeddings'][0][:10])
-            print("[DEBUG] Metadata:", doc['metadatas'])
-
             print(f"[OK] Buscando: '{query_text}' no contexto: {context}")
-            print(f"[OK] Limiar de similaridade: {similarity_threshold}")
+            print(f"[OK] Similaridade mínima exigida: {similarity_threshold}")
             
             # Configura filtros baseado no contexto
             where_filter = None
             if context != "all":
-                # Mapeia os contextos para os tipos de documentos
+                # Mapeia os contextos para os tipos de documentos. Inclui todas as
+                # variações realmente gravadas pelos otimizadores e pelo upload
+                # (ex.: serviços salvos como 'rotina_sistema'/'service', colunas
+                # como 'column'/'field') para o filtro não descartar tudo.
                 context_mapping = {
-                    'business_rules': 'business_rule',
-                    'database_struct': ['table', 'column', 'database_info'],
-                    'system_services': 'service',
-                    'user_routines': 'rotina_usuario'
+                    'business_rules': ['business_rule'],
+                    'database_struct': ['table', 'column', 'field', 'database_info'],
+                    'system_services': ['service', 'rotina_sistema'],
+                    'user_routines': ['rotina_usuario']
                 }
-                
+
                 if context in context_mapping:
-                    filter_value = context_mapping[context]
-                    if isinstance(filter_value, list):
-                        # Para múltiplos tipos (database_struct)
-                        where_filter = {"type": {"$in": filter_value}}
-                    else:
-                        # Para um tipo específico
-                        where_filter = {"type": filter_value}
+                    where_filter = {"type": {"$in": context_mapping[context]}}
             
             # Se n_results for None ou <= 0, interpretamos como 'sem limite' e usamos o total de documentos
             if n_results is None or (isinstance(n_results, int) and n_results <= 0):
@@ -607,35 +500,43 @@ class ChromaDBClient:
                 print(f"📋 Aplicando filtro de contexto: {where_filter}")
             
             results = self.collection.query(**query_params)
-            
+
             formatted_results = []
             total_returned = 0
-            
+
             if results['documents'] and results['documents'][0]:
                 total_returned = len(results['documents'][0])
-                
-                for i, doc in enumerate(results['documents'][0]):
-                    similarity = round(results['distances'][0][i], 3)
-                    
-                    print(f"[OK] Documento {results['ids'][0][i]} distances: {results['distances'][0][i]}, similaridade: {similarity}")
 
-                    # Filtra por threshold de similaridade
-                    if similarity <= similarity_threshold:
+                for i, doc in enumerate(results['documents'][0]):
+                    distance = results['distances'][0][i]
+
+                    # Converte distância de cosseno em similaridade de cosseno padrão.
+                    # distância 0 -> 1.0 (idêntico); distância 1 -> 0.0 (sem relação).
+                    similarity = round(max(0.0, 1.0 - distance), 3)
+
+                    print(f"[OK] Documento {results['ids'][0][i]} | distância: {round(distance, 4)} | similaridade: {similarity}")
+
+                    # Mantém apenas documentos com similaridade >= limiar
+                    if similarity >= similarity_threshold:
                         result = {
                             'id': results['ids'][0][i],
                             'content': doc,
                             'metadata': results['metadatas'][0][i],
                             'similarity': similarity,
+                            'distance': round(distance, 4),
                             'type': results['metadatas'][0][i].get('type', 'unknown')
                         }
                         formatted_results.append(result)
-            
+
+            # Ordena do mais relevante (maior similaridade) para o menos relevante
+            formatted_results.sort(key=lambda r: r['similarity'], reverse=True)
+
             print(f"[OK] ChromaDB retornou {total_returned} documentos")
             print(f"[OK] Após filtro (similarity >= {similarity_threshold}): {len(formatted_results)} resultados relevantes")
-            
+
             if total_returned > 0 and len(formatted_results) == 0:
                 print(f"⚠️  AVISO: Nenhum documento passou no filtro. Considere reduzir o similarity_threshold.")
-            
+
             return formatted_results
             
         except Exception as e:
@@ -855,124 +756,63 @@ class ChromaDBClient:
         except Exception as e:
             print(f"[OK] Erro ao adicionar documento: {e}")
             return False
-    
-    def search_database_schema(self, query: str, n_results: int) -> List[Dict]:
+
+    def reindex_collection_from_folder(self, base_path: str, collection_name: str) -> Dict[str, Any]:
         """
-        Busca na estrutura do banco de dados
-        
+        Reconstrói UMA coleção a partir de todos os YAML do disco.
+
+        Ao contrário de DatabaseDocumentProcessor.load_and_index_documents (que
+        cria uma coleção por tipo), este método consolida base_dados,
+        regras_negocio, servicos e rotinas_usuario na MESMA coleção nomeada,
+        que é o modelo usado pela busca do app. Usa a embedding_function do
+        cliente e a métrica de cosseno.
+
         Args:
-            query: Texto da busca
-            n_results: Número de resultados a retornar
-            
+            base_path: Pasta raiz que contém as subpastas de YAML
+            collection_name: Coleção alvo (será criada se não existir)
+
         Returns:
-            Lista de documentos encontrados
+            Resumo com total de documentos e contagem por tipo
         """
-        # Seleciona a coleção de base_dados se disponível
-        original_collection = self.collection
-        try:
-            # Tenta usar coleção de base_dados
-            if self.client:
-                try:
-                    db_collection = self.client.get_collection(
-                        name="base_dados_documents",
-                        embedding_function=self.embedding_function
+        summary = {'total_documents': 0, 'by_type': {}, 'errors': []}
+
+        if not self.create_collection(collection_name):
+            summary['errors'].append(f"Falha ao criar/obter coleção '{collection_name}'")
+            return summary
+
+        extractors = {
+            'base_dados': self.processor.extract_database_structure_documents,
+            'regras_negocio': self.processor.extract_business_rules_documents,
+            'servicos': self.processor.extract_services_documents,
+            'rotinas_usuario': self.processor.extract_user_routines_documents,
+        }
+
+        for doc_type, extractor in extractors.items():
+            try:
+                folder_path = os.path.join(base_path, doc_type)
+                yaml_files = self.processor.load_yaml_files_from_folder(folder_path)
+                if not yaml_files:
+                    continue
+
+                documents = extractor(yaml_files)
+                if not documents:
+                    continue
+
+                batch_size = 15
+                for i in range(0, len(documents), batch_size):
+                    batch = documents[i:i + batch_size]
+                    self.collection.add(
+                        ids=[doc['id'] for doc in batch],
+                        documents=[doc['text'] for doc in batch],
+                        metadatas=[doc.get('metadata', {}) for doc in batch],
                     )
-                    self.collection = db_collection
-                except:
-                    # Se não existir, usa a coleção atual
-                    pass
-            
-            # Executa a busca
-            results = self.query(query, n_results=n_results, context="database_struct")
-            return results
-            
-        finally:
-            # Restaura coleção original
-            self.collection = original_collection
-    
-    def create_langchain_vectorstore(self):
-        """
-        Cria um Chroma Vectorstore compatível com LangChain
-        Nota: Este é um stub - implementação completa dependeria de langchain estar instalado
-        
-        Returns:
-            Vectorstore ou None se não disponível
-        """
-        try:
-            # Tenta importar LangChain se disponível
-            from langchain.vectorstores import Chroma
-            
-            vectorstore = Chroma(
-                collection_name=self.collection.name if self.collection else "documents",
-                embedding_function=self.embedding_function,
-                client=self.client,
-                collection_metadata={"hnsw:space": "cosine"}
-            )
-            
-            print("[OK] LangChain Vectorstore criado com sucesso")
-            return vectorstore
-            
-        except ImportError:
-            print("[WARN] LangChain não está instalado, avançando sem integração")
-            return None
-        except Exception as e:
-            print(f"[WARN] Erro ao criar LangChain Vectorstore: {e}")
-            return None
-    
-    def get_retriever(self):
-        """
-        Obtém um retriever do LangChain para a coleção
-        Nota: Este é um stub - implementação completa dependeria de langchain estar instalado
-        
-        Returns:
-            Retriever ou None se não disponível
-        """
-        try:
-            from langchain.vectorstores import Chroma
-            
-            vectorstore = self.create_langchain_vectorstore()
-            if not vectorstore:
-                return None
-            
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-            return retriever
-            
-        except ImportError:
-            return None
-        except Exception as e:
-            print(f"[WARN] Erro ao obter retriever: {e}")
-            return None
-    
-    def query_with_retriever(self, query: str, retriever=None) -> List[Dict]:
-        """
-        Executa uma consulta usando LangChain retriever se disponível, senão usa query direto
-        
-        Args:
-            query: Texto da consulta
-            retriever: Retriever opcional do LangChain
-            
-        Returns:
-            Lista de documentos encontrados
-        """
-        try:
-            if retriever:
-                # Usa o retriever do LangChain
-                docs = retriever.get_relevant_documents(query)
-                results = []
-                for i, doc in enumerate(docs):
-                    results.append({
-                        'id': f"langchain_{i}",
-                        'content': doc.page_content,
-                        'metadata': doc.metadata if hasattr(doc, 'metadata') else {},
-                        'similarity': 0.0,  # LangChain retriever não retorna scores
-                        'source': 'langchain'
-                    })
-                return results
-            else:
-                # Fallback para query direto
-                return self.query(query)
-                
-        except Exception as e:
-            print(f"[WARN] Erro ao usar retriever: {e}")
-            # Fallback para query direto em caso de erro
-            return self.query(query)
+
+                summary['by_type'][doc_type] = len(documents)
+                summary['total_documents'] += len(documents)
+                print(f"[REINDEX] {len(documents)} documentos de '{doc_type}' indexados em '{collection_name}'")
+            except Exception as e:
+                err = f"Erro ao reindexar '{doc_type}': {e}"
+                summary['errors'].append(err)
+                print(f"[REINDEX] {err}")
+
+        return summary

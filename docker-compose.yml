@@ -28,9 +28,9 @@ services:
       - GENAI_TOP_P=0.95
 
       # ========== EMBEDDINGS ==========
-      - EMBEDDINGS_PROVIDER=lmstudio
-      - EMBEDDINGS_ENDPOINT=https://api.groq.com/openai
-      - EMBEDDINGS_MODEL=qwen/qwen3-32b
+      - EMBEDDINGS_PROVIDER=jina
+      - EMBEDDINGS_ENDPOINT=https://api.jina.ai
+      - EMBEDDINGS_MODEL=jina-embeddings-v5-text-small
       - EMBEDDINGS_API_KEY=${EMBEDDINGS_API_KEY}
       - EMBEDDINGS_API_VERSION=
 

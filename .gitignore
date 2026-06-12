@@ -135,6 +135,9 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -211,3 +214,4 @@ tests/chromadb/data/docs_cg/*
 fiap_chromadb/chroma/*
 data/*
 node_modules/*
+fiap_api/.env

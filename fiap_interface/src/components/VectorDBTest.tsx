@@ -447,7 +447,7 @@ const VectorDBTest: React.FC = () => {
                         <Chip 
                           label={`${(result.relevance || 0).toFixed(1)}% relevante`}
                           size="small"
-                          color={(result.relevance || 0) >= 50 ? "success" : (result.relevance || 0) >= 20 ? "warning" : "default"}
+                          color={(result.relevance || 0) >= 50 ? "success" : (result.relevance || 0) >= 20 ? "warning" : "error"}
                           variant="outlined"
                         />
                       </Box>
