@@ -118,17 +118,12 @@ class GenAIFactory:
         nest_asyncio.apply()
 
         # 1. Configurar o LLM
-        # enable_thinking=False: modelos qwen3 entram em modo "thinking" e
-        # gastam o turno inteiro raciocinando, devolvendo content vazio após uma
-        # tool-call (a resposta final não é materializada). Desligar o thinking
-        # faz o modelo responder/agir direto.
         llm = ChatOpenAI(
             base_url=f"{config.base_url.rstrip('/')}/v1",
             api_key=config.api_key or "lm-studio",
             model=config.model_name,
             temperature=config.temperature,
-            streaming=True,
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            streaming=True
         )
 
         # 2. Obter ferramentas do MCP
