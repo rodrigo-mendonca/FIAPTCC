@@ -472,8 +472,7 @@ async def stream_agent_response(
         def search_knowledge_base(query: str) -> str:
             """
             Base de conhecimento (documentação/contexto) sobre o sistema e a base
-            de dados. Use para obter o CONTEXTO necessário antes de consultar o
-            base de dados.
+            de dados.
 
             Aqui você encontra:
             - Documentação e regras de negócio
@@ -481,6 +480,10 @@ async def stream_agent_response(
             - Estrutura técnica da aplicação
             - Estrutura/esquema da base de dados (tabelas, colunas, relacionamentos)
             - Significado e contexto dos dados
+
+            Opcional: se for útil, consulte esta base antes para entender o
+            esquema/contexto. Você também pode consultar o Postgres diretamente
+            quando a pergunta já estiver clara.
             """
             try:
                 print("[INFO] Consultando ChromaDB para a coleção:", collection_name)
