@@ -472,10 +472,12 @@ async def stream_agent_response(
         def search_knowledge_base(query: str) -> str:
             """
             Use esta ferramenta SEMPRE que a pergunta envolver:
-            - documentação
-            - regras de negócio
-            - processos internos
-            - estrutura técnica da aplicação
+            - Documentação
+            - Regras de negócio
+            - Processos internos
+            - Estrutura técnica da aplicação
+            - Para ajudar buscar de informações na base de dados
+            - Informações sobre a base de dados
             """
             try:
                 print("[INFO] Consultando ChromaDB para a coleção:", collection_name)
