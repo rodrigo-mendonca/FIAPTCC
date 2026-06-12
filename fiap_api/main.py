@@ -509,7 +509,7 @@ async def stream_agent_response(
             except Exception as e:
                 return f"Erro ao consultar ChromaDB: {str(e)}"
 
-        #tools.append(search_knowledge_base)
+        tools.append(search_knowledge_base)
 
     # ==========================================
     # MESMA CONFIG do generate_response_with_tools_stream
