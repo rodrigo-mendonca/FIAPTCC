@@ -157,7 +157,7 @@ class LMStudioMCPWrapper:
 
     async def ainvoke(self, messages: list, **kwargs):
         """Executa agente com LMStudio + ferramentas MCP"""
-        from langgraph.prebuilt import create_react_agent
+        from langchain.agents import create_agent
         from langchain_core.messages import HumanMessage, SystemMessage
 
         lc_messages = [
@@ -165,13 +165,15 @@ class LMStudioMCPWrapper:
             for msg in messages
         ]
 
-        agent = create_react_agent(
+        agent = create_agent(
             model=self.llm,
             tools=self.tools,
-            # message_modifier opcional para melhorar comportamento
         )
 
-        result = await agent.ainvoke({"messages": lc_messages})
+        result = await agent.ainvoke(
+            {"messages": lc_messages},
+            config={"recursion_limit": 50},
+        )
         return result["messages"][-1].content
 
 

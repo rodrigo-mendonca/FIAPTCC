@@ -58,7 +58,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
+      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos?options=-csearch_path%3Dpublic
     depends_on:
       - postgres
     networks:

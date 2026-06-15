@@ -440,7 +440,7 @@ async def stream_agent_response(
     collection_name: str | None = None
 ):
     from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-    from langgraph.prebuilt import create_react_agent
+    from langchain.agents import create_agent
     from langchain_core.tools import tool
     import json
     import traceback
@@ -517,7 +517,7 @@ async def stream_agent_response(
     # ==========================================
     # MESMA CONFIG do generate_response_with_tools_stream
     # ==========================================
-    agent = create_react_agent(
+    agent = create_agent(
         model=genai_wrapper.llm,
         tools=tools
     )
@@ -548,7 +548,8 @@ async def stream_agent_response(
     try:
         async for event in agent.astream_events(
             {"messages": lc_messages},
-            version="v2"
+            version="v2",
+            config={"recursion_limit": 50},
         ):
             event_type = event["event"]
 

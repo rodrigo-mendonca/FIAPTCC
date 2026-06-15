@@ -20,7 +20,7 @@ services:
       # ========== GENAI ==========
       - GENAI_PROVIDER=lmstudio
       - GENAI_ENDPOINT=https://ai.mendonca.casa/
-      - GENAI_MODEL=qwen/qwen3.5-9b
+      - GENAI_MODEL=qwen3-coder-30b-a3b-instruct
       - GENAI_API_KEY=${GENAI_API_KEY}
       - GENAI_API_VERSION=
       - GENAI_TEMPERATURE=0.7
@@ -140,7 +140,7 @@ services:
     expose:
       - "8000"
     environment:
-      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
+      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos?options=-csearch_path%3Dpublic
     depends_on:
       - postgres
     networks:
