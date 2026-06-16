@@ -88,7 +88,7 @@ services:
     expose:
       - "8210"
     volumes:
-      - /DATA/AppData/TCC/chromadb:/chroma/data
+      - chromadb_data:/chroma/data
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_PORT=8210
@@ -147,6 +147,7 @@ services:
       - fiap-network
 
 volumes:
+  chromadb_data:
   pgadmin_data:
 
 networks:
