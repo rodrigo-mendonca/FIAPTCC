@@ -35,7 +35,7 @@ services:
       - EMBEDDINGS_API_VERSION=${EMBEDDINGS_API_VERSION:-}
 
       # ========== POSTGRESQL ==========
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cnpj_dados_abertos}
 
       # ========== MCP ==========
       - MCP_POSTGRES_URL=http://mcp-postgres:8000/mcp
@@ -113,9 +113,9 @@ services:
     expose:
       - "5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=cnpj_dados_abertos
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-cnpj_dados_abertos}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./tests/receita:/docker-entrypoint-initdb.d:ro
@@ -127,8 +127,8 @@ services:
     ports:
       - "4000:80"
     environment:
-      - PGADMIN_DEFAULT_EMAIL=mcp@mail.com
-      - PGADMIN_DEFAULT_PASSWORD=postgres
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-mcp@mail.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-postgres}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
@@ -141,7 +141,7 @@ services:
     expose:
       - "8000"
     environment:
-      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos?options=-csearch_path%3Dpublic
+      - DATABASE_URI=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cnpj_dados_abertos}?options=-csearch_path%3Dpublic
     depends_on:
       - postgres
     networks:
