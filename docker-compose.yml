@@ -118,6 +118,7 @@ services:
       - POSTGRES_DB=cnpj_dados_abertos
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./tests/receita:/docker-entrypoint-initdb.d:ro
     networks:
       - fiap-network
 
