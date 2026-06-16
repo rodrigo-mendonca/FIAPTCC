@@ -129,8 +129,45 @@ services:
     environment:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-mcp@mail.com}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-postgres}
+      - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_SERVER_JSON_FILE=/tmp/servers.json
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-cnpj_dados_abertos}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /tmp/pgpass <<EOF
+        postgres:5432:$${POSTGRES_DB}:$${POSTGRES_USER}:$${POSTGRES_PASSWORD}
+        EOF
+        chmod 600 /tmp/pgpass
+
+        cat > /tmp/servers.json <<EOF
+        {
+          "Servers": {
+            "1": {
+              "Name": "contacomigo.ai",
+              "Group": "Servers",
+              "Host": "postgres",
+              "Port": 5432,
+              "MaintenanceDB": "$${POSTGRES_DB}",
+              "Username": "$${POSTGRES_USER}",
+              "SSLMode": "prefer",
+              "ConnectionParameters": {
+                "sslmode": "prefer",
+                "passfile": "/tmp/pgpass"
+              }
+            }
+          }
+        }
+        EOF
+        exec /entrypoint.sh
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
     networks:
       - fiap-network
 
