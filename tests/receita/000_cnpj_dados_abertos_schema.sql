@@ -1,17 +1,7 @@
--- Database: cnpj_dados_abertos
-
--- DROP DATABASE IF EXISTS cnpj_dados_abertos;
-
-CREATE DATABASE cnpj_dados_abertos
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.utf8'
-    LC_CTYPE = 'en_US.utf8'
-    LOCALE_PROVIDER = 'libc'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;
+-- Schema: cnpj_dados_abertos
+--
+-- Este script é executado pelo entrypoint oficial do PostgreSQL
+-- dentro da base definida por POSTGRES_DB.
 
 -- Segmentos do CNAE
 

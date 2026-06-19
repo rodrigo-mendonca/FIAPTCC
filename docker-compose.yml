@@ -18,24 +18,24 @@ services:
       - CHROMADB_DEFAULT_RESULTS=10
 
       # ========== GENAI ==========
-      - GENAI_PROVIDER=lmstudio
-      - GENAI_ENDPOINT=https://ai.mendonca.casa/
-      - GENAI_MODEL=qwen3-coder-30b-a3b-instruct
-      - GENAI_API_KEY=${GENAI_API_KEY}
-      - GENAI_API_VERSION=
-      - GENAI_TEMPERATURE=0.7
-      - GENAI_MAX_TOKENS=8192
-      - GENAI_TOP_P=0.95
+      - GENAI_PROVIDER=${GENAI_PROVIDER:-lmstudio}
+      - GENAI_ENDPOINT=${GENAI_ENDPOINT}
+      - GENAI_MODEL=${GENAI_MODEL}
+      - GENAI_API_KEY=${GENAI_API_KEY:-}
+      - GENAI_API_VERSION=${GENAI_API_VERSION:-}
+      - GENAI_TEMPERATURE=${GENAI_TEMPERATURE:-0.7}
+      - GENAI_MAX_TOKENS=${GENAI_MAX_TOKENS:-8192}
+      - GENAI_TOP_P=${GENAI_TOP_P:-0.95}
 
       # ========== EMBEDDINGS ==========
-      - EMBEDDINGS_PROVIDER=jina
-      - EMBEDDINGS_ENDPOINT=https://api.jina.ai
-      - EMBEDDINGS_MODEL=jina-embeddings-v5-text-small
-      - EMBEDDINGS_API_KEY=${EMBEDDINGS_API_KEY}
-      - EMBEDDINGS_API_VERSION=
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER}
+      - EMBEDDINGS_ENDPOINT=${EMBEDDINGS_ENDPOINT}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL}
+      - EMBEDDINGS_API_KEY=${EMBEDDINGS_API_KEY:-}
+      - EMBEDDINGS_API_VERSION=${EMBEDDINGS_API_VERSION:-}
 
       # ========== POSTGRESQL ==========
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cnpj_dados_abertos}
 
       # ========== MCP ==========
       - MCP_POSTGRES_URL=http://mcp-postgres:8000/mcp
@@ -88,7 +88,7 @@ services:
     expose:
       - "8210"
     volumes:
-      - /DATA/AppData/TCC/chromadb:/chroma/data
+      - chromadb_data:/chroma/data
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_PORT=8210
@@ -113,11 +113,12 @@ services:
     expose:
       - "5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=cnpj_dados_abertos
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-cnpj_dados_abertos}
     volumes:
-      - /DATA/AppData/TCC/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./tests/receita:/docker-entrypoint-initdb.d:ro
     networks:
       - fiap-network
 
@@ -126,10 +127,47 @@ services:
     ports:
       - "4000:80"
     environment:
-      - PGADMIN_DEFAULT_EMAIL=mcp@mail.com
-      - PGADMIN_DEFAULT_PASSWORD=postgres
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-mcp@mail.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-postgres}
+      - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_SERVER_JSON_FILE=/tmp/servers.json
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-cnpj_dados_abertos}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /tmp/pgpass <<EOF
+        postgres:5432:$${POSTGRES_DB}:$${POSTGRES_USER}:$${POSTGRES_PASSWORD}
+        EOF
+        chmod 600 /tmp/pgpass
+
+        cat > /tmp/servers.json <<EOF
+        {
+          "Servers": {
+            "1": {
+              "Name": "contacomigo.ai",
+              "Group": "Servers",
+              "Host": "postgres",
+              "Port": 5432,
+              "MaintenanceDB": "$${POSTGRES_DB}",
+              "Username": "$${POSTGRES_USER}",
+              "SSLMode": "prefer",
+              "ConnectionParameters": {
+                "sslmode": "prefer",
+                "passfile": "/tmp/pgpass"
+              }
+            }
+          }
+        }
+        EOF
+        exec /entrypoint.sh
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
     networks:
       - fiap-network
 
@@ -140,13 +178,15 @@ services:
     expose:
       - "8000"
     environment:
-      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/cnpj_dados_abertos?options=-csearch_path%3Dpublic
+      - DATABASE_URI=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cnpj_dados_abertos}?options=-csearch_path%3Dpublic
     depends_on:
       - postgres
     networks:
       - fiap-network
 
 volumes:
+  chromadb_data:
+  postgres_data:
   pgadmin_data:
 
 networks:
