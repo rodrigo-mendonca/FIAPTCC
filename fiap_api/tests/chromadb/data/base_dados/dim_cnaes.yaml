@@ -1,7 +1,6 @@
 tabela: dim_cnaes
 descricao: CNAE principal da empresa. Código e descrição da atividade econômica principal,
   ligado ao segmento/seção macro.
-database: Receita
 contexto_negocio: 'Esta tabela representa o CNAE principal (atividade econômica) da
   empresa.
 

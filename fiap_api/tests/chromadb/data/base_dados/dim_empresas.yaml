@@ -1,7 +1,6 @@
 tabela: dim_empresas
 descricao: Identidade estável da empresa. Uma linha por CNPJ, mantendo o identificador
   interno único e estável ao longo do tempo.
-database: Receita
 contexto_negocio: 'Esta tabela representa a identidade única e estável da empresa.
 
   Existe uma única linha por CNPJ, com um identificador interno que nunca muda.

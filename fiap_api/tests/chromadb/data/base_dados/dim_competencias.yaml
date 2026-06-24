@@ -1,7 +1,6 @@
 tabela: dim_competencias
 descricao: Calendário mensal da base. Representa o mês de referência dos dados no
   formato YYYYMM.
-database: Receita
 contexto_negocio: 'Esta tabela representa o mês de referência (competência) dos dados.
 
   Cada linha corresponde a uma competência mensal no formato YYYYMM.

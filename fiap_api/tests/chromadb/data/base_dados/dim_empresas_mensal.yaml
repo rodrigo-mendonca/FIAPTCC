@@ -1,7 +1,6 @@
 tabela: dim_empresas_mensal
 descricao: Retrato mensal (snapshot) da empresa. Uma linha por CNPJ por competência,
   com dados cadastrais, porte, situação, Simples e MEI.
-database: Receita
 contexto_negocio: 'Esta tabela representa o estado (snapshot) da empresa em cada competência.
 
   Existe uma linha por CNPJ por competência mensal.

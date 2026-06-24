@@ -1,7 +1,6 @@
 tabela: dim_cnaes_segmento
 descricao: Seção/setor macro do CNAE pela seção oficial. Agrupa CNAEs em segmentos
   econômicos (ex. seção J - Informação e comunicação).
-database: Receita
 contexto_negocio: 'Esta tabela representa o setor macro do CNAE pela seção oficial.
 
   Cada linha corresponde a uma seção oficial CNAE e sua denominação (nome do setor/segmento).

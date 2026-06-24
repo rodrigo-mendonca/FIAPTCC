@@ -1,7 +1,6 @@
 tabela: fat_empresas_mensal
 descricao: Eventos/indicadores mensais da empresa. Uma linha por empresa por competência,
   com flags de abertura, baixa, mudança de situação e entrada/saída do Simples.
-database: Receita
 contexto_negocio: 'Esta tabela representa eventos mensais calculados por empresa.
 
   Existe uma linha por empresa por competência, com indicadores (flags) que marcam

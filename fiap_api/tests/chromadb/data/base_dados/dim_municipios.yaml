@@ -1,7 +1,6 @@
 tabela: dim_municipios
 descricao: Localização da empresa. Município, UF e indicação se é capital, usado para
   análises regionais (estado, cidade, capital x interior).
-database: Receita
 contexto_negocio: 'Esta tabela representa a localização (município) da empresa.
 
   Cada linha contém o código IBGE, o nome do município, a UF e a indicação se é capital.
