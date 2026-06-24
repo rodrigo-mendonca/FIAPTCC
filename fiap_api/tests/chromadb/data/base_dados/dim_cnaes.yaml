@@ -29,7 +29,7 @@ colunas_importantes:
   descricao: FK do segmento/seção do CNAE (dim_cnaes_segmento)
 relacionamentos:
 - tabela_referencia: dim_cnaes_segmento
-  descricao: Cada CNAE pertence a um segmento/seção macro
+  descricao: Cada CNAE pertence a um segmento/seção macro. JOIN correto dim_cnaes.id_dim_cnae_segmento = dim_cnaes_segmento.id.
 - tabela_referencia: dim_empresas_mensal
-  descricao: Um CNAE é referenciado por múltiplos snapshots de empresas
+  descricao: Um CNAE é referenciado por múltiplos snapshots de empresas. JOIN correto dim_empresas_mensal.id_dim_cnae = dim_cnaes.id.
 semantica: CNAE, atividade econômica, atividade principal.

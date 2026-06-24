@@ -43,9 +43,9 @@ colunas_importantes:
   descricao: Empresa saiu do Simples (saída do Simples)
 relacionamentos:
 - tabela_referencia: dim_empresas
-  descricao: Cada evento pertence a uma empresa estável
+  descricao: Cada evento pertence a uma empresa estável. JOIN correto fat_empresas_mensal.id_dim_empresa = dim_empresas.id.
 - tabela_referencia: dim_competencias
-  descricao: Cada evento pertence a uma competência mensal
+  descricao: Cada evento pertence a uma competência mensal. JOIN correto fat_empresas_mensal.id_dim_competencia = dim_competencias.id.
 semantica: 'Novas empresas, abertura de empresas, novos CNPJs -> nova_empresa = true.
   Empresas baixadas, CNPJs baixados -> baixada = true. Mudança de situação -> mudou_situacao
   = true. Entraram no Simples -> entrou_simples = true. Saíram do Simples -> saiu_simples

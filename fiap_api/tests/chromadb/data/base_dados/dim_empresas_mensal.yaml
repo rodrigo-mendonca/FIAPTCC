@@ -64,12 +64,12 @@ colunas_importantes:
   descricao: Indica se a empresa é MEI
 relacionamentos:
 - tabela_referencia: dim_empresas
-  descricao: Cada snapshot pertence a uma empresa estável
+  descricao: Cada snapshot pertence a uma empresa estável. JOIN correto dim_empresas_mensal.id_dim_empresa = dim_empresas.id.
 - tabela_referencia: dim_competencias
-  descricao: Cada snapshot pertence a uma competência mensal
+  descricao: Cada snapshot pertence a uma competência mensal. JOIN correto dim_empresas_mensal.id_dim_competencia = dim_competencias.id.
 - tabela_referencia: dim_cnaes
-  descricao: Cada snapshot referencia o CNAE principal da empresa
+  descricao: Cada snapshot referencia o CNAE principal da empresa. JOIN correto dim_empresas_mensal.id_dim_cnae = dim_cnaes.id.
 - tabela_referencia: dim_municipios
-  descricao: Cada snapshot referencia o município da empresa
+  descricao: Cada snapshot referencia o município da empresa. JOIN correto dim_empresas_mensal.id_dim_municipio = dim_municipios.id.
 semantica: Empresas ativas em um mês, empresas por cidade, empresas por CNAE, empresas
   MEI, empresas do Simples, situação atual da competência. Use para concentração/estoque.

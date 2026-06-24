@@ -31,6 +31,6 @@ colunas_importantes:
   descricao: Indica se o município é capital
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
-  descricao: Um município é referenciado por múltiplos snapshots de empresas
+  descricao: Um município é referenciado por múltiplos snapshots de empresas. JOIN correto dim_empresas_mensal.id_dim_municipio = dim_municipios.id.
 semantica: 'Cidade/município -> dim_municipios.nome. Estado/UF -> dim_municipios.uf.
   Interior -> dim_municipios.capital = false. Capital -> dim_municipios.capital = true.'

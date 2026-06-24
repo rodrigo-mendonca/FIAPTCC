@@ -8,6 +8,10 @@ contexto_negocio: 'Esta tabela representa o mês e ano de referencia (competênc
   É utilizada como dimensão de tempo para análises de séries históricas, comparações
   YoY e por trimestre.
 
+  Para filtros temporais mensais, não use campos de data inventados. Faça JOIN
+  com dim_competencias pela FK id_dim_competencia e filtre pelo campo competencia
+  no formato AAAAMM.
+
   O campo atualizado indica se a competência já foi carregada/processada.
 
   '
@@ -15,7 +19,7 @@ colunas_importantes:
 - nome: id
   tipo: integer
   nulo: false
-  descricao: Identificador interno da competência, chave primária
+  descricao: Identificador interno da competência, chave primária. Use dim_competencias.id como PK em JOINs; não existe competencia_id.
 - nome: competencia
   tipo: integer
   nulo: false
@@ -26,8 +30,10 @@ colunas_importantes:
   descricao: Indica se a competência foi carregada/processada
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
-  descricao: Uma competência tem múltiplos snapshots mensais de empresas
+  descricao: Uma competência tem múltiplos snapshots mensais de empresas. JOIN correto dim_empresas_mensal.id_dim_competencia = dim_competencias.id.
 - tabela_referencia: fat_empresas_mensal
-  descricao: Uma competência tem múltiplos eventos mensais de empresas
+  descricao: Uma competência tem múltiplos eventos mensais de empresas. JOIN correto fat_empresas_mensal.id_dim_competencia = dim_competencias.id.
 semantica: Mês, Competência, Período. Ex. Maio de 2026 no formato AAAAMM ou 202605 -> dim_competencias.competencia
-  = 202605.
+  = 202605. Junho de 2026 -> 202606. Último ano considerando junho/2026
+  deve usar dim_competencias.competencia BETWEEN 202506 AND 202606. Comparações
+  de período devem calcular antes os limites em AAAAMM e filtrar por competencia.

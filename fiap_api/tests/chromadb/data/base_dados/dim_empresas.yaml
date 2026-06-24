@@ -22,8 +22,8 @@ colunas_importantes:
   descricao: CNPJ completo, sem máscara
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
-  descricao: Uma empresa tem múltiplos snapshots mensais (um por competência)
+  descricao: Uma empresa tem múltiplos snapshots mensais (um por competência). JOIN correto dim_empresas_mensal.id_dim_empresa = dim_empresas.id.
 - tabela_referencia: fat_empresas_mensal
-  descricao: Uma empresa tem múltiplos eventos mensais (um por competência)
+  descricao: Uma empresa tem múltiplos eventos mensais (um por competência). JOIN correto fat_empresas_mensal.id_dim_empresa = dim_empresas.id.
 semantica: Empresa, CNPJ, Empresa única. Regra. A mesma empresa deve ter sempre o
   mesmo id.

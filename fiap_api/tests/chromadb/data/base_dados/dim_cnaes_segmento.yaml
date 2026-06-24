@@ -26,5 +26,5 @@ colunas_importantes:
   descricao: Nome do setor/segmento
 relacionamentos:
 - tabela_referencia: dim_cnaes
-  descricao: Um segmento agrupa múltiplos CNAEs
+  descricao: Um segmento agrupa múltiplos CNAEs. JOIN correto dim_cnaes.id_dim_cnae_segmento = dim_cnaes_segmento.id.
 semantica: Setor, segmento, área econômica, macro setor -> dim_cnaes_segmento.denominacao.
