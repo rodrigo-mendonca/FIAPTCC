@@ -1,14 +1,14 @@
 tabela: dim_competencias
 descricao: Calendário mensal da base. Representa o mês de referência dos dados no
-  formato YYYYMM.
-contexto_negocio: 'Esta tabela representa o mês de referência (competência) dos dados.
+  formato AAAAMM onde AAAA é o ano e MM é o mês correspondente.
+contexto_negocio: 'Esta tabela representa o mês e ano de referencia (competência) dos dados.
 
-  Cada linha corresponde a uma competência mensal no formato YYYYMM.
+  Cada linha corresponde a uma competência mensal.
 
   É utilizada como dimensão de tempo para análises de séries históricas, comparações
   YoY e por trimestre.
 
-  O campo ''atualizado'' indica se a competência já foi carregada/processada.
+  O campo atualizado indica se a competência já foi carregada/processada.
 
   '
 colunas_importantes:
@@ -19,7 +19,7 @@ colunas_importantes:
 - nome: competencia
   tipo: integer
   nulo: false
-  descricao: Mês de referência no formato YYYYMM
+  descricao: Indica Mês e Ano de referência no formato AAAAMM onde AAAA é o ano e MM é o mês
 - nome: atualizado
   tipo: boolean
   nulo: false
