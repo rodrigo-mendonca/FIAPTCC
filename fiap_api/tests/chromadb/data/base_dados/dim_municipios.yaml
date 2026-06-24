@@ -37,21 +37,5 @@ colunas_importantes:
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
   descricao: Um município é referenciado por múltiplos snapshots de empresas
-indices:
-- nome: idx_codigo
-  colunas:
-  - codigo
-  unico: true
-  descricao: Garante código de município único
-- nome: idx_uf
-  colunas:
-  - uf
-  unico: false
-  descricao: Empresas/municípios por estado
-- nome: idx_capital
-  colunas:
-  - capital
-  unico: false
-  descricao: Filtro capital x interior
 semantica: 'Cidade/município -> dim_municipios.nome. Estado/UF -> dim_municipios.uf.
   Interior -> dim_municipios.capital = false. Capital -> dim_municipios.capital = true.'

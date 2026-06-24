@@ -32,11 +32,5 @@ relacionamentos:
   descricao: Uma competência tem múltiplos snapshots mensais de empresas
 - tabela_referencia: fat_empresas_mensal
   descricao: Uma competência tem múltiplos eventos mensais de empresas
-indices:
-- nome: idx_competencia
-  colunas:
-  - competencia
-  unico: true
-  descricao: Garante competência única no formato YYYYMM
 semantica: Mês, Competência, Período. Ex. Maio de 2026 -> dim_competencias.competencia
   = 202605.

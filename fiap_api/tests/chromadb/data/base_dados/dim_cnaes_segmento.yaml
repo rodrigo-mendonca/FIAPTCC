@@ -30,10 +30,4 @@ colunas_importantes:
 relacionamentos:
 - tabela_referencia: dim_cnaes
   descricao: Um segmento agrupa múltiplos CNAEs
-indices:
-- nome: idx_secao
-  colunas:
-  - secao
-  unico: true
-  descricao: Garante seção oficial única
 semantica: Setor, segmento, área econômica, macro setor -> dim_cnaes_segmento.denominacao.

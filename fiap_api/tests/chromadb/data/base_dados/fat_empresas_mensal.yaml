@@ -53,25 +53,6 @@ relacionamentos:
   descricao: Cada evento pertence a uma empresa estável
 - tabela_referencia: dim_competencias
   descricao: Cada evento pertence a uma competência mensal
-indices:
-- nome: idx_competencia_empresa
-  colunas:
-  - id_dim_competencia
-  - id_dim_empresa
-  unico: true
-  descricao: Garante um registro de eventos por empresa por competência
-- nome: idx_nova_empresa
-  colunas:
-  - id_dim_competencia
-  - nova_empresa
-  unico: false
-  descricao: Aberturas/novos CNPJs por competência
-- nome: idx_baixada
-  colunas:
-  - id_dim_competencia
-  - baixada
-  unico: false
-  descricao: Baixas por competência
 semantica: 'Novas empresas, abertura de empresas, novos CNPJs -> nova_empresa = true.
   Empresas baixadas, CNPJs baixados -> baixada = true. Mudança de situação -> mudou_situacao
   = true. Entraram no Simples -> entrou_simples = true. Saíram do Simples -> saiu_simples

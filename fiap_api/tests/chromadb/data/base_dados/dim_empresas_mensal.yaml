@@ -83,27 +83,5 @@ relacionamentos:
   descricao: Cada snapshot referencia o CNAE principal da empresa
 - tabela_referencia: dim_municipios
   descricao: Cada snapshot referencia o município da empresa
-indices:
-- nome: idx_empresa_competencia
-  colunas:
-  - id_dim_empresa
-  - id_dim_competencia
-  unico: true
-  descricao: Garante um snapshot por empresa por competência
-- nome: idx_competencia
-  colunas:
-  - id_dim_competencia
-  unico: false
-  descricao: Base/estoque de empresas por competência
-- nome: idx_cnae
-  colunas:
-  - id_dim_cnae
-  unico: false
-  descricao: Empresas por CNAE
-- nome: idx_municipio
-  colunas:
-  - id_dim_municipio
-  unico: false
-  descricao: Empresas por cidade/UF
 semantica: Empresas ativas em um mês, empresas por cidade, empresas por CNAE, empresas
   MEI, empresas do Simples, situação atual da competência. Use para concentração/estoque.

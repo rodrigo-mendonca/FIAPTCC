@@ -36,15 +36,4 @@ relacionamentos:
   descricao: Cada CNAE pertence a um segmento/seção macro
 - tabela_referencia: dim_empresas_mensal
   descricao: Um CNAE é referenciado por múltiplos snapshots de empresas
-indices:
-- nome: idx_codigo
-  colunas:
-  - codigo
-  unico: true
-  descricao: Garante código CNAE único
-- nome: idx_segmento
-  colunas:
-  - id_dim_cnae_segmento
-  unico: false
-  descricao: CNAEs por segmento/seção
 semantica: CNAE, atividade econômica, atividade principal.

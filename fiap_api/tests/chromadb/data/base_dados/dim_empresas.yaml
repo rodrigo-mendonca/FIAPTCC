@@ -27,11 +27,5 @@ relacionamentos:
   descricao: Uma empresa tem múltiplos snapshots mensais (um por competência)
 - tabela_referencia: fat_empresas_mensal
   descricao: Uma empresa tem múltiplos eventos mensais (um por competência)
-indices:
-- nome: idx_cnpj
-  colunas:
-  - cnpj
-  unico: true
-  descricao: Garante CNPJ único por empresa
 semantica: Empresa, CNPJ, Empresa única. Regra. A mesma empresa deve ter sempre o
   mesmo id.
