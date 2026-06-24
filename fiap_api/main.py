@@ -767,7 +767,14 @@ async def _process_uploaded_file(
 
                         # 1. Criar documento principal da tabela
                         table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
-                        table_text = f"Tabela {table_name}: {table_desc}"
+                        business_context = table_metadata.get("contexto_negocio", "") if isinstance(table_metadata, dict) else ""
+                        table_semantics = table_metadata.get("semantica", "") if isinstance(table_metadata, dict) else ""
+                        table_text_parts = [f"Tabela {table_name}: {table_desc}"]
+                        if business_context:
+                            table_text_parts.append(f"Contexto de negócio: {business_context}")
+                        if table_semantics:
+                            table_text_parts.append(f"Semântica: {table_semantics}")
+                        table_text = "\n".join(table_text_parts)
                         doc_id = f"table_{file_base_name}"
 
                         chromadb_client.add_document(
@@ -775,6 +782,8 @@ async def _process_uploaded_file(
                             metadata={
                                 "type": "table",
                                 "table_name": table_name,
+                                "contexto_negocio": business_context,
+                                "semantica": table_semantics,
                                 "source_file": filename,
                                 "source": "user_upload"
                             },
@@ -1579,4 +1588,3 @@ async def get_market_export_chart():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
-
