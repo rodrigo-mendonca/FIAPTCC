@@ -84,6 +84,14 @@ chroma_client = None
 # Parâmetros de conexão configuráveis via .env
 CHROMADB_CONNECT_TIMEOUT = float(os.getenv("CHROMADB_CONNECT_TIMEOUT", "5"))
 CHROMADB_CONNECT_MAX_RETRIES = int(os.getenv("CHROMADB_CONNECT_MAX_RETRIES", "0"))  # 0 = tenta indefinidamente
+RECEITA_COLLECTION_NAME = "Receita"
+RECEITA_BASE_DADOS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "tests",
+    "chromadb",
+    "data",
+    "base_dados",
+)
 
 
 async def _connect_chromadb_with_retry():
@@ -119,6 +127,7 @@ async def _connect_chromadb_with_retry():
         if connected:
             chroma_client = chromadb_client
             print(f"[STARTUP] ✓ ChromaDB conectado (tentativa {attempt})")
+            await asyncio.to_thread(_rebuild_receita_collection_on_startup)
             return
 
         if CHROMADB_CONNECT_MAX_RETRIES and attempt >= CHROMADB_CONNECT_MAX_RETRIES:
@@ -695,6 +704,173 @@ async def validate_file_with_llm(content: str, filename: str, detected_type: Opt
     )
 
 
+def _index_base_dados_yaml_data(
+    data: Dict[str, Any],
+    filename: str,
+    target_collection: str,
+    source: str = "user_upload"
+) -> int:
+    """
+    Indexa a estrutura de base_dados no ChromaDB.
+
+    Gera documentos independentes para tabela, colunas importantes,
+    relacionamentos e fields legados.
+    """
+    if not data or 'tabela' not in data:
+        return 0
+
+    file_base_name = os.path.splitext(filename or "documento")[0]
+
+    table_name_value = data['tabela']
+    if isinstance(table_name_value, dict):
+        table_name = table_name_value.get("nome", file_base_name)
+        table_metadata = table_name_value
+    else:
+        table_name = str(table_name_value)
+        table_metadata = data
+
+    documents_indexed = 0
+
+    table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
+    business_context = table_metadata.get("contexto_negocio", "") if isinstance(table_metadata, dict) else ""
+    table_semantics = table_metadata.get("semantica", "") if isinstance(table_metadata, dict) else ""
+    table_text_parts = [f"Tabela {table_name}: {table_desc}"]
+    if business_context:
+        table_text_parts.append(f"Contexto de negócio: {business_context}")
+    if table_semantics:
+        table_text_parts.append(f"Semântica: {table_semantics}")
+
+    if chromadb_client.add_document(
+        text="\n".join(table_text_parts),
+        metadata={
+            "type": "table",
+            "table_name": table_name,
+            "contexto_negocio": business_context,
+            "semantica": table_semantics,
+            "source_file": filename,
+            "source": source
+        },
+        id=f"table_{file_base_name}",
+        collection_name=target_collection
+    ):
+        documents_indexed += 1
+
+    colunas_importantes = data.get("colunas_importantes", [])
+    if isinstance(colunas_importantes, list):
+        for col in colunas_importantes:
+            if isinstance(col, dict) and col.get("nome"):
+                col_name = col.get("nome")
+                if chromadb_client.add_document(
+                    text=f"Coluna {col_name}: {col.get('descricao', '')} | Tipo: {col.get('tipo', 'unknown')} | Nulo: {col.get('nulo', 'N/A')}",
+                    metadata={
+                        "type": "field",
+                        "table_name": table_name,
+                        "field_name": col_name,
+                        "data_type": col.get("tipo", "unknown"),
+                        "nullable": col.get("nulo", False),
+                        "source": source
+                    },
+                    id=f"field_{file_base_name}_{col_name}",
+                    collection_name=target_collection
+                ):
+                    documents_indexed += 1
+
+    relacionamentos = data.get("relacionamentos", [])
+    if isinstance(relacionamentos, list):
+        for index, rel in enumerate(relacionamentos, start=1):
+            if isinstance(rel, dict) and rel.get("tabela_referencia"):
+                referenced_table = rel.get("tabela_referencia")
+                if chromadb_client.add_document(
+                    text=f"Relacionamento da tabela {table_name} com {referenced_table}: {rel.get('descricao', '')}",
+                    metadata={
+                        "type": "relationship",
+                        "table_name": table_name,
+                        "referenced_table": referenced_table,
+                        "source": source
+                    },
+                    id=f"relationship_{file_base_name}_{referenced_table}_{index}",
+                    collection_name=target_collection
+                ):
+                    documents_indexed += 1
+
+    if isinstance(table_metadata, dict):
+        fields = table_metadata.get("fields", {})
+        if isinstance(fields, dict):
+            for field_name, field_data in fields.items():
+                if isinstance(field_data, dict) and field_data.get("pesquisavel", True):
+                    field_desc = field_data.get("descricao", "")
+                    field_type = field_data.get("tipo", "unknown")
+                    if chromadb_client.add_document(
+                        text=f"Campo {field_name} da tabela {table_name} ({field_type}): {field_desc}",
+                        metadata={
+                            "type": "field",
+                            "table_name": table_name,
+                            "field_name": field_name,
+                            "data_type": field_type,
+                            "source": source
+                        },
+                        id=f"field_{file_base_name}_{field_name}",
+                        collection_name=target_collection
+                    ):
+                        documents_indexed += 1
+
+    return documents_indexed
+
+
+def _rebuild_receita_collection_on_startup() -> None:
+    """Recria a coleção Receita a partir dos YAMLs versionados de base_dados."""
+    if not chromadb_client or not chromadb_client.client:
+        print("[STARTUP] ChromaDB indisponível; não foi possível recriar a coleção Receita")
+        return
+
+    if not os.path.isdir(RECEITA_BASE_DADOS_PATH):
+        print(f"[STARTUP] Pasta de base_dados não encontrada: {RECEITA_BASE_DADOS_PATH}")
+        return
+
+    try:
+        existing_collections = chromadb_client.client.list_collections()
+        existing_names = {
+            col if isinstance(col, str) else getattr(col, "name", None)
+            for col in existing_collections
+        }
+        if RECEITA_COLLECTION_NAME in existing_names:
+            chromadb_client.delete_collection(RECEITA_COLLECTION_NAME)
+    except Exception as e:
+        print(f"[STARTUP] Não foi possível verificar/deletar a coleção '{RECEITA_COLLECTION_NAME}': {e}")
+
+    if not chromadb_client.create_collection(RECEITA_COLLECTION_NAME):
+        print(f"[STARTUP] Falha ao criar coleção '{RECEITA_COLLECTION_NAME}'")
+        return
+
+    import yaml
+
+    total_documents = 0
+    total_files = 0
+    for filename in sorted(os.listdir(RECEITA_BASE_DADOS_PATH)):
+        if not filename.endswith((".yaml", ".yml")) or filename.startswith("_"):
+            continue
+
+        filepath = os.path.join(RECEITA_BASE_DADOS_PATH, filename)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+
+            total_documents += _index_base_dados_yaml_data(
+                data=data,
+                filename=filename,
+                target_collection=RECEITA_COLLECTION_NAME,
+                source="startup_base_dados"
+            )
+            total_files += 1
+        except Exception as e:
+            print(f"[STARTUP] Erro ao indexar '{filename}' na coleção Receita: {e}")
+
+    print(
+        f"[STARTUP] Coleção '{RECEITA_COLLECTION_NAME}' recriada com "
+        f"{total_documents} documentos de {total_files} arquivos YAML"
+    )
+
+
 async def _process_uploaded_file(
     filename: str,
     content_bytes: bytes,
@@ -755,109 +931,11 @@ async def _process_uploaded_file(
                 try:
                     import yaml
                     data = yaml.safe_load(content_str)
-                    if data and 'tabela' in data:
-                        # Obter o nome da tabela (pode ser string ou dict)
-                        table_name_value = data['tabela']
-                        if isinstance(table_name_value, dict):
-                            table_name = table_name_value.get("nome", file_base_name)
-                            table_metadata = table_name_value
-                        else:
-                            table_name = str(table_name_value)
-                            table_metadata = data  # Usar data completo como metadata
-
-                        # 1. Criar documento principal da tabela
-                        table_desc = table_metadata.get("descricao", "") if isinstance(table_metadata, dict) else ""
-                        business_context = table_metadata.get("contexto_negocio", "") if isinstance(table_metadata, dict) else ""
-                        table_semantics = table_metadata.get("semantica", "") if isinstance(table_metadata, dict) else ""
-                        table_text_parts = [f"Tabela {table_name}: {table_desc}"]
-                        if business_context:
-                            table_text_parts.append(f"Contexto de negócio: {business_context}")
-                        if table_semantics:
-                            table_text_parts.append(f"Semântica: {table_semantics}")
-                        table_text = "\n".join(table_text_parts)
-                        doc_id = f"table_{file_base_name}"
-
-                        chromadb_client.add_document(
-                            text=table_text,
-                            metadata={
-                                "type": "table",
-                                "table_name": table_name,
-                                "contexto_negocio": business_context,
-                                "semantica": table_semantics,
-                                "source_file": filename,
-                                "source": "user_upload"
-                            },
-                            id=doc_id,
-                            collection_name=target_collection
-                        )
-
-                        # 2. Indexar colunas importantes (estrutura nova dos docs_cg)
-                        colunas_importantes = data.get("colunas_importantes", [])
-                        if isinstance(colunas_importantes, list):
-                            for col in colunas_importantes:
-                                if isinstance(col, dict) and col.get("nome"):
-                                    col_name = col.get("nome")
-                                    col_text = f"Coluna {col_name}: {col.get('descricao', '')} | Tipo: {col.get('tipo', 'unknown')} | Nulo: {col.get('nulo', 'N/A')}"
-                                    col_doc_id = f"field_{file_base_name}_{col_name}"
-
-                                    chromadb_client.add_document(
-                                        text=col_text,
-                                        metadata={
-                                            "type": "field",
-                                            "table_name": table_name,
-                                            "field_name": col_name,
-                                            "data_type": col.get("tipo", "unknown"),
-                                            "nullable": col.get("nulo", False),
-                                            "source": "user_upload"
-                                        },
-                                        id=col_doc_id,
-                                        collection_name=target_collection
-                                    )
-
-                        # 3. Indexar relacionamentos como documentos independentes
-                        relacionamentos = data.get("relacionamentos", [])
-                        if isinstance(relacionamentos, list):
-                            for index, rel in enumerate(relacionamentos, start=1):
-                                if isinstance(rel, dict) and rel.get("tabela_referencia"):
-                                    referenced_table = rel.get("tabela_referencia")
-                                    rel_text = f"Relacionamento da tabela {table_name} com {referenced_table}: {rel.get('descricao', '')}"
-                                    rel_doc_id = f"relationship_{file_base_name}_{referenced_table}_{index}"
-
-                                    chromadb_client.add_document(
-                                        text=rel_text,
-                                        metadata={
-                                            "type": "relationship",
-                                            "table_name": table_name,
-                                            "referenced_table": referenced_table,
-                                            "source": "user_upload"
-                                        },
-                                        id=rel_doc_id,
-                                        collection_name=target_collection
-                                    )
-
-                        # 4. Fallback: indexar fields para estrutura antiga (se houver)
-                        if isinstance(table_metadata, dict):
-                            fields = table_metadata.get("fields", {})
-                            if isinstance(fields, dict):
-                                for field_name, field_data in fields.items():
-                                    if isinstance(field_data, dict) and field_data.get("pesquisavel", True):
-                                        field_desc = field_data.get("descricao", "")
-                                        field_type = field_data.get("tipo", "unknown")
-                                        field_text = f"Campo {field_name} da tabela {table_name} ({field_type}): {field_desc}"
-                                        field_doc_id = f"field_{file_base_name}_{field_name}"
-
-                                        chromadb_client.add_document(
-                                            text=field_text,
-                                            metadata={
-                                                "type": "field",
-                                                "table_name": table_name,
-                                                "field_name": field_name,
-                                                "data_type": field_data.get("tipo", "unknown"),
-                                                "source": "user_upload"
-                                            },
-                                            id=field_doc_id,
-                                            collection_name=target_collection
-                                        )
+                    _index_base_dados_yaml_data(
+                        data=data,
+                        filename=filename or "documento.yaml",
+                        target_collection=target_collection
+                    )
                 except Exception as index_error:
                     import traceback
                     print(f"[ERROR] Erro ao indexar base_dados: {index_error}")
