@@ -11,10 +11,6 @@ contexto_negocio: 'Esta tabela representa o mês de referência (competência) d
   O campo ''atualizado'' indica se a competência já foi carregada/processada.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks: []
 colunas_importantes:
 - nome: id
   tipo: integer

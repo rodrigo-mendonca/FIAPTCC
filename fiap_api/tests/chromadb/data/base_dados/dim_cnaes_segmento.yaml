@@ -11,10 +11,6 @@ contexto_negocio: 'Esta tabela representa o setor macro do CNAE pela seção ofi
   CNAE.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks: []
 colunas_importantes:
 - nome: id
   tipo: integer

@@ -8,10 +8,6 @@ contexto_negocio: 'Esta tabela representa a localização (município) da empres
   É usada para análises regionais por cidade, estado e capital x interior.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks: []
 colunas_importantes:
 - nome: id
   tipo: integer

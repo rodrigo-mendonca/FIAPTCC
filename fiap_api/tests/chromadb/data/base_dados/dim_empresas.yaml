@@ -11,10 +11,6 @@ contexto_negocio: 'Esta tabela representa a identidade única e estável da empr
   dim_empresas_mensal e fat_empresas_mensal.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks: []
 colunas_importantes:
 - nome: id
   tipo: integer

@@ -13,14 +13,6 @@ contexto_negocio: 'Esta tabela representa o estado (snapshot) da empresa em cada
   Use fat_empresas_mensal para contar eventos do mês.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks:
-  - id_dim_empresa
-  - id_dim_cnae
-  - id_dim_municipio
-  - id_dim_competencia
 colunas_importantes:
 - nome: id
   tipo: integer

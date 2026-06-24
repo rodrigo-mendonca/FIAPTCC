@@ -10,11 +10,6 @@ contexto_negocio: 'Esta tabela representa o CNAE principal (atividade econômica
   É usada para análises por atividade econômica e para agrupar empresas por CNAE.
 
   '
-chaves:
-  pk:
-  - id
-  principais_fks:
-  - id_dim_cnae_segmento
 colunas_importantes:
 - nome: id
   tipo: integer

@@ -12,13 +12,6 @@ contexto_negocio: 'Esta tabela representa eventos mensais calculados por empresa
   Para perguntas de concentração/estoque, usar dim_empresas_mensal.
 
   '
-chaves:
-  pk:
-  - id_dim_competencia
-  - id_dim_empresa
-  principais_fks:
-  - id_dim_competencia
-  - id_dim_empresa
 colunas_importantes:
 - nome: id_dim_competencia
   tipo: integer
