@@ -141,6 +141,7 @@ celerybeat.pid
 **/.env.*
 !.env.example
 !**/.env.example
+!fiap_interface/.env
 .envrc
 .venv
 env/

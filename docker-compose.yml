@@ -59,13 +59,13 @@ services:
       context: ./fiap_interface
       dockerfile: Dockerfile
       args:
-        - API_URL=http://host.docker.internal:8001
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8001}
     container_name: fiap-interface
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - API_URL=http://host.docker.internal:8001
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8001}
     depends_on:
       - fiap-api
     restart: unless-stopped
