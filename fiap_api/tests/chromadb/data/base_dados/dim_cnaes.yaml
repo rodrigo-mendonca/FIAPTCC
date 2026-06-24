@@ -15,22 +15,18 @@ colunas_importantes:
   tipo: integer
   nulo: false
   descricao: Identificador interno do CNAE, chave primária
-  exemplo_significativo: '1'
 - nome: codigo
   tipo: varchar
   nulo: false
   descricao: Código CNAE
-  exemplo_significativo: '''6201501'''
 - nome: nome
   tipo: varchar
   nulo: false
   descricao: Descrição do CNAE
-  exemplo_significativo: '''Desenvolvimento de programas de computador sob encomenda'''
 - nome: id_dim_cnae_segmento
   tipo: integer
   nulo: true
   descricao: FK do segmento/seção do CNAE (dim_cnaes_segmento)
-  exemplo_significativo: '7'
 relacionamentos:
 - tabela_referencia: dim_cnaes_segmento
   descricao: Cada CNAE pertence a um segmento/seção macro

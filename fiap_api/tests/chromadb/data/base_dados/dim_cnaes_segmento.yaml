@@ -16,17 +16,14 @@ colunas_importantes:
   tipo: integer
   nulo: false
   descricao: Identificador interno do segmento, chave primária
-  exemplo_significativo: '1'
 - nome: secao
   tipo: char
   nulo: false
   descricao: Seção oficial CNAE
-  exemplo_significativo: '''J'''
 - nome: denominacao
   tipo: varchar
   nulo: false
   descricao: Nome do setor/segmento
-  exemplo_significativo: '''Informação e comunicação'''
 relacionamentos:
 - tabela_referencia: dim_cnaes
   descricao: Um segmento agrupa múltiplos CNAEs

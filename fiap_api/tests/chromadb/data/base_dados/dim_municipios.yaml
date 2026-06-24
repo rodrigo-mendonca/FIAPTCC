@@ -13,27 +13,22 @@ colunas_importantes:
   tipo: integer
   nulo: false
   descricao: Identificador interno do município, chave primária
-  exemplo_significativo: '1'
 - nome: codigo
   tipo: varchar
   nulo: false
   descricao: Código do município
-  exemplo_significativo: '''3550308'''
 - nome: nome
   tipo: varchar
   nulo: false
   descricao: Nome do município
-  exemplo_significativo: '''São Paulo'''
 - nome: uf
   tipo: char
   nulo: false
   descricao: Estado (sigla da UF)
-  exemplo_significativo: '''SP'''
 - nome: capital
   tipo: boolean
   nulo: false
   descricao: Indica se o município é capital
-  exemplo_significativo: 'true'
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
   descricao: Um município é referenciado por múltiplos snapshots de empresas

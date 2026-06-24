@@ -16,12 +16,10 @@ colunas_importantes:
   tipo: integer
   nulo: false
   descricao: Identificador interno estável da empresa, chave primária
-  exemplo_significativo: '10'
 - nome: cnpj
   tipo: varchar
   nulo: false
   descricao: CNPJ completo, sem máscara
-  exemplo_significativo: '''10000001000101'''
 relacionamentos:
 - tabela_referencia: dim_empresas_mensal
   descricao: Uma empresa tem múltiplos snapshots mensais (um por competência)

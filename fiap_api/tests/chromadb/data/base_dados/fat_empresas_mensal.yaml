@@ -17,37 +17,30 @@ colunas_importantes:
   tipo: integer
   nulo: false
   descricao: FK da competência do evento (dim_competencias) - sempre presente
-  exemplo_significativo: '13'
 - nome: id_dim_empresa
   tipo: integer
   nulo: false
   descricao: FK da empresa relacionada ao evento (dim_empresas) - sempre presente
-  exemplo_significativo: '10'
 - nome: nova_empresa
   tipo: boolean
   nulo: false
   descricao: Empresa apareceu pela primeira vez na base (abertura/crescimento)
-  exemplo_significativo: 'true'
 - nome: baixada
   tipo: boolean
   nulo: false
   descricao: Empresa mudou para situação baixada (baixas)
-  exemplo_significativo: 'true'
 - nome: mudou_situacao
   tipo: boolean
   nulo: false
   descricao: Situação cadastral mudou (movimentação cadastral)
-  exemplo_significativo: 'true'
 - nome: entrou_simples
   tipo: boolean
   nulo: false
   descricao: Empresa entrou no Simples (entrada no Simples)
-  exemplo_significativo: 'true'
 - nome: saiu_simples
   tipo: boolean
   nulo: false
   descricao: Empresa saiu do Simples (saída do Simples)
-  exemplo_significativo: 'true'
 relacionamentos:
 - tabela_referencia: dim_empresas
   descricao: Cada evento pertence a uma empresa estável
