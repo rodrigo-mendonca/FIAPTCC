@@ -814,7 +814,28 @@ async def _process_uploaded_file(
                                         collection_name=target_collection
                                     )
 
-                        # 3. Fallback: indexar fields para estrutura antiga (se houver)
+                        # 3. Indexar relacionamentos como documentos independentes
+                        relacionamentos = data.get("relacionamentos", [])
+                        if isinstance(relacionamentos, list):
+                            for index, rel in enumerate(relacionamentos, start=1):
+                                if isinstance(rel, dict) and rel.get("tabela_referencia"):
+                                    referenced_table = rel.get("tabela_referencia")
+                                    rel_text = f"Relacionamento da tabela {table_name} com {referenced_table}: {rel.get('descricao', '')}"
+                                    rel_doc_id = f"relationship_{file_base_name}_{referenced_table}_{index}"
+
+                                    chromadb_client.add_document(
+                                        text=rel_text,
+                                        metadata={
+                                            "type": "relationship",
+                                            "table_name": table_name,
+                                            "referenced_table": referenced_table,
+                                            "source": "user_upload"
+                                        },
+                                        id=rel_doc_id,
+                                        collection_name=target_collection
+                                    )
+
+                        # 4. Fallback: indexar fields para estrutura antiga (se houver)
                         if isinstance(table_metadata, dict):
                             fields = table_metadata.get("fields", {})
                             if isinstance(fields, dict):
