@@ -7,8 +7,6 @@ services:
     container_name: fiap-api
     ports:
       - "8001:8001"
-    env_file:
-      - ./fiap_api/.env
     environment:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8210
