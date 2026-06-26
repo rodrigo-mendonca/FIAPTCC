@@ -67,41 +67,41 @@ Definidos em [`fiap_interface/package.json`](fiap_interface/package.json):
 
 ```mermaid
 flowchart TB
-    UI["<b>fiap-interface</b><br/>React 19 · MUI 7 · Recharts<br/><code>:3000</code>"]
+    UI["<b>fiap-interface</b><br/>React 19 · MUI 7 · Recharts<br/><code>porta:3000</code>"]
 
-    subgraph api["⚙️ fiap-api · FastAPI &nbsp;:8001"]
+    subgraph api["⚙️ fiap-api · FastAPI &nbsp;·&nbsp; porta:8001"]
         direction LR
-        AGENT["<b>Agente LangGraph</b> (ReAct)<br/>GenAIFactory"]
+        AGENT["<b>GenAIFactory + Agente</b><br/>LangChain + LangGraph (ReAct)"]
         CHCLI["<b>ChromaDB client</b><br/>+ EmbeddingsFactory"]
         SQLF["<b>SQLFactory</b><br/>SQLAlchemy · mercado"]
     end
 
     subgraph tools["🛠️ Ferramentas do agente (MCP)"]
-        MCP["<b>mcp-postgres</b><br/>SQL via MCP · <code>:8000</code>"]
-        DDG["<b>duckduckgo</b><br/>busca na internet · stdio"]
+        DDG["<b>duckduckgo</b><br/>busca web · stdio<br/>(sem porta)"]
+        MCP["<b>mcp-postgres</b><br/>MCP server<br/><code>porta:8000</code>"]
     end
 
     subgraph ia["🤖 Provedores de IA — API OpenAI-compatível"]
-        LLM["<b>LLM</b><br/>Groq · LM Studio<br/>OpenAI · Azure"]
+        LLM["<b>LLM provider</b><br/>Groq · LM Studio<br/>OpenAI · Azure"]
         EMB["<b>Embeddings</b><br/>Jina · LM Studio<br/>OpenAI · Azure"]
     end
 
-    subgraph dados["🗄️ Dados"]
-        CH["<b>chromadb</b><br/>vetorial · cosseno<br/><code>:8210</code>"]
-        PG["<b>postgres 15</b><br/>star schema CNPJ<br/><code>:5432</code>"]
-        PGA["<b>pgadmin</b><br/><code>:4000</code>"]
+    subgraph dados["🗄️ Dados / Infra"]
+        CH["<b>chromadb</b><br/>vetorial · cosseno<br/><code>porta:8210</code>"]
+        PG["<b>postgres 15</b><br/>star schema CNPJ<br/><code>porta:5432</code>"]
+        PGA["<b>pgadmin</b><br/>admin Postgres<br/><code>porta:4000</code>"]
     end
 
     UI <==>|"HTTP / SSE"| api
 
-    AGENT -->|"prompt / tokens"| LLM
-    AGENT -->|"tool · SQL"| MCP
+    AGENT -->|"GenAI · prompt/tokens"| LLM
     AGENT -->|"tool · web"| DDG
+    AGENT -->|"tool · SQL"| MCP
     AGENT -->|"tool · RAG"| CH
     CHCLI -.->|"index / query"| CH
     CHCLI -.->|"/v1/embeddings"| EMB
-    SQLF -->|"dados de mercado"| PG
-    MCP --> PG
+    SQLF -.->|"dados de mercado"| PG
+    MCP -->|"SQL"| PG
     PG --- PGA
 
     classDef bk fill:#f4f0ff,stroke:#5e35b1,color:#311b92;
@@ -115,9 +115,11 @@ flowchart TB
     class CH,PG,PGA dt;
 ```
 
-> 📐 Versão vetorial (com legenda) para apresentação/slides: [`docs/arquitetura.svg`](docs/arquitetura.svg).
+> 📐 Versões do diagrama para apresentação/slides:
+> - **[`docs/arquitetura.html`](docs/arquitetura.html)** — versão FIAP (tema escuro, animada, roteamento ortogonal sem cruzamentos). Abra no navegador.
+> - **[`docs/arquitetura.svg`](docs/arquitetura.svg)** — versão vetorial estática (com legenda).
 >
-> O **agente LangGraph (ReAct)** orquestra três ferramentas — `mcp-postgres` (SQL), `duckduckgo` (web) e `search_knowledge_base`/RAG sobre o ChromaDB — enquanto as telas de **mercado** consultam o PostgreSQL **diretamente** via `SQLFactory`. Os **embeddings** são gerados pelo *client* do ChromaDB (`POST /v1/embeddings`) tanto na indexação quanto na busca.
+> O **agente LangGraph (ReAct)** orquestra três ferramentas — `mcp-postgres` (SQL), `duckduckgo` (web) e `search_knowledge_base`/RAG sobre o ChromaDB — enquanto as telas de **mercado** consultam o PostgreSQL **diretamente** via `SQLFactory` (linha tracejada). Os **embeddings** são gerados pelo *client* do ChromaDB (`POST /v1/embeddings`) tanto na indexação quanto na busca.
 
 ### Componentes
 
