@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIAP · Arquitetura do Sistema</title>
+<style>
+  :root{
+    --bg:#0a0a12;
+    --bg2:#06060c;
+    --mag:#ED0973;
+    --mag-bright:#FF3D9A;
+    --cyan:#2FD0DE;
+    --cyan-bright:#7DEFF6;
+    --text:#F4F4FB;
+    --muted:#9A9AB4;
+    --surface:#15151f;
+    --line:#26263a;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1100px 600px at 80% -10%, rgba(237,9,115,.10), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(47,208,222,.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 20px 48px;
+  }
+  .wrap{max-width:1100px;margin:0 auto}
+
+  header{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    gap:24px;flex-wrap:wrap;
+    padding-bottom:18px;margin-bottom:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{
+    font-family:var(--sans);font-weight:800;letter-spacing:.5px;
+    font-size:22px;line-height:1;
+    background:var(--mag);color:#fff;
+    padding:9px 12px 8px;border-radius:7px;
+    box-shadow:0 0 0 1px rgba(255,61,154,.4),0 8px 24px -8px rgba(237,9,115,.6);
+  }
+  .brand h1{font-size:15px;font-weight:600;margin:0;letter-spacing:.2px;color:var(--text)}
+  .brand p{margin:3px 0 0;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+
+  .legend{display:flex;gap:18px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .dot.m{background:var(--mag);box-shadow:0 0 10px var(--mag)}
+  .dot.c{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+
+  .frame{
+    margin-top:22px;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:linear-gradient(180deg, rgba(255,255,255,.015), transparent 30%),var(--bg2);
+    box-shadow:0 40px 80px -50px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04);
+    padding:10px 12px 6px;
+    position:relative;overflow:hidden;
+  }
+  .frame::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:34px 34px;
+    -webkit-mask-image:radial-gradient(120% 100% at 50% 0%,#000 55%,transparent 100%);
+            mask-image:radial-gradient(120% 100% at 50% 0%,#000 55%,transparent 100%);
+    opacity:.5;
+  }
+  .titlebar{display:flex;align-items:center;gap:8px;padding:8px 10px 12px;position:relative}
+  .titlebar .dots{display:flex;gap:7px}
+  .titlebar .dots i{width:11px;height:11px;border-radius:50%;display:block;opacity:.85}
+  .titlebar .dots i:nth-child(1){background:#ff5f57}
+  .titlebar .dots i:nth-child(2){background:#febc2e}
+  .titlebar .dots i:nth-child(3){background:#28c840}
+  .titlebar .path{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:6px}
+
+  svg{display:block;width:100%;height:auto;position:relative}
+
+  .node{cursor:default;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+  .node .glow{opacity:.16;transition:opacity .25s ease}
+  .node:hover{transform:translateY(-2px)}
+  .node:hover .glow{opacity:.6}
+  .node .card{transition:fill .25s ease}
+  .node:hover .card{fill:#1b1b29}
+
+  .node{opacity:0;animation:rise .55s cubic-bezier(.2,.8,.2,1) forwards}
+  .conn{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1s ease forwards}
+  .lbl{opacity:0;animation:fade .5s ease forwards}
+  @keyframes rise{to{opacity:1}}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes fade{to{opacity:1}}
+
+  footer{
+    margin-top:18px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  }
+  footer .tag{color:var(--mag-bright)}
+
+  @media (max-width:560px){.legend{width:100%;order:3}.logo{font-size:18px}}
+  @media (prefers-reduced-motion:reduce){
+    .node,.conn,.lbl{animation:none!important;opacity:1!important;stroke-dashoffset:0!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">FIAP</div>
+      <div>
+        <h1>Arquitetura ContaComigo.IA</h1>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot m"></i> Aplicação / GenAI</span>
+      <span><i class="dot c"></i> Dados / Infra</span>
+    </div>
+  </header>
+
+  <div class="frame">
+    <div class="titlebar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span class="path">~/fiap/architecture.svg</span>
+    </div>
+    <div id="diagram"></div>
+  </div>
+
+  <footer>
+    <span>interface <span class="tag">porta:3000</span> · api <span class="tag">porta:8001</span> · mcp <span class="tag">porta:8000</span> · postgres <span class="tag">porta:5432</span> · chroma <span class="tag">porta:8210</span> · pgadmin <span class="tag">porta:4000</span></span>
+    <span>HTTP / SSE · LangChain + LangGraph</span>
+  </footer>
+
+</div>
+
+<script>
+const C = {
+  mag:'#ED0973', magB:'#FF3D9A',
+  cyan:'#2FD0DE', cyanB:'#7DEFF6',
+  text:'#F4F4FB', muted:'#9A9AB4',
+  surface:'#15151f'
+};
+
+function node(o){
+  const {x,y,w,h,title,subs=[],accent,delay=0,port=null} = o;
+  const cx = x + w/2;
+  const aB = accent===C.mag ? C.magB : C.cyanB;
+  // porta no canto superior direito do quadrado
+  const portTxt = port ? `<text x="${x+w-14}" y="${y+20}" text-anchor="end"
+      font-family="var(--mono)" font-size="10.5" font-weight="700" fill="${aB}"
+      style="letter-spacing:.2px">${port}</text>` : '';
+  // título alinhado abaixo da faixa da porta (mantém a linha de nós alinhada)
+  const ty = y + (subs.length ? 44 : h/2 + 6);
+  let lines = `<text x="${cx}" y="${ty}" text-anchor="middle"
+      font-family="var(--mono)" font-size="14.5" font-weight="700" fill="${C.text}"
+      style="letter-spacing:.3px">${title}</text>`;
+  let sy = ty + 18;
+  subs.forEach(s=>{
+    lines += `<text x="${cx}" y="${sy}" text-anchor="middle"
+        font-family="var(--mono)" font-size="11" fill="${C.muted}"
+        style="letter-spacing:.2px">${s}</text>`;
+    sy += 17;
+  });
+  return `
+  <g class="node" style="animation-delay:${delay}ms">
+    <rect class="glow" x="${x}" y="${y}" width="${w}" height="${h}" rx="11"
+        fill="none" stroke="${accent}" stroke-width="7" filter="url(#blur)"/>
+    <rect class="card" x="${x}" y="${y}" width="${w}" height="${h}" rx="11"
+        fill="${C.surface}" stroke="${accent}" stroke-width="1.4"/>
+    <rect x="${x}" y="${y}" width="4" height="${h}" rx="2" fill="${accent}"/>
+    ${portTxt}
+    ${lines}
+  </g>`;
+}
+
+// conector ortogonal — pathLength="1" normaliza a animação de "desenho" p/ qualquer comprimento
+function conn(d,color,{delay=0,arrow=null,startArrow=null,w=1.7,dash=null}={}){
+  const me = arrow ? `marker-end="url(#${arrow})"` : '';
+  const ms = startArrow ? `marker-start="url(#${startArrow})"` : '';
+  const da = dash ? `stroke-dasharray="${dash}" class="conn"` : 'class="conn"';
+  const style = dash
+     ? `style="animation-delay:${delay}ms;stroke-dashoffset:0;animation:fade .6s ease forwards"`
+     : `style="animation-delay:${delay}ms"`;
+  // (linhas tracejadas não usam a animação de draw para preservar o padrão do traço)
+  return `<path d="${d}" ${dash?`stroke-dasharray="${dash}"`:'pathLength="1"'} class="conn"
+    fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"
+    stroke-linejoin="round" ${me} ${ms} ${style}/>`;
+}
+function label(x,y,text,color,size=11.5,anchor='middle',delay=0){
+  return `<text class="lbl" x="${x}" y="${y}" text-anchor="${anchor}"
+    font-family="var(--mono)" font-size="${size}" fill="${color}"
+    style="animation-delay:${delay}ms;letter-spacing:.3px">${text}</text>`;
+}
+
+const M = C.mag, CY = C.cyan;
+
+let svg = `<svg viewBox="0 0 1080 900" preserveAspectRatio="xMidYMid meet"
+  xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de arquitetura FIAP">
+  <defs>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <marker id="arrM" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="${C.magB}"/></marker>
+    <marker id="arrMs" markerWidth="9" markerHeight="9" refX="1" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M6,0 L0,3 L6,6 Z" fill="${C.magB}"/></marker>
+    <marker id="arrC" markerWidth="9" markerHeight="9" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="${C.cyan}"/></marker>
+  </defs>`;
+
+/* ============================================================
+   LAYOUT (ortogonal, sem cruzamentos)
+   Espinha central em x=540:  interface → api → mcp → postgres → pgadmin
+   Barramento horizontal (y=378) distribui para os serviços laterais.
+   Caminho direto SQLFactory→postgres contorna pela margem esquerda.
+   ============================================================ */
+
+// ---------- CONECTORES (sob os nós) ----------
+// 1) interface <-> api  (bidirecional, espinha)
+svg += conn("M540 126 V 178", M, {delay:250, arrow:'arrM', startArrow:'arrMs', w:2});
+
+// 2) api -> barramento  (espinha)
+svg += conn("M540 332 V 378", M, {delay:520, w:2});
+// 3) barramento horizontal
+svg += conn("M150 378 H 960", M, {delay:620, w:2});
+// 4) descidas do barramento para cada serviço
+svg += conn("M150 378 V 426", CY, {delay:760, arrow:'arrC'});   // duckduckgo
+svg += conn("M330 378 V 426", M,  {delay:800, arrow:'arrM'});   // LLM provider
+svg += conn("M540 378 V 426", CY, {delay:840, arrow:'arrC'});   // mcp-postgres (espinha)
+svg += conn("M750 378 V 426", M,  {delay:880, arrow:'arrM'});   // Embeddings
+svg += conn("M960 378 V 426", CY, {delay:920, arrow:'arrC'});   // chromadb
+
+// 5) mcp-postgres -> postgres  (espinha, reta)
+svg += conn("M540 522 V 604", CY, {delay:1080, arrow:'arrC'});
+// pgadmin -> postgres  (seta invertida: o pgAdmin administra o Postgres)
+svg += conn("M540 766 V 698", CY, {delay:1180, arrow:'arrC'});
+
+// 6) SQLFactory (api) -> postgres : caminho direto de dados de mercado,
+//    contornando pela margem esquerda para não cruzar nenhuma linha
+svg += conn("M320 250 H 40 V 650 H 458", M, {delay:1260, arrow:'arrM', dash:'7 6', w:1.8});
+
+// ---------- RÓTULOS ----------
+svg += label(560, 156, "HTTP / SSE", C.magB, 12.5, 'start', 600);
+svg += label(158, 408, "tool · web",   C.cyanB, 11, 'start', 980);
+svg += label(338, 408, "GenAI",        C.magB,  11, 'start', 980);
+svg += label(548, 408, "tool · SQL",   C.cyanB, 11, 'start', 980);
+svg += label(758, 408, "embeddings",   C.magB,  11, 'start', 980);
+svg += label(968, 408, "RAG",          C.cyanB, 11, 'start', 980);
+svg += label(548, 566, "SQL",          C.cyanB, 11, 'start', 1200);
+svg += label(70,  638, "SQLFactory", C.magB, 11, 'start', 1350);
+
+// ---------- NÓS ----------
+// Topo: frontend
+svg += node({x:440,y:42,w:200,h:84,title:"fiap-interface",port:"porta:3000",
+  subs:["React 19 · MUI 7"],accent:M,delay:0});
+
+// API (container com fábricas internas)
+svg += `
+<g class="node" style="animation-delay:120ms">
+  <rect class="glow" x="320" y="178" width="440" height="154" rx="14" fill="none" stroke="${M}" stroke-width="7" filter="url(#blur)"/>
+  <rect class="card" x="320" y="178" width="440" height="154" rx="14" fill="#12121c" stroke="${M}" stroke-width="1.6"/>
+  <rect x="320" y="178" width="440" height="4" rx="2" fill="${M}"/>
+  <text x="746" y="200" text-anchor="end" font-family="var(--mono)" font-size="10.5" font-weight="700" fill="${C.magB}" style="letter-spacing:.2px">porta:8001</text>
+  <text x="540" y="218" text-anchor="middle" font-family="var(--mono)" font-size="15.5" font-weight="700" fill="${C.text}" style="letter-spacing:.3px">fiap-api</text>
+  <text x="540" y="238" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="${C.muted}">FastAPI · LangChain + LangGraph · Agente ReAct</text>
+</g>`;
+
+function pill(x,title,delay){
+  return `
+  <g class="node" style="animation-delay:${delay}ms">
+    <rect class="card" x="${x}" y="262" width="128" height="52" rx="9" fill="${C.surface}" stroke="${M}" stroke-width="1.2"/>
+    <text x="${x+64}" y="285" text-anchor="middle" font-family="var(--mono)" font-size="11" font-weight="700" fill="${C.text}">${title.t}</text>
+    <text x="${x+64}" y="301" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="${C.muted}">${title.s}</text>
+  </g>`;
+}
+svg += pill(336,{t:"GenAIFactory",s:"Agente"},560);
+svg += pill(476,{t:"ChromaDB Factory",s:"Embeddings"},600);
+svg += pill(616,{t:"SQLFactory",s:"DataBase"},640);
+
+// Linha de serviços (laterais ao barramento)
+svg += node({x:70, y:426,w:160,h:96,title:"duckduckgo",
+  subs:["MCP / stdio"],accent:CY,delay:1000});
+svg += node({x:250,y:426,w:160,h:96,title:"LLM provider",
+  subs:["Groq · LM Studio","OpenAI · Azure"],accent:M,delay:1040});
+svg += node({x:460,y:426,w:160,h:96,title:"mcp-postgres",port:"porta:8000",
+  subs:["MCP server"],accent:CY,delay:1080});
+svg += node({x:670,y:426,w:160,h:96,title:"Embeddings",
+  subs:["LM Studio","OpenAI · Azure"],accent:M,delay:1120});
+svg += node({x:880,y:426,w:160,h:96,title:"chromadb",port:"porta:8210",
+  subs:["vetorial · cosseno"],accent:CY,delay:1160});
+
+// Espinha de dados
+svg += node({x:460,y:604,w:160,h:92,title:"postgres",port:"porta:5432",
+  subs:["PostgreSQL 15"],accent:CY,delay:1240});
+svg += node({x:460,y:766,w:160,h:84,title:"pgadmin",port:"porta:4000",
+  subs:["admin Postgres"],accent:CY,delay:1340});
+
+svg += `</svg>`;
+document.getElementById('diagram').innerHTML = svg;
+</script>
+</body>
+</html>

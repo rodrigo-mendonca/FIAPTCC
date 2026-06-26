@@ -65,34 +65,61 @@ Definidos em [`fiap_interface/package.json`](fiap_interface/package.json):
 
 ## 📐 Arquitetura
 
+```mermaid
+flowchart TB
+    UI["<b>fiap-interface</b><br/>React 19 · MUI 7 · Recharts<br/><code>porta:3000</code>"]
+
+    subgraph api["⚙️ fiap-api &nbsp;·&nbsp; porta:8001"]
+        direction LR
+        AGENT["<b>GenAIFactory + Agente</b><br/>FastAPI · LangChain + LangGraph (ReAct)"]
+        CHCLI["<b>ChromaDB Factory</b><br/>+ EmbeddingsFactory"]
+        SQLF["<b>SQLFactory</b><br/>SQLAlchemy · DataBase"]
+    end
+
+    subgraph tools["🛠️ Ferramentas do agente (MCP)"]
+        DDG["<b>duckduckgo</b><br/>MCP / stdio"]
+        MCP["<b>mcp-postgres</b><br/>MCP server<br/><code>porta:8000</code>"]
+    end
+
+    subgraph ia["🤖 Provedores de IA — API OpenAI-compatível"]
+        LLM["<b>LLM provider</b><br/>Groq · LM Studio<br/>OpenAI · Azure"]
+        EMB["<b>Embeddings</b><br/>LM Studio<br/>OpenAI · Azure"]
+    end
+
+    subgraph dados["🗄️ Dados / Infra"]
+        CH["<b>chromadb</b><br/>vetorial · cosseno<br/><code>porta:8210</code>"]
+        PG["<b>postgres</b><br/>PostgreSQL 15<br/><code>porta:5432</code>"]
+        PGA["<b>pgadmin</b><br/>admin Postgres<br/><code>porta:4000</code>"]
+    end
+
+    UI <==>|"HTTP / SSE"| api
+
+    AGENT -->|"GenAI · prompt/tokens"| LLM
+    AGENT -->|"tool · web"| DDG
+    AGENT -->|"tool · SQL"| MCP
+    AGENT -->|"tool · RAG"| CH
+    CHCLI -.->|"index / query"| CH
+    CHCLI -.->|"/v1/embeddings"| EMB
+    SQLF -.->|"SQLFactory"| PG
+    MCP -->|"SQL"| PG
+    PGA -->|"admin"| PG
+
+    classDef bk fill:#f4f0ff,stroke:#5e35b1,color:#311b92;
+    classDef tl fill:#fff0f4,stroke:#e91e8c,color:#a01060;
+    classDef aip fill:#fff3e0,stroke:#fb8c00,color:#e65100;
+    classDef dt fill:#e8f7ec,stroke:#43a047,color:#1b5e20;
+    class UI bk;
+    class AGENT,CHCLI,SQLF bk;
+    class MCP,DDG tl;
+    class LLM,EMB aip;
+    class CH,PG,PGA dt;
 ```
-┌──────────────────┐      HTTP/SSE      ┌───────────────────────────────────────┐
-│  fiap-interface  │ ◄────────────────► │              fiap-api                 │
-│  React 19 + MUI  │   :8001            │              FastAPI                  │
-│  :3000           │                    │                                       │
-└──────────────────┘                    │  ┌─────────────┐   ┌───────────────┐  │
-                                         │  │ GenAIFactory│   │EmbeddingsFact.│  │
-                                         │  └──────┬──────┘   └───────┬───────┘  │
-                                         │         │ LangChain        │          │
-                                         │         │ + LangGraph      │          │
-                                         └─────────┼──────────────────┼──────────┘
-                                                   │                  │
-                  ┌────────────────────────────────┼──────────────────┼───────────────┐
-                  │                                 │                  │               │
-          ┌───────▼────────┐              ┌─────────▼───────┐  ┌───────▼──────┐  ┌─────▼──────┐
-          │  mcp-postgres  │              │   LLM provider  │  │  Embeddings  │  │  chromadb  │
-          │  (MCP / :8000) │              │ Groq / LMStudio │  │ Jina/LMStudio│  │   :8210    │
-          └───────┬────────┘              │ /OpenAI/Azure   │  │ /OpenAI/Azure│  └────────────┘
-                  │                        └─────────────────┘  └──────────────┘
-          ┌───────▼────────┐
-          │   postgres     │   star schema CNPJ (cnpj_dados_abertos)
-          │   :5432        │
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │    pgadmin     │   :4000
-          └────────────────┘
-```
+
+> 📐 Versões do diagrama para apresentação/slides:
+> - **[`docs/arquitetura.html`](docs/arquitetura.html)** — versão FIAP (tema escuro, animada, roteamento ortogonal sem cruzamentos). Abra no navegador.
+> - **[`docs/arquitetura.svg`](docs/arquitetura.svg)** — versão vetorial estática (com legenda).
+>
+> O **agente LangGraph (ReAct)** orquestra três ferramentas — `mcp-postgres` (SQL), `duckduckgo` (web) e `search_knowledge_base`/RAG sobre o ChromaDB — enquanto as telas de **mercado** consultam o PostgreSQL **diretamente** via `SQLFactory` (linha tracejada). Os **embeddings** são gerados pela `ChromaDB Factory` (`POST /v1/embeddings`) tanto na indexação quanto na busca.
 
 ### Componentes
 
