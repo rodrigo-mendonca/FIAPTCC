@@ -65,34 +65,59 @@ Definidos em [`fiap_interface/package.json`](fiap_interface/package.json):
 
 ## 📐 Arquitetura
 
+```mermaid
+flowchart TB
+    UI["<b>fiap-interface</b><br/>React 19 · MUI 7 · Recharts<br/><code>:3000</code>"]
+
+    subgraph api["⚙️ fiap-api · FastAPI &nbsp;:8001"]
+        direction LR
+        AGENT["<b>Agente LangGraph</b> (ReAct)<br/>GenAIFactory"]
+        CHCLI["<b>ChromaDB client</b><br/>+ EmbeddingsFactory"]
+        SQLF["<b>SQLFactory</b><br/>SQLAlchemy · mercado"]
+    end
+
+    subgraph tools["🛠️ Ferramentas do agente (MCP)"]
+        MCP["<b>mcp-postgres</b><br/>SQL via MCP · <code>:8000</code>"]
+        DDG["<b>duckduckgo</b><br/>busca na internet · stdio"]
+    end
+
+    subgraph ia["🤖 Provedores de IA — API OpenAI-compatível"]
+        LLM["<b>LLM</b><br/>Groq · LM Studio<br/>OpenAI · Azure"]
+        EMB["<b>Embeddings</b><br/>Jina · LM Studio<br/>OpenAI · Azure"]
+    end
+
+    subgraph dados["🗄️ Dados"]
+        CH["<b>chromadb</b><br/>vetorial · cosseno<br/><code>:8210</code>"]
+        PG["<b>postgres 15</b><br/>star schema CNPJ<br/><code>:5432</code>"]
+        PGA["<b>pgadmin</b><br/><code>:4000</code>"]
+    end
+
+    UI <==>|"HTTP / SSE"| api
+
+    AGENT -->|"prompt / tokens"| LLM
+    AGENT -->|"tool · SQL"| MCP
+    AGENT -->|"tool · web"| DDG
+    AGENT -->|"tool · RAG"| CH
+    CHCLI -.->|"index / query"| CH
+    CHCLI -.->|"/v1/embeddings"| EMB
+    SQLF -->|"dados de mercado"| PG
+    MCP --> PG
+    PG --- PGA
+
+    classDef bk fill:#f4f0ff,stroke:#5e35b1,color:#311b92;
+    classDef tl fill:#fff0f4,stroke:#e91e8c,color:#a01060;
+    classDef aip fill:#fff3e0,stroke:#fb8c00,color:#e65100;
+    classDef dt fill:#e8f7ec,stroke:#43a047,color:#1b5e20;
+    class UI bk;
+    class AGENT,CHCLI,SQLF bk;
+    class MCP,DDG tl;
+    class LLM,EMB aip;
+    class CH,PG,PGA dt;
 ```
-┌──────────────────┐      HTTP/SSE      ┌───────────────────────────────────────┐
-│  fiap-interface  │ ◄────────────────► │              fiap-api                 │
-│  React 19 + MUI  │   :8001            │              FastAPI                  │
-│  :3000           │                    │                                       │
-└──────────────────┘                    │  ┌─────────────┐   ┌───────────────┐  │
-                                         │  │ GenAIFactory│   │EmbeddingsFact.│  │
-                                         │  └──────┬──────┘   └───────┬───────┘  │
-                                         │         │ LangChain        │          │
-                                         │         │ + LangGraph      │          │
-                                         └─────────┼──────────────────┼──────────┘
-                                                   │                  │
-                  ┌────────────────────────────────┼──────────────────┼───────────────┐
-                  │                                 │                  │               │
-          ┌───────▼────────┐              ┌─────────▼───────┐  ┌───────▼──────┐  ┌─────▼──────┐
-          │  mcp-postgres  │              │   LLM provider  │  │  Embeddings  │  │  chromadb  │
-          │  (MCP / :8000) │              │ Groq / LMStudio │  │ Jina/LMStudio│  │   :8210    │
-          └───────┬────────┘              │ /OpenAI/Azure   │  │ /OpenAI/Azure│  └────────────┘
-                  │                        └─────────────────┘  └──────────────┘
-          ┌───────▼────────┐
-          │   postgres     │   star schema CNPJ (cnpj_dados_abertos)
-          │   :5432        │
-          └───────┬────────┘
-                  │
-          ┌───────▼────────┐
-          │    pgadmin     │   :4000
-          └────────────────┘
-```
+
+> 📐 Versão vetorial (com legenda) para apresentação/slides: [`docs/arquitetura.svg`](docs/arquitetura.svg).
+>
+> O **agente LangGraph (ReAct)** orquestra três ferramentas — `mcp-postgres` (SQL), `duckduckgo` (web) e `search_knowledge_base`/RAG sobre o ChromaDB — enquanto as telas de **mercado** consultam o PostgreSQL **diretamente** via `SQLFactory`. Os **embeddings** são gerados pelo *client* do ChromaDB (`POST /v1/embeddings`) tanto na indexação quanto na busca.
 
 ### Componentes
 

@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 860" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="gHeader" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d4ce0"/>
+      <stop offset="1" stop-color="#2f6df6"/>
+    </linearGradient>
+    <linearGradient id="gClient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8f1ff"/><stop offset="1" stop-color="#d4e6ff"/>
+    </linearGradient>
+    <linearGradient id="gApi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f0ff"/><stop offset="1" stop-color="#ece4ff"/>
+    </linearGradient>
+    <linearGradient id="gIa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3e0"/><stop offset="1" stop-color="#ffe2bd"/>
+    </linearGradient>
+    <linearGradient id="gTool" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff0f4"/><stop offset="1" stop-color="#ffd9e4"/>
+    </linearGradient>
+    <linearGradient id="gData" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8f7ec"/><stop offset="1" stop-color="#cfeed9"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#1b2a4a" flood-opacity="0.18"/>
+    </filter>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b80"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="980" height="860" fill="#fbfcfe"/>
+
+  <!-- Title -->
+  <rect x="24" y="20" width="932" height="56" rx="12" fill="url(#gHeader)" filter="url(#shadow)"/>
+  <text x="490" y="46" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">contacomigo.ai — Arquitetura</text>
+  <text x="490" y="65" text-anchor="middle" fill="#dde7ff" font-size="12">RAG + Agente (LangGraph) + Analytics de mercado · React · FastAPI · ChromaDB · PostgreSQL</text>
+
+  <!-- ===================== EDGES (under nodes) ===================== -->
+  <!-- UI <-> API -->
+  <line x1="490" y1="154" x2="490" y2="174" stroke="#5b6b80" stroke-width="2.2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <rect x="502" y="153" width="86" height="20" rx="10" fill="#ffffff" stroke="#c8d2e0"/>
+  <text x="545" y="167" text-anchor="middle" fill="#42506b" font-size="10.5" font-weight="600">HTTP / SSE</text>
+
+  <!-- Agente -> LLM -->
+  <path d="M300,288 C430,330 560,330 660,384" fill="none" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- Agente -> mcp-postgres -->
+  <path d="M280,288 C290,330 295,340 300,384" fill="none" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- Agente -> duckduckgo -->
+  <path d="M225,288 C170,330 140,340 120,384" fill="none" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- Agente -> chromadb (RAG) -->
+  <path d="M310,288 C400,330 450,340 480,384" fill="none" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- ChromaDB client -> chromadb -->
+  <path d="M470,288 C480,330 484,340 488,384" fill="none" stroke="#5b6b80" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <!-- ChromaDB client -> embeddings -->
+  <path d="M540,288 C700,330 800,330 866,384" fill="none" stroke="#5b6b80" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <!-- SQLFactory -> postgres -->
+  <path d="M725,288 C640,420 480,470 410,562" fill="none" stroke="#43a047" stroke-width="2.2" marker-end="url(#ar)"/>
+  <!-- mcp-postgres -> postgres -->
+  <path d="M310,458 C340,500 360,520 380,562" fill="none" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- postgres -> pgadmin -->
+  <line x1="400" y1="638" x2="400" y2="700" stroke="#5b6b80" stroke-width="2" marker-end="url(#ar)"/>
+
+  <!-- edge labels -->
+  <rect x="470" y="318" width="92" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="516" y="331" text-anchor="middle" fill="#5b4a8a" font-size="10">prompt / tokens</text>
+  <rect x="318" y="330" width="74" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="355" y="343" text-anchor="middle" fill="#42506b" font-size="10">tool · SQL</text>
+  <rect x="120" y="330" width="74" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="157" y="343" text-anchor="middle" fill="#42506b" font-size="10">tool · web</text>
+  <rect x="392" y="352" width="74" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="429" y="365" text-anchor="middle" fill="#42506b" font-size="10">tool · RAG</text>
+  <rect x="690" y="318" width="104" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="742" y="331" text-anchor="middle" fill="#5b4a8a" font-size="10">/v1/embeddings</text>
+  <rect x="430" y="494" width="120" height="19" rx="9" fill="#ffffff" stroke="#dfe5ee"/><text x="490" y="507" text-anchor="middle" fill="#1b5e20" font-size="10">dados de mercado</text>
+
+  <!-- ===================== CLIENT ===================== -->
+  <text x="490" y="92" text-anchor="middle" fill="#1976d2" font-size="11" font-weight="700" letter-spacing="1">CLIENTE</text>
+  <rect x="350" y="98" width="280" height="56" rx="12" fill="url(#gClient)" stroke="#1976d2" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="490" y="122" text-anchor="middle" fill="#0d47a1" font-size="14" font-weight="700">fiap-interface</text>
+  <text x="490" y="141" text-anchor="middle" fill="#264a7a" font-size="11">React 19 · MUI 7 · Recharts &#160;·&#160; :3000</text>
+
+  <!-- ===================== BACKEND ===================== -->
+  <rect x="120" y="176" width="740" height="112" rx="14" fill="url(#gApi)" stroke="#5e35b1" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="490" y="198" text-anchor="middle" fill="#311b92" font-size="14" font-weight="700">fiap-api · FastAPI &#160;·&#160; :8001</text>
+  <rect x="150" y="210" width="210" height="64" rx="10" fill="#ffffff" stroke="#7e57c2"/>
+  <text x="255" y="236" text-anchor="middle" fill="#4527a0" font-size="12.5" font-weight="700">Agente LangGraph</text>
+  <text x="255" y="254" text-anchor="middle" fill="#6a5aa0" font-size="10.5">ReAct · GenAIFactory</text>
+  <rect x="385" y="210" width="210" height="64" rx="10" fill="#ffffff" stroke="#7e57c2"/>
+  <text x="490" y="236" text-anchor="middle" fill="#4527a0" font-size="12.5" font-weight="700">ChromaDB client</text>
+  <text x="490" y="254" text-anchor="middle" fill="#6a5aa0" font-size="10.5">+ EmbeddingsFactory</text>
+  <rect x="620" y="210" width="210" height="64" rx="10" fill="#ffffff" stroke="#7e57c2"/>
+  <text x="725" y="236" text-anchor="middle" fill="#4527a0" font-size="12.5" font-weight="700">SQLFactory</text>
+  <text x="725" y="254" text-anchor="middle" fill="#6a5aa0" font-size="10.5">SQLAlchemy · mercado</text>
+
+  <!-- ===================== TOOLS (MCP) ===================== -->
+  <!-- duckduckgo -->
+  <rect x="30" y="386" width="168" height="72" rx="12" fill="url(#gTool)" stroke="#e91e8c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="114" y="414" text-anchor="middle" fill="#a01060" font-size="13.5" font-weight="700">duckduckgo</text>
+  <text x="114" y="433" text-anchor="middle" fill="#b03070" font-size="10.5">MCP · stdio (uvx)</text>
+  <text x="114" y="448" text-anchor="middle" fill="#b03070" font-size="10.5">busca na internet</text>
+  <!-- mcp-postgres -->
+  <rect x="216" y="386" width="168" height="72" rx="12" fill="url(#gTool)" stroke="#e91e8c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="300" y="414" text-anchor="middle" fill="#a01060" font-size="13.5" font-weight="700">mcp-postgres</text>
+  <text x="300" y="433" text-anchor="middle" fill="#b03070" font-size="10.5">MCP · http :8000</text>
+  <text x="300" y="448" text-anchor="middle" fill="#b03070" font-size="10.5">SQL no Postgres</text>
+
+  <!-- ===================== DATA: chromadb ===================== -->
+  <rect x="402" y="386" width="168" height="72" rx="12" fill="url(#gData)" stroke="#43a047" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="486" y="414" text-anchor="middle" fill="#1b5e20" font-size="13.5" font-weight="700">chromadb</text>
+  <text x="486" y="433" text-anchor="middle" fill="#2e7d32" font-size="10.5">vetorial · cosseno</text>
+  <text x="486" y="448" text-anchor="middle" fill="#2e7d32" font-size="10.5">:8210</text>
+
+  <!-- ===================== IA providers ===================== -->
+  <rect x="606" y="386" width="168" height="72" rx="12" fill="url(#gIa)" stroke="#fb8c00" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="690" y="412" text-anchor="middle" fill="#e65100" font-size="13.5" font-weight="700">LLM provider</text>
+  <text x="690" y="430" text-anchor="middle" fill="#bf5e00" font-size="10.5">Groq · LM Studio</text>
+  <text x="690" y="445" text-anchor="middle" fill="#bf5e00" font-size="10.5">OpenAI · Azure</text>
+
+  <rect x="788" y="386" width="164" height="72" rx="12" fill="url(#gIa)" stroke="#fb8c00" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="870" y="412" text-anchor="middle" fill="#e65100" font-size="13.5" font-weight="700">Embeddings</text>
+  <text x="870" y="430" text-anchor="middle" fill="#bf5e00" font-size="10.5">Jina · LM Studio</text>
+  <text x="870" y="445" text-anchor="middle" fill="#bf5e00" font-size="10.5">OpenAI · Azure</text>
+
+  <!-- ===================== postgres + pgadmin ===================== -->
+  <rect x="300" y="566" width="200" height="72" rx="12" fill="url(#gData)" stroke="#43a047" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="400" y="594" text-anchor="middle" fill="#1b5e20" font-size="13.5" font-weight="700">postgres 15</text>
+  <text x="400" y="614" text-anchor="middle" fill="#2e7d32" font-size="10.5">star schema CNPJ · :5432</text>
+
+  <rect x="300" y="700" width="200" height="56" rx="12" fill="url(#gData)" stroke="#43a047" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="400" y="725" text-anchor="middle" fill="#1b5e20" font-size="13.5" font-weight="700">pgadmin</text>
+  <text x="400" y="743" text-anchor="middle" fill="#2e7d32" font-size="10.5">admin · :4000</text>
+
+  <!-- Legend -->
+  <g font-size="10.5" fill="#5b6b80">
+    <line x1="560" y1="600" x2="592" y2="600" stroke="#5b6b80" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="598" y="604">fluxo de embeddings (index/query)</text>
+    <line x1="560" y1="622" x2="592" y2="622" stroke="#5b6b80" stroke-width="2"/>
+    <text x="598" y="626">chamada / ferramenta do agente</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="956" y="846" text-anchor="end" fill="#9aa6b8" font-size="10">TCC MBA FIAP · dados abertos de CNPJ (RFB)</text>
+</svg>
