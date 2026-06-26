@@ -119,8 +119,7 @@
     <div class="brand">
       <div class="logo">FIAP</div>
       <div>
-        <h1>Arquitetura do Sistema · contacomigo.ai</h1>
-        <p>fiap-api · CNPJ Dados Abertos · GenAI + RAG + Agente (LangGraph)</p>
+        <h1>Arquitetura ContaComigo.IA</h1>
       </div>
     </div>
     <div class="legend">
@@ -153,21 +152,22 @@ const C = {
 };
 
 function node(o){
-  const {x,y,w,h,title,subs=[],accent,delay=0} = o;
+  const {x,y,w,h,title,subs=[],accent,delay=0,port=null} = o;
   const cx = x + w/2;
   const aB = accent===C.mag ? C.magB : C.cyanB;
-  let ty = y + (subs.length ? 30 : h/2 + 5);
+  // porta no canto superior direito do quadrado
+  const portTxt = port ? `<text x="${x+w-14}" y="${y+20}" text-anchor="end"
+      font-family="var(--mono)" font-size="10.5" font-weight="700" fill="${aB}"
+      style="letter-spacing:.2px">${port}</text>` : '';
+  // título alinhado abaixo da faixa da porta (mantém a linha de nós alinhada)
+  const ty = y + (subs.length ? 44 : h/2 + 6);
   let lines = `<text x="${cx}" y="${ty}" text-anchor="middle"
       font-family="var(--mono)" font-size="14.5" font-weight="700" fill="${C.text}"
       style="letter-spacing:.3px">${title}</text>`;
-  let sy = ty + 20;
+  let sy = ty + 18;
   subs.forEach(s=>{
-    // linhas de porta ("porta:xxxx") ganham a cor de destaque do nó
-    const isPort = /^\s*porta:/i.test(s);
-    const col = isPort ? aB : C.muted;
-    const weight = isPort ? '700' : '400';
     lines += `<text x="${cx}" y="${sy}" text-anchor="middle"
-        font-family="var(--mono)" font-size="11.5" font-weight="${weight}" fill="${col}"
+        font-family="var(--mono)" font-size="11" fill="${C.muted}"
         style="letter-spacing:.2px">${s}</text>`;
     sy += 17;
   });
@@ -178,6 +178,7 @@ function node(o){
     <rect class="card" x="${x}" y="${y}" width="${w}" height="${h}" rx="11"
         fill="${C.surface}" stroke="${accent}" stroke-width="1.4"/>
     <rect x="${x}" y="${y}" width="4" height="${h}" rx="2" fill="${accent}"/>
+    ${portTxt}
     ${lines}
   </g>`;
 }
@@ -239,9 +240,10 @@ svg += conn("M540 378 V 426", CY, {delay:840, arrow:'arrC'});   // mcp-postgres 
 svg += conn("M750 378 V 426", M,  {delay:880, arrow:'arrM'});   // Embeddings
 svg += conn("M960 378 V 426", CY, {delay:920, arrow:'arrC'});   // chromadb
 
-// 5) mcp-postgres -> postgres -> pgadmin  (espinha, retas)
+// 5) mcp-postgres -> postgres  (espinha, reta)
 svg += conn("M540 522 V 604", CY, {delay:1080, arrow:'arrC'});
-svg += conn("M540 696 V 766", CY, {delay:1180, arrow:'arrC'});
+// pgadmin -> postgres  (seta invertida: o pgAdmin administra o Postgres)
+svg += conn("M540 766 V 698", CY, {delay:1180, arrow:'arrC'});
 
 // 6) SQLFactory (api) -> postgres : caminho direto de dados de mercado,
 //    contornando pela margem esquerda para não cruzar nenhuma linha
@@ -255,12 +257,12 @@ svg += label(548, 408, "tool · SQL",   C.cyanB, 11, 'start', 980);
 svg += label(758, 408, "embeddings",   C.magB,  11, 'start', 980);
 svg += label(968, 408, "RAG",          C.cyanB, 11, 'start', 980);
 svg += label(548, 566, "SQL",          C.cyanB, 11, 'start', 1200);
-svg += label(70,  638, "SQLFactory · dados de mercado", C.magB, 11, 'start', 1350);
+svg += label(70,  638, "SQLFactory", C.magB, 11, 'start', 1350);
 
 // ---------- NÓS ----------
 // Topo: frontend
-svg += node({x:440,y:42,w:200,h:84,title:"fiap-interface",
-  subs:["React 19 · MUI 7","porta:3000"],accent:M,delay:0});
+svg += node({x:440,y:42,w:200,h:84,title:"fiap-interface",port:"porta:3000",
+  subs:["React 19 · MUI 7"],accent:M,delay:0});
 
 // API (container com fábricas internas)
 svg += `
@@ -268,9 +270,9 @@ svg += `
   <rect class="glow" x="320" y="178" width="440" height="154" rx="14" fill="none" stroke="${M}" stroke-width="7" filter="url(#blur)"/>
   <rect class="card" x="320" y="178" width="440" height="154" rx="14" fill="#12121c" stroke="${M}" stroke-width="1.6"/>
   <rect x="320" y="178" width="440" height="4" rx="2" fill="${M}"/>
-  <text x="540" y="206" text-anchor="middle" font-family="var(--mono)" font-size="15.5" font-weight="700" fill="${C.text}" style="letter-spacing:.3px">fiap-api · FastAPI</text>
-  <text x="540" y="224" text-anchor="middle" font-family="var(--mono)" font-size="11.5" font-weight="700" fill="${C.magB}">porta:8001</text>
-  <text x="540" y="241" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="${C.muted}">LangChain + LangGraph · Agente ReAct</text>
+  <text x="746" y="200" text-anchor="end" font-family="var(--mono)" font-size="10.5" font-weight="700" fill="${C.magB}" style="letter-spacing:.2px">porta:8001</text>
+  <text x="540" y="218" text-anchor="middle" font-family="var(--mono)" font-size="15.5" font-weight="700" fill="${C.text}" style="letter-spacing:.3px">fiap-api</text>
+  <text x="540" y="238" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="${C.muted}">FastAPI · LangChain + LangGraph · Agente ReAct</text>
 </g>`;
 
 function pill(x,title,delay){
@@ -281,27 +283,27 @@ function pill(x,title,delay){
     <text x="${x+64}" y="301" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="${C.muted}">${title.s}</text>
   </g>`;
 }
-svg += pill(336,{t:"GenAIFactory",s:"+ Agente"},560);
-svg += pill(476,{t:"ChromaDB cli",s:"+ Embeddings"},600);
-svg += pill(616,{t:"SQLFactory",s:"mercado"},640);
+svg += pill(336,{t:"GenAIFactory",s:"Agente"},560);
+svg += pill(476,{t:"ChromaDB Factory",s:"Embeddings"},600);
+svg += pill(616,{t:"SQLFactory",s:"DataBase"},640);
 
 // Linha de serviços (laterais ao barramento)
 svg += node({x:70, y:426,w:160,h:96,title:"duckduckgo",
-  subs:["MCP · busca web","(stdio · sem porta)"],accent:CY,delay:1000});
+  subs:["MCP / stdio"],accent:CY,delay:1000});
 svg += node({x:250,y:426,w:160,h:96,title:"LLM provider",
   subs:["Groq · LM Studio","OpenAI · Azure"],accent:M,delay:1040});
-svg += node({x:460,y:426,w:160,h:96,title:"mcp-postgres",
-  subs:["MCP server","porta:8000"],accent:CY,delay:1080});
+svg += node({x:460,y:426,w:160,h:96,title:"mcp-postgres",port:"porta:8000",
+  subs:["MCP server"],accent:CY,delay:1080});
 svg += node({x:670,y:426,w:160,h:96,title:"Embeddings",
-  subs:["Jina · LM Studio","OpenAI · Azure"],accent:M,delay:1120});
-svg += node({x:880,y:426,w:160,h:96,title:"chromadb",
-  subs:["vetorial · cosseno","porta:8210"],accent:CY,delay:1160});
+  subs:["LM Studio","OpenAI · Azure"],accent:M,delay:1120});
+svg += node({x:880,y:426,w:160,h:96,title:"chromadb",port:"porta:8210",
+  subs:["vetorial · cosseno"],accent:CY,delay:1160});
 
 // Espinha de dados
-svg += node({x:460,y:604,w:160,h:92,title:"postgres",
-  subs:["star schema CNPJ","porta:5432"],accent:CY,delay:1240});
-svg += node({x:460,y:766,w:160,h:84,title:"pgadmin",
-  subs:["admin Postgres","porta:4000"],accent:CY,delay:1340});
+svg += node({x:460,y:604,w:160,h:92,title:"postgres",port:"porta:5432",
+  subs:["PostgreSQL 15"],accent:CY,delay:1240});
+svg += node({x:460,y:766,w:160,h:84,title:"pgadmin",port:"porta:4000",
+  subs:["admin Postgres"],accent:CY,delay:1340});
 
 svg += `</svg>`;
 document.getElementById('diagram').innerHTML = svg;
